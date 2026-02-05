@@ -1,0 +1,231 @@
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264126707,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264126707,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264126707,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264126985,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264127040,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264191205,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264191205,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264191205,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264191223,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264191240,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264191377,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264191377,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264191377,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264191515,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264191515,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264191515,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264191516,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264191524,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264191524,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264191524,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264195344,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264195344,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264195344,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264195371,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264195353,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264195452,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264195452,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264195452,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264195498,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264195498,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264195498,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264195498,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264195504,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264195504,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264195504,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264301902,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264301902,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264301902,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264301964,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264301978,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:115","message":"HomePage error","data":{"error":"Sparkles is not defined","stack":"ReferenceError: Sparkles is not defined\n    at HomePage (/Users/jack/Documents/GitHub/Your Knowledge/.next/dev/server/chunks/ssr/[root-of-the-server]__3e1c6ce1._.js:524:297)"},"timestamp":1770264301979,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264306872,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264306872,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264306872,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264306939,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264307033,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264307174,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264307174,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264307174,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264307202,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264307202,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264307202,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264307202,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264307206,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264307206,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264307206,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264325994,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264325994,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264325994,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264326012,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264326031,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264326129,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264326129,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264326129,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264326161,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264326161,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264326161,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264326161,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264326167,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264326167,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264326167,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264818038,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264818038,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264818038,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264818167,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264818187,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264818214,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264818214,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264818214,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264818217,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264818217,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264818223,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264818217,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264818277,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264818296,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264818304,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264818487,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264818487,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264818487,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264818637,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264818637,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264818637,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264818637,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264818644,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264818644,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264818644,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264823961,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264823961,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264823961,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264824025,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264824040,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264824080,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264824081,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264824081,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264824081,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264824087,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264824087,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264824087,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264825869,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264825869,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264825869,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264825917,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264825928,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264825944,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264825944,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264825944,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264825944,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264825948,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264825948,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264825948,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264832197,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264832197,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264832197,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264832240,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264832253,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264832282,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264832282,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264832282,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264832282,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264832286,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264832286,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264832286,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770264917573,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770264917573,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264917573,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770264917584,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770264917590,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770264917624,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770264917624,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770264917624,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770264917624,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770264917631,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770264917631,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770264917631,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770265029351,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770265029351,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265029351,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770265029501,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770265029517,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265029544,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265029544,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265029544,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265029545,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265029560,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265029560,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265029560,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/","pathname":"/"},"timestamp":1770265095605,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/"},"timestamp":1770265095605,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265095605,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"page.tsx:9","message":"HomePage render start","data":{},"timestamp":1770265095682,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"page.tsx:15","message":"Auth result","data":{"userId":"null"},"timestamp":1770265095696,"sessionId":"debug-session","runId":"initial","hypothesisId":"C,E"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265095739,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265095739,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265095739,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265095740,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265095756,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265095756,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265095756,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in","pathname":"/sign-in"},"timestamp":1770265114177,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265114177,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265114177,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in/SignIn_clerk_catchall_check_1770265114229","pathname":"/sign-in/SignIn_clerk_catchall_check_1770265114229"},"timestamp":1770265114235,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in/SignIn_clerk_catchall_check_1770265114229"},"timestamp":1770265114235,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265114235,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265114238,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265114238,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265114238,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265114238,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265114259,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265114259,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265114259,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in/sso-callback?after_sign_in_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard&after_sign_up_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard","pathname":"/sign-in/sso-callback"},"timestamp":1770265125448,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in/sso-callback"},"timestamp":1770265125448,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265125448,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in/sso-callback?after_sign_in_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard&after_sign_up_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard","pathname":"/sign-in/sso-callback"},"timestamp":1770265125652,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in/sso-callback"},"timestamp":1770265125652,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265125652,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265125742,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265125742,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265125742,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265125743,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265125751,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265125751,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265125751,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in/sso-callback/SignIn_clerk_catchall_check_1770265125855","pathname":"/sign-in/sso-callback/SignIn_clerk_catchall_check_1770265125855"},"timestamp":1770265125860,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in/sso-callback/SignIn_clerk_catchall_check_1770265125855"},"timestamp":1770265125860,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265125860,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in/sso-callback?after_sign_in_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard&after_sign_up_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard","pathname":"/sign-in/sso-callback"},"timestamp":1770265127529,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in/sso-callback"},"timestamp":1770265127529,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265127529,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265127581,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265127581,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265127581,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265127582,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265127586,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265127586,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265127586,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/dashboard","pathname":"/dashboard"},"timestamp":1770265128071,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/dashboard"},"timestamp":1770265128071,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265128071,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1770265128072,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265128072,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/dashboard","pathname":"/dashboard"},"timestamp":1770265128430,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/dashboard"},"timestamp":1770265128430,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265128430,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1770265128430,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265128430,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265128432,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265128432,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265128432,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265128432,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265128452,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265128452,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265128452,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/manifest.json","pathname":"/manifest.json"},"timestamp":1770265128489,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1770265128489,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1770265128489,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1770265128490,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3000/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1770265128494,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1770265128494,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1770265128494,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}

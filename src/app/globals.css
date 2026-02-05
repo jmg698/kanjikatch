@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+    --primary: 152 100% 22%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 92%;
+    --secondary-foreground: 220 15% 15%;
+    --muted: 210 15% 94%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 210 15% 92%;
+    --accent-foreground: 220 15% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 152 100% 22%;
+    --radius: 0.5rem;
+    
+    /* JR-specific colors */
+    --jr-green: 152 100% 22%;
+    --jr-green-light: 152 45% 45%;
+    --jr-orange: 25 95% 53%;
+    --jr-red: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 210 20% 95%;
+    --card: 220 20% 12%;
+    --card-foreground: 210 20% 95%;
+    --popover: 220 20% 12%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 152 80% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 220 15% 20%;
+    --muted-foreground: 215 15% 65%;
+    --accent: 220 15% 20%;
+    --accent-foreground: 210 20% 95%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 152 80% 40%;
+    
+    /* JR-specific colors - dark mode */
+    --jr-green: 152 80% 40%;
+    --jr-green-light: 152 50% 50%;
+    --jr-orange: 25 90% 55%;
+    --jr-red: 0 70% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+}
+
+@layer components {
+  .jr-panel {
+    @apply bg-white border-2 rounded-lg;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  
+  .jr-display {
+    @apply bg-secondary rounded px-3 py-2;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
