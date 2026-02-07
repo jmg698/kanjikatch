@@ -40,8 +40,8 @@ DATABASE_URL=postgresql://username:password@ep-xxx.region.aws.neon.tech/dbname?s
 
 ### Add to `.env`:
 ```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxx
-CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
+CLERK_SECRET_KEY=your_clerk_secret_key_here
 ```
 
 ### Configure Clerk URLs:
@@ -69,7 +69,7 @@ CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ### Add to `.env`:
 ```env
-UPLOADTHING_TOKEN=sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+UPLOADTHING_TOKEN=your_uploadthing_token_here
 ```
 
 ---
@@ -86,7 +86,7 @@ UPLOADTHING_TOKEN=sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ### Add to `.env`:
 ```env
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 **Note:** Claude API usage is paid, but you get some free credits to start. Monitor your usage at the console.
@@ -112,7 +112,7 @@ This is optional but recommended for production. It syncs user data from Clerk t
 
 ### Add to `.env`:
 ```env
-CLERK_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxx
+CLERK_WEBHOOK_SECRET=your_webhook_secret_here
 ```
 
 ---
