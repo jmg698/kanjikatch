@@ -31,6 +31,11 @@ export const uploadSchema = z.object({
   fileName: z.string().min(1).max(255),
 });
 
+// Text input validation
+export const textInputSchema = z.object({
+  text: z.string().min(1, "Please enter some text").max(20000, "Text is too long (max 20,000 characters)"),
+});
+
 // Review response validation
 export const reviewResponseSchema = z.object({
   itemId: z.string().uuid(),

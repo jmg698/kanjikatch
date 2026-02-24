@@ -8,14 +8,15 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Source images - uploaded photos of handwritten notes/learning materials
+// Source images/text - uploaded photos or pasted text of learning materials
 export const sourceImages = pgTable("source_images", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  imageUrl: text("image_url").notNull(),
+  imageUrl: text("image_url"),
+  sourceText: text("source_text"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processed: boolean("processed").default(false).notNull(),
-  extractionRaw: jsonb("extraction_raw"), // Raw AI response for debugging
+  extractionRaw: jsonb("extraction_raw"),
   errorMessage: text("error_message"),
 }, (table) => ({
   userIdIdx: index("source_images_user_id_idx").on(table.userId),
