@@ -105,6 +105,17 @@ export function CaptureInput() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => ACCEPTED_TYPES.includes(item.type));
+
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (file) loadImage(file);
+    }
+  }, [loadImage]);
+
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setText(val);
@@ -278,8 +289,10 @@ export function CaptureInput() {
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
+          onPaste={handlePaste}
+          tabIndex={mode === "image" ? 0 : undefined}
           className={`
-            relative rounded-lg border-2 border-dashed transition-colors
+            relative rounded-lg border-2 border-dashed transition-colors outline-none
             ${isDragOver
               ? "border-primary bg-primary/5"
               : mode === "image"
@@ -315,6 +328,7 @@ export function CaptureInput() {
                 value={text}
                 onChange={handleTextChange}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder={isDragOver ? "" : "Paste your Japanese notes here..."}
                 className="relative z-10 w-full min-h-[220px] bg-transparent px-4 py-4 text-base resize-y placeholder:text-muted-foreground/60 focus:outline-none"
               />
@@ -323,7 +337,7 @@ export function CaptureInput() {
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <Upload className="h-8 w-8 text-muted-foreground/30 mb-3" />
                   <p className="text-sm text-muted-foreground/60 pointer-events-auto">
-                    Drag an image here,{" "}
+                    Paste or drop an image,{" "}
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
@@ -331,10 +345,10 @@ export function CaptureInput() {
                     >
                       browse files
                     </button>
-                    , or paste text directly
+                    , or type text directly
                   </p>
                   <p className="text-xs text-muted-foreground/40 mt-1">
-                    JPEG, PNG, WebP up to 4MB — or any Japanese text
+                    Screenshots, photos (JPEG, PNG, WebP up to 4MB), or any Japanese text
                   </p>
                 </div>
               )}
