@@ -109,9 +109,16 @@ export function CaptureInput() {
     const items = Array.from(e.clipboardData.items);
     const imageItem = items.find((item) => ACCEPTED_TYPES.includes(item.type));
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handlePaste',message:'Paste event fired',data:{itemCount:items.length,itemTypes:items.map(i=>i.type),foundImage:!!imageItem},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     if (imageItem) {
       e.preventDefault();
       const file = imageItem.getAsFile();
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handlePaste:file',message:'File from clipboard',data:{hasFile:!!file,fileName:file?.name,fileType:file?.type,fileSize:file?.size},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       if (file) loadImage(file);
     }
   }, [loadImage]);
@@ -152,8 +159,15 @@ export function CaptureInput() {
     if (!imageFile) return;
     setState("uploading");
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handleImageSubmit:start',message:'Starting image upload',data:{fileName:imageFile.name,fileType:imageFile.type,fileSize:imageFile.size},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+
     try {
       const res = await startUpload([imageFile]);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handleImageSubmit:uploaded',message:'Upload result',data:{hasRes:!!res,resLength:res?.length,firstUrl:res?.[0]?.url,firstName:res?.[0]?.name},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       if (!res || res.length === 0) throw new Error("Upload failed");
 
       setState("processing");
@@ -166,9 +180,17 @@ export function CaptureInput() {
         }),
       });
 
+      // #region agent log
+      const respBody = await response.clone().text();
+      fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handleImageSubmit:extractResponse',message:'Extract API response',data:{status:response.status,ok:response.ok,body:respBody.slice(0,500)},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+
       if (!response.ok) throw new Error("Failed to process image");
       onSuccess();
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handleImageSubmit:error',message:'Image submit error',data:{errorMessage:err instanceof Error ? err.message : String(err),errorStack:err instanceof Error ? err.stack?.slice(0,300) : undefined},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       onError(err);
     }
   };

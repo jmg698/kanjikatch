@@ -153,6 +153,9 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error("Extraction error:", error);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'api/extract/route.ts:catch',message:'Server extraction error',data:{errorMessage:error instanceof Error ? error.message : String(error),errorStack:error instanceof Error ? error.stack?.slice(0,500) : undefined},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     return NextResponse.json(
       {
         error: "Failed to process image",
