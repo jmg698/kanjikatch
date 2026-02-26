@@ -348,3 +348,31 @@
 {"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772036155937,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
 {"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1772036155938,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
 {"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772036155938,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/api/uploadthing?actionType=upload&slug=imageUploader","pathname":"/api/uploadthing"},"timestamp":1772064534868,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/api/uploadthing"},"timestamp":1772064534868,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064534868,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/api/uploadthing?slug=imageUploader","pathname":"/api/uploadthing"},"timestamp":1772064535931,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/api/uploadthing"},"timestamp":1772064535931,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064535931,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/api/extract","pathname":"/api/extract"},"timestamp":1772064536024,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/api/extract"},"timestamp":1772064536024,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064536024,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1772064536024,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064536024,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/library","pathname":"/library"},"timestamp":1772064556118,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/library"},"timestamp":1772064556118,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064556118,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1772064556120,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064556120,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/library","pathname":"/library"},"timestamp":1772064556610,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/library"},"timestamp":1772064556610,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064556610,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1772064556610,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064556610,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/manifest.json","pathname":"/manifest.json"},"timestamp":1772064557040,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1772064557040,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064557040,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1772064557041,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3001%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1772064557046,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1772064557046,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064557046,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
