@@ -376,3 +376,27 @@
 {"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3001%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1772064557046,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
 {"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1772064557046,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
 {"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064557046,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/library","pathname":"/library"},"timestamp":1772064710356,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/library"},"timestamp":1772064710356,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064710356,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1772064710358,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064710358,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/manifest.json","pathname":"/manifest.json"},"timestamp":1772064710792,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1772064710792,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064710792,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1772064710792,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3001%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1772064710828,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1772064710828,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064710828,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/manifest.json","pathname":"/manifest.json"},"timestamp":1772064711067,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/manifest.json"},"timestamp":1772064711067,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064711067,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"null"},"timestamp":1772064711068,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/library","pathname":"/library"},"timestamp":1772064711072,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":false,"pathname":"/library"},"timestamp":1772064711072,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:22","message":"Before auth call","data":{},"timestamp":1772064711072,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:26","message":"After auth call","data":{"userId":"user_39EdO1VouMiBbdVltuXqUZ77CgX"},"timestamp":1772064711073,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,C"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064711073,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:13","message":"Middleware entry","data":{"url":"http://localhost:3001/sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3001%2Fmanifest.json","pathname":"/sign-in"},"timestamp":1772064711084,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
+{"location":"middleware.ts:18","message":"Route check","data":{"isPublic":true,"pathname":"/sign-in"},"timestamp":1772064711084,"sessionId":"debug-session","runId":"initial","hypothesisId":"B"}
+{"location":"middleware.ts:38","message":"Middleware success","data":{},"timestamp":1772064711084,"sessionId":"debug-session","runId":"initial","hypothesisId":"A,B"}
