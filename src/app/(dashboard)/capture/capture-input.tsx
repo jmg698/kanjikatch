@@ -179,13 +179,24 @@ export function CaptureInput() {
           fileName: res[0].name,
         }),
       });
-
       // #region agent log
       const respBody = await response.clone().text();
       fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'capture-input.tsx:handleImageSubmit:extractResponse',message:'Extract API response',data:{status:response.status,ok:response.ok,body:respBody.slice(0,500)},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
       // #endregion
-
-      if (!response.ok) throw new Error("Failed to process image");
+      if (!response.ok) {
+        let errorMessage = "Failed to process image";
+        try {
+          const data = await response.json();
+          if (data && typeof data.error === "string") {
+            errorMessage = data.error;
+          } else if (data && typeof data.details === "string") {
+            errorMessage = data.details;
+          }
+        } catch {
+          // Ignore JSON parse errors and keep default message
+        }
+        throw new Error(errorMessage);
+      }
       onSuccess();
     } catch (err) {
       // #region agent log

@@ -156,12 +156,21 @@ export async function POST(req: NextRequest) {
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f51105'},body:JSON.stringify({sessionId:'f51105',location:'api/extract/route.ts:catch',message:'Server extraction error',data:{errorMessage:error instanceof Error ? error.message : String(error),errorStack:error instanceof Error ? error.stack?.slice(0,500) : undefined},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
     // #endregion
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const isOverloaded =
+      typeof rawMessage === "string" &&
+      (rawMessage.includes("overloaded_error") || rawMessage.includes("Overloaded") || rawMessage.startsWith("529 "));
+
+    const userMessage = isOverloaded
+      ? "Our AI is temporarily overloaded. Please try again in a minute."
+      : "Failed to process image";
+
     return NextResponse.json(
       {
-        error: "Failed to process image",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: userMessage,
+        details: rawMessage || "Unknown error",
       },
-      { status: 500 }
+      { status: isOverloaded ? 503 : 500 }
     );
   }
 }
