@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db, kanji, vocabulary, sourceImages } from "@/db";
-import { eq, and, or, lte, isNull, asc, sql } from "drizzle-orm";
+import { eq, and, or, lte, isNull, asc, sql, inArray } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   try {
@@ -129,12 +129,12 @@ export async function GET(req: NextRequest) {
 
     // Get first source image URL for personal context
     const sourceImageMap: Record<string, string | null> = {};
-    const allSourceIds = [...new Set(items.flatMap((i) => i.sourceImageIds))].filter(Boolean);
+    const allSourceIds = [...new Set(items.flatMap((i) => i.sourceImageIds))].filter(Boolean) as string[];
     if (allSourceIds.length > 0) {
       const sources = await db
         .select({ id: sourceImages.id, imageUrl: sourceImages.imageUrl })
         .from(sourceImages)
-        .where(sql`${sourceImages.id} = ANY(${allSourceIds})`);
+        .where(inArray(sourceImages.id, allSourceIds));
       for (const s of sources) {
         sourceImageMap[s.id] = s.imageUrl;
       }
