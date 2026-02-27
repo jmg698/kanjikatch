@@ -132,9 +132,11 @@ export function ReviewCard({
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {item.type === "kanji" ? "Kanji" : "Vocabulary"}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {questionText}
-              </span>
+              {revealed && (
+                <span className="text-xs text-muted-foreground">
+                  {questionText}
+                </span>
+              )}
             </div>
 
             {/* Prompt */}
@@ -145,19 +147,6 @@ export function ReviewCard({
               >
                 {item.prompt}
               </motion.div>
-
-              {/* Personal Context */}
-              <div className="mt-4 flex items-center justify-center gap-3 text-xs text-muted-foreground">
-                <span>Captured {formatDate(item.firstSeenAt)}</span>
-                <span className="opacity-30">·</span>
-                <span>Seen {item.timesSeen}x</span>
-                {item.reviewCount > 0 && (
-                  <>
-                    <span className="opacity-30">·</span>
-                    <span>Reviewed {item.reviewCount}x</span>
-                  </>
-                )}
-              </div>
             </div>
 
             {/* Answer Section */}
@@ -170,6 +159,19 @@ export function ReviewCard({
                   className="border-t-2 border-dashed border-border"
                 >
                   <div className="px-6 py-6 space-y-3">
+                    {/* Personal Context */}
+                    <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                      <span>Captured {formatDate(item.firstSeenAt)}</span>
+                      <span className="opacity-30">·</span>
+                      <span>Seen {item.timesSeen}x</span>
+                      {item.reviewCount > 0 && (
+                        <>
+                          <span className="opacity-30">·</span>
+                          <span>Reviewed {item.reviewCount}x</span>
+                        </>
+                      )}
+                    </div>
+
                     {/* Meanings */}
                     <div className="text-center">
                       <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1">
