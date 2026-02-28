@@ -14,6 +14,8 @@ interface ReviewCardProps {
   consecutiveCorrect: number;
   onGrade: (grade: Grade) => void;
   disabled: boolean;
+  /** When true, card is shown in full-screen review mode (larger, no in-card progress) */
+  fullScreen?: boolean;
 }
 
 const GRADE_STYLES: Record<Grade, { bg: string; border: string; text: string; hoverBg: string }> = {
@@ -43,6 +45,7 @@ export function ReviewCard({
   consecutiveCorrect,
   onGrade,
   disabled,
+  fullScreen = false,
 }: ReviewCardProps) {
   const [revealed, setRevealed] = useState(false);
 
@@ -94,25 +97,27 @@ export function ReviewCard({
 
   const questionText =
     questionType === "meaning"
-      ? "What does this mean?"
-      : "How do you read this?";
+      ? (fullScreen ? "Meaning" : "What does this mean?")
+      : (fullScreen ? "Reading" : "How do you read this?");
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
-      {/* Progress bar */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-primary rounded-full"
-            initial={{ width: `${((index) / total) * 100}%` }}
-            animate={{ width: `${((index) / total) * 100}%` }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          />
+    <div className={fullScreen ? "w-full space-y-6 md:space-y-8" : "max-w-lg mx-auto space-y-4"}>
+      {/* Progress bar — hidden in full-screen (shown in session header) */}
+      {!fullScreen && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-primary rounded-full"
+              initial={{ width: `${((index) / total) * 100}%` }}
+              animate={{ width: `${((index) / total) * 100}%` }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            />
+          </div>
+          <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">
+            {index}/{total}
+          </span>
         </div>
-        <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">
-          {index}/{total}
-        </span>
-      </div>
+      )}
 
       {/* Card */}
       <AnimatePresence mode="wait">
@@ -124,30 +129,37 @@ export function ReviewCard({
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
           <div
-            className="jr-panel rounded-2xl overflow-hidden cursor-pointer select-none"
+            className={`jr-panel overflow-hidden cursor-pointer select-none ${fullScreen ? "rounded-3xl" : "rounded-2xl"}`}
             onClick={handleReveal}
           >
-            {/* Question Type Badge */}
-            <div className="px-6 pt-5 flex items-center justify-between">
+            {/* Question Type / Prompt label — minimal in full-screen */}
+            <div className={fullScreen ? "px-8 pt-6 flex items-center justify-center" : "px-6 pt-5 flex items-center justify-between"}>
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {item.type === "kanji" ? "Kanji" : "Vocabulary"}
               </span>
-              {revealed && (
+              {revealed && !fullScreen && (
                 <span className="text-xs text-muted-foreground">
                   {questionText}
                 </span>
               )}
             </div>
 
-            {/* Prompt */}
-            <div className="px-6 py-8 text-center">
+            {/* Prompt — larger in full-screen, WaniKani-style */}
+            <div className={fullScreen ? "px-8 py-12 md:py-16 text-center" : "px-6 py-8 text-center"}>
               <motion.div
-                className={`font-bold leading-none ${item.type === "kanji" ? "text-8xl md:text-9xl" : "text-5xl md:text-6xl"}`}
+                className={`font-bold leading-none ${fullScreen ? (item.type === "kanji" ? "text-9xl md:text-[12rem]" : "text-6xl md:text-8xl") : (item.type === "kanji" ? "text-8xl md:text-9xl" : "text-5xl md:text-6xl")}`}
                 layoutId={`prompt-${item.id}`}
               >
                 {item.prompt}
               </motion.div>
             </div>
+
+            {/* Full-screen: show question type below character when revealed (WaniKani-style) */}
+            {fullScreen && revealed && (
+              <p className="text-center text-sm text-muted-foreground -mt-4 pb-2">
+                {questionText}
+              </p>
+            )}
 
             {/* Answer Section */}
             <AnimatePresence>
@@ -158,8 +170,9 @@ export function ReviewCard({
                   transition={{ duration: 0.3, ease: "easeOut" }}
                   className="border-t-2 border-dashed border-border"
                 >
-                  <div className="px-6 py-6 space-y-3">
-                    {/* Personal Context */}
+                  <div className={fullScreen ? "px-8 py-8 space-y-4" : "px-6 py-6 space-y-3"}>
+                    {/* Personal Context — hide in full-screen to reduce clutter */}
+                    {!fullScreen && (
                     <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
                       <span>Captured {formatDate(item.firstSeenAt)}</span>
                       <span className="opacity-30">·</span>
@@ -171,13 +184,14 @@ export function ReviewCard({
                         </>
                       )}
                     </div>
+                    )}
 
                     {/* Meanings */}
                     <div className="text-center">
                       <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1">
                         Meaning
                       </span>
-                      <p className="text-xl font-semibold">
+                      <p className={fullScreen ? "text-2xl font-semibold" : "text-xl font-semibold"}>
                         {item.meanings.join(", ")}
                       </p>
                     </div>
@@ -219,13 +233,14 @@ export function ReviewCard({
 
             {/* Tap to reveal hint */}
             {!revealed && (
-              <div className="px-6 pb-5 text-center">
+              <div className={fullScreen ? "px-8 pb-8 text-center" : "px-6 pb-5 text-center"}>
                 <motion.p
                   className="text-sm text-muted-foreground"
                   animate={{ opacity: [0.4, 0.7, 0.4] }}
                   transition={{ repeat: Infinity, duration: 2 }}
                 >
-                  Tap to reveal · <kbd className="px-1.5 py-0.5 bg-secondary rounded text-xs font-mono">Space</kbd>
+                  {fullScreen ? "Tap or press Space to reveal" : "Tap to reveal · "}
+                  {!fullScreen && <kbd className="px-1.5 py-0.5 bg-secondary rounded text-xs font-mono">Space</kbd>}
                 </motion.p>
               </div>
             )}
@@ -240,7 +255,7 @@ export function ReviewCard({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.25 }}
-            className="grid grid-cols-4 gap-2"
+            className={fullScreen ? "grid grid-cols-4 gap-3 max-w-xl mx-auto" : "grid grid-cols-4 gap-2"}
           >
             {gradeOptions.map((option, i) => {
               const style = GRADE_STYLES[option.grade];
@@ -250,13 +265,13 @@ export function ReviewCard({
                   onClick={() => handleGrade(option.grade)}
                   disabled={disabled}
                   className={`
-                    flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all
+                    flex flex-col items-center gap-1 rounded-xl border-2 transition-all
                     ${style.bg} ${style.border} ${style.text} ${style.hoverBg}
                     active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                    min-h-[72px] md:min-h-[80px]
+                    ${fullScreen ? "p-4 min-h-[80px] md:min-h-[88px]" : "p-3 min-h-[72px] md:min-h-[80px]"}
                   `}
                 >
-                  <span className="text-sm font-semibold capitalize">{option.grade}</span>
+                  <span className={fullScreen ? "text-base font-semibold capitalize" : "text-sm font-semibold capitalize"}>{option.grade}</span>
                   <span className="text-xs opacity-70">{option.label}</span>
                   <kbd className="text-[10px] opacity-40 font-mono">{i + 1}</kbd>
                 </button>

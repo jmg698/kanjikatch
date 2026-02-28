@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Home, CheckCircle2 } from "lucide-react";
 import { PreReview } from "./pre-review";
 import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
@@ -180,89 +181,153 @@ export function ReviewSession() {
     fetchStats();
   };
 
+  const handleEndSessionEarly = useCallback(() => {
+    if (sessionId && queue.length > 0) completeSession();
+    // completeSession is stable in practice (same sessionId for the run)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, queue.length]);
+
+  const isFullScreen = phase === "reviewing" || phase === "summary";
+
   return (
-    <div className="relative min-h-[60vh]">
-      {/* Flash feedback overlay */}
-      <AnimatePresence>
-        {flashColor && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.08 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className={`fixed inset-0 z-40 pointer-events-none ${
-              flashColor === "emerald" ? "bg-emerald-500" : "bg-orange-500"
-            }`}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence mode="wait">
-        {phase === "setup" && (
-          <motion.div
-            key="setup"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <PreReview
-              dueCounts={dueCounts}
-              stats={stats}
-              onStart={startSession}
-              loading={loading}
-            />
-          </motion.div>
-        )}
-
-        {phase === "reviewing" && queue.length > 0 && (
-          <motion.div
-            key="reviewing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ReviewCard
-              item={queue[currentIndex]}
-              index={currentIndex}
-              total={queue.length}
-              questionType={questionType}
-              consecutiveCorrect={consecutiveCorrect}
-              onGrade={handleGrade}
-              disabled={submitting}
-            />
-          </motion.div>
-        )}
-
-        {phase === "summary" && summary && (
-          <motion.div
-            key="summary"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ReviewSummary
-              summary={summary}
-              stats={stats}
-              leveledUp={leveledUp}
-              previousLevel={previousLevelRef.current}
-              onReviewAgain={handleReviewAgain}
-              onBackToDashboard={() => window.location.href = "/dashboard"}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Loading skeleton */}
-      {loading && phase === "setup" && (
-        <div className="max-w-lg mx-auto space-y-4">
-          <div className="h-8 bg-secondary animate-pulse rounded-lg w-48 mx-auto" />
-          <div className="h-40 bg-secondary animate-pulse rounded-2xl" />
-          <div className="h-12 bg-secondary animate-pulse rounded-lg" />
+    <>
+      {/* Setup: normal in-page layout */}
+      {phase === "setup" && (
+        <div className="relative min-h-[60vh]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="setup"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <PreReview
+                dueCounts={dueCounts}
+                stats={stats}
+                onStart={startSession}
+                loading={loading}
+              />
+            </motion.div>
+          </AnimatePresence>
+          {loading && (
+            <div className="max-w-lg mx-auto space-y-4">
+              <div className="h-8 bg-secondary animate-pulse rounded-lg w-48 mx-auto" />
+              <div className="h-40 bg-secondary animate-pulse rounded-2xl" />
+              <div className="h-12 bg-secondary animate-pulse rounded-lg" />
+            </div>
+          )}
         </div>
       )}
-    </div>
+
+      {/* Full-screen review & summary: covers entire viewport, no nav */}
+      <AnimatePresence>
+        {isFullScreen && (
+          <motion.div
+            key="fullscreen"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex flex-col bg-background"
+          >
+            {/* Flash feedback overlay (inside full-screen so it stays on top of content) */}
+            <AnimatePresence>
+              {flashColor && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.08 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute inset-0 z-40 pointer-events-none ${
+                    flashColor === "emerald" ? "bg-emerald-500" : "bg-orange-500"
+                  }`}
+                />
+              )}
+            </AnimatePresence>
+
+            {phase === "reviewing" && queue.length > 0 && (
+              <>
+                {/* Minimal header: exit + progress only */}
+                <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+                  <button
+                    type="button"
+                    onClick={handleEndSessionEarly}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg p-2 -ml-2"
+                    aria-label="End session"
+                  >
+                    <Home className="h-5 w-5" />
+                    <span className="text-sm font-medium hidden sm:inline">Exit</span>
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
+                      <span className="font-mono">{currentIndex}</span>
+                      <span className="opacity-50">/</span>
+                      <span className="font-mono">{queue.length}</span>
+                    </span>
+                    <div className="w-20 h-1.5 bg-secondary rounded-full overflow-hidden hidden sm:block">
+                      <motion.div
+                        className="h-full bg-primary rounded-full"
+                        initial={false}
+                        animate={{ width: `${((currentIndex + 1) / queue.length) * 100}%` }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+                </header>
+
+                <div className="flex-1 flex flex-col min-h-0 overflow-auto">
+                  <div className="flex-1 flex items-center justify-center p-6">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key="reviewing"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full max-w-2xl mx-auto"
+                      >
+                        <ReviewCard
+                          item={queue[currentIndex]}
+                          index={currentIndex}
+                          total={queue.length}
+                          questionType={questionType}
+                          consecutiveCorrect={consecutiveCorrect}
+                          onGrade={handleGrade}
+                          disabled={submitting}
+                          fullScreen
+                        />
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {phase === "summary" && summary && (
+              <div className="flex-1 min-h-0 overflow-auto flex flex-col items-center justify-center p-6">
+                <motion.div
+                  key="summary"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-full max-w-lg"
+                >
+                  <ReviewSummary
+                    summary={summary}
+                    stats={stats}
+                    leveledUp={leveledUp}
+                    previousLevel={previousLevelRef.current}
+                    onReviewAgain={handleReviewAgain}
+                    onBackToDashboard={() => (window.location.href = "/dashboard")}
+                  />
+                </motion.div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
