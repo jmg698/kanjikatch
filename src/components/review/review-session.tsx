@@ -278,7 +278,7 @@ export function ReviewSession() {
                 </header>
 
                 <div className="flex-1 flex flex-col min-h-0 overflow-auto">
-                  <div className="flex-1 flex items-center justify-center p-6">
+                  <div className="flex-1 flex items-center justify-center p-6 pt-8 pb-32 md:pb-40">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key="reviewing"
