@@ -221,6 +221,22 @@ export function ReviewCard({
                       )}
                     </div>
 
+                    {item.kanjiDetails && item.kanjiDetails.length > 0 && (
+                      <div className="text-center">
+                        <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1">
+                          Kanji
+                        </span>
+                        <div className="flex items-center justify-center gap-3 flex-wrap">
+                          {item.kanjiDetails.map((k) => (
+                            <span key={k.character} className="inline-flex items-center gap-1.5">
+                              <span className={fullScreen ? "text-2xl font-bold" : "text-xl font-bold"}>{k.character}</span>
+                              <span className="text-sm text-muted-foreground">({k.meanings.slice(0, 2).join(", ")})</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {item.partOfSpeech && (
                       <p className="text-center text-xs text-muted-foreground">
                         {item.partOfSpeech}

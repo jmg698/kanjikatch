@@ -140,12 +140,51 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const enrichedItems = items.slice(0, limit).map((item) => ({
-      ...item,
-      sourceImageUrl: item.sourceImageIds.length > 0
-        ? sourceImageMap[item.sourceImageIds[0]] || null
-        : null,
-    }));
+    // Look up kanji details for vocab items
+    const kanjiRegex = /[\u4e00-\u9faf\u3400-\u4dbf]/g;
+    const vocabKanjiChars = new Set<string>();
+    for (const item of items) {
+      if (item.type === "vocab") {
+        const matches = item.prompt.match(kanjiRegex);
+        if (matches) matches.forEach((ch) => vocabKanjiChars.add(ch));
+      }
+    }
+
+    const kanjiDetailsMap: Record<string, string[]> = {};
+    if (vocabKanjiChars.size > 0) {
+      const kanjiRows = await db
+        .select({ character: kanji.character, meanings: kanji.meanings })
+        .from(kanji)
+        .where(
+          and(
+            eq(kanji.userId, userId),
+            inArray(kanji.character, [...vocabKanjiChars]),
+          )
+        );
+      for (const row of kanjiRows) {
+        kanjiDetailsMap[row.character] = row.meanings;
+      }
+    }
+
+    const enrichedItems = items.slice(0, limit).map((item) => {
+      const base = {
+        ...item,
+        sourceImageUrl: item.sourceImageIds.length > 0
+          ? sourceImageMap[item.sourceImageIds[0]] || null
+          : null,
+      };
+
+      if (item.type === "vocab") {
+        const chars = item.prompt.match(kanjiRegex) || [];
+        const details = chars
+          .filter((ch, i, arr) => arr.indexOf(ch) === i)
+          .filter((ch) => kanjiDetailsMap[ch])
+          .map((ch) => ({ character: ch, meanings: kanjiDetailsMap[ch] }));
+        return { ...base, kanjiDetails: details.length > 0 ? details : undefined };
+      }
+
+      return base;
+    });
 
     // Get total due counts for the header
     const [kanjiDueCount] = await db

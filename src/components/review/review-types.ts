@@ -8,6 +8,7 @@ export interface ReviewQueueItem {
   readingsKun?: string[];
   meanings: string[];
   partOfSpeech?: string | null;
+  kanjiDetails?: { character: string; meanings: string[] }[];
   jlptLevel: number | null;
   firstSeenAt: string;
   timesSeen: number;
