@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { extractionResultSchema, type ExtractionResult } from "./validations";
+import { z } from "zod";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -187,4 +188,121 @@ function parseExtractionResponse(response: Anthropic.Message): ExtractionResult 
 
   const parsed = JSON.parse(jsonMatch[0]);
   return extractionResultSchema.parse(parsed);
+}
+
+// --- "See It In The Wild" sentence generation ---
+
+export interface WildTargetItem {
+  id: string;
+  type: "kanji" | "vocab";
+  text: string; // the character or word
+  meanings: string[];
+  reading?: string;
+}
+
+export interface WildSentenceWord {
+  text: string;
+  reading: string | null;
+  isTarget: boolean;
+}
+
+export interface WildSentence {
+  japanese: string;
+  english: string;
+  words: WildSentenceWord[];
+  targetItems: string[]; // the text values of target items used in this sentence
+}
+
+const wildSentenceWordSchema = z.object({
+  text: z.string(),
+  reading: z.string().nullable(),
+  isTarget: z.boolean(),
+});
+
+const wildSentenceSchema = z.object({
+  japanese: z.string(),
+  english: z.string(),
+  words: z.array(wildSentenceWordSchema),
+  targetItems: z.array(z.string()),
+});
+
+const wildResponseSchema = z.object({
+  sentences: z.array(wildSentenceSchema),
+});
+
+const WILD_SENTENCE_PROMPT = `You are a Japanese language tutor creating natural, contextual sentences for a learner. Your goal: show how specific kanji and vocabulary appear in real Japanese — daily life, simple news, conversations, social media, signs, announcements.
+
+You will be given a list of TARGET items (kanji or vocabulary) the learner just reviewed. Generate 3-5 natural Japanese sentences that incorporate these items. Follow these rules carefully:
+
+1. NATURAL LANGUAGE: Write sentences a Japanese person would actually say, read, or write. Vary registers — casual speech, polite speech, written/formal. No textbook drills like "X means Y" or "Please use X."
+
+2. SENTENCE VARIETY: Mix short and long sentences. Use different grammatical patterns. Some can be standalone thoughts, others dialogue, others from signs/announcements/articles.
+
+3. FURIGANA RULES — CRITICAL:
+   - For NON-target kanji: provide the reading in the "reading" field (this becomes furigana so the learner can read the full sentence)
+   - For TARGET items: set reading to null (the learner should recognize these)
+   - For hiragana/katakana-only words: reading is null
+   - For particles and punctuation: reading is null
+
+4. WORD SEGMENTATION: Break the sentence into natural word boundaries. Each token in the "words" array is one word/particle/punctuation. Don't merge separate words, don't split single kanji compounds.
+
+5. TARGET MARKING: Set isTarget to true ONLY for words that match one of the target items. A target kanji character appearing inside a compound word counts — mark the whole compound as a target if it contains the target kanji.
+
+6. targetItems array: List which target item texts appear in each sentence.
+
+Return ONLY valid JSON:
+{
+  "sentences": [
+    {
+      "japanese": "今日は図書館で勉強した。",
+      "english": "I studied at the library today.",
+      "words": [
+        {"text": "今日", "reading": "きょう", "isTarget": false},
+        {"text": "は", "reading": null, "isTarget": false},
+        {"text": "図書館", "reading": null, "isTarget": true},
+        {"text": "で", "reading": null, "isTarget": false},
+        {"text": "勉強", "reading": null, "isTarget": true},
+        {"text": "した", "reading": null, "isTarget": false},
+        {"text": "。", "reading": null, "isTarget": false}
+      ],
+      "targetItems": ["図書館", "勉強"]
+    }
+  ]
+}`;
+
+export async function generateWildSentences(targets: WildTargetItem[]): Promise<WildSentence[]> {
+  const targetList = targets
+    .map((t) => {
+      const label = t.type === "kanji" ? "Kanji" : "Vocab";
+      const reading = t.reading ? ` (${t.reading})` : "";
+      return `- [${label}] ${t.text}${reading} — ${t.meanings.join(", ")}`;
+    })
+    .join("\n");
+
+  const sentenceCount = targets.length <= 2 ? 3 : Math.min(5, targets.length + 1);
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: `${WILD_SENTENCE_PROMPT}\n\n---\n\nTARGET ITEMS:\n${targetList}\n\nGenerate ${sentenceCount} sentences.`,
+      },
+    ],
+  });
+
+  const textContent = response.content.find((block) => block.type === "text");
+  if (!textContent || textContent.type !== "text") {
+    throw new Error("No text response from AI");
+  }
+
+  const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("No valid JSON in AI response");
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  const result = wildResponseSchema.parse(parsed);
+  return result.sentences;
 }

@@ -6,10 +6,11 @@ import { Home, CheckCircle2 } from "lucide-react";
 import { PreReview } from "./pre-review";
 import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
+import { InTheWild } from "@/components/wild/in-the-wild";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
-type Phase = "setup" | "reviewing" | "summary";
+type Phase = "setup" | "reviewing" | "summary" | "wild";
 
 export function ReviewSession() {
   const [phase, setPhase] = useState<Phase>("setup");
@@ -181,13 +182,17 @@ export function ReviewSession() {
     fetchStats();
   };
 
+  const handleShowWild = () => {
+    setPhase("wild");
+  };
+
   const handleEndSessionEarly = useCallback(() => {
     if (sessionId && queue.length > 0) completeSession();
     // completeSession is stable in practice (same sessionId for the run)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, queue.length]);
 
-  const isFullScreen = phase === "reviewing" || phase === "summary";
+  const isFullScreen = phase === "reviewing" || phase === "summary" || phase === "wild";
 
   return (
     <>
@@ -321,9 +326,27 @@ export function ReviewSession() {
                     previousLevel={previousLevelRef.current}
                     onReviewAgain={handleReviewAgain}
                     onBackToDashboard={() => (window.location.href = "/dashboard")}
+                    onShowWild={handleShowWild}
+                    sessionId={summary.sessionId}
                   />
                 </motion.div>
               </div>
+            )}
+
+            {phase === "wild" && sessionId && (
+              <motion.div
+                key="wild"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="flex-1 min-h-0"
+              >
+                <InTheWild
+                  sessionId={sessionId}
+                  onClose={() => (window.location.href = "/dashboard")}
+                  onBackToDashboard={() => (window.location.href = "/dashboard")}
+                />
+              </motion.div>
             )}
           </motion.div>
         )}

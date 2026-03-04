@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, Zap, Trophy, ArrowRight, RotateCcw, Target, Clock, CheckCircle2 } from "lucide-react";
+import { Flame, Zap, Trophy, ArrowRight, RotateCcw, Target, Clock, CheckCircle2, BookOpen, Loader2 } from "lucide-react";
 import type { SessionSummary, ReviewStats } from "./review-types";
 
 interface ReviewSummaryProps {
@@ -14,6 +14,8 @@ interface ReviewSummaryProps {
   previousLevel: number;
   onReviewAgain: () => void;
   onBackToDashboard: () => void;
+  onShowWild?: () => void;
+  sessionId?: string;
 }
 
 function AnimatedNumber({ value, duration = 1 }: { value: number; duration?: number }) {
@@ -58,8 +60,11 @@ export function ReviewSummary({
   previousLevel,
   onReviewAgain,
   onBackToDashboard,
+  onShowWild,
+  sessionId,
 }: ReviewSummaryProps) {
   const [showConfetti, setShowConfetti] = useState(false);
+  const [wildStatus, setWildStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     if (leveledUp || summary.accuracy >= 90) {
@@ -68,6 +73,35 @@ export function ReviewSummary({
       return () => clearTimeout(timer);
     }
   }, [leveledUp, summary.accuracy]);
+
+  // Pre-fetch wild sentences in the background as soon as summary loads
+  useEffect(() => {
+    if (!sessionId || !onShowWild) return;
+    let cancelled = false;
+
+    async function prefetch() {
+      try {
+        const res = await fetch("/api/sentences/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        if (!cancelled) {
+          if (res.ok) {
+            const data = await res.json();
+            setWildStatus(data.sentences?.length > 0 ? "ready" : "error");
+          } else {
+            setWildStatus("error");
+          }
+        }
+      } catch {
+        if (!cancelled) setWildStatus("error");
+      }
+    }
+
+    prefetch();
+    return () => { cancelled = true; };
+  }, [sessionId, onShowWild]);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -220,6 +254,45 @@ export function ReviewSummary({
         >
           <Flame className="h-5 w-5" />
           <span>{stats.currentStreak} day streak!</span>
+        </motion.div>
+      )}
+
+      {/* See It In The Wild CTA */}
+      {onShowWild && wildStatus !== "error" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
+        >
+          <button
+            onClick={wildStatus === "ready" ? onShowWild : undefined}
+            disabled={wildStatus === "loading"}
+            className="w-full group relative overflow-hidden rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5 text-left transition-all hover:border-amber-300 hover:shadow-md active:scale-[0.99] disabled:opacity-70 disabled:cursor-wait dark:border-amber-800 dark:from-amber-950/40 dark:to-orange-950/30 dark:hover:border-amber-700"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 h-11 w-11 rounded-xl bg-amber-100 flex items-center justify-center dark:bg-amber-900/50">
+                {wildStatus === "loading" ? (
+                  <Loader2 className="h-5 w-5 text-amber-600 animate-spin" />
+                ) : (
+                  <BookOpen className="h-5 w-5 text-amber-600" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-amber-900 dark:text-amber-100">
+                  See It In The Wild
+                </p>
+                <p className="text-sm text-amber-700/80 dark:text-amber-300/70">
+                  {wildStatus === "loading"
+                    ? "Generating sentences with what you reviewed..."
+                    : "Read natural Japanese sentences featuring your items"
+                  }
+                </p>
+              </div>
+              {wildStatus === "ready" && (
+                <ArrowRight className="h-5 w-5 text-amber-600 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              )}
+            </div>
+          </button>
         </motion.div>
       )}
 

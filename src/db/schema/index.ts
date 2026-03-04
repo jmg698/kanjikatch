@@ -145,6 +145,34 @@ export const userStats = pgTable("user_stats", {
   userIdIdx: uniqueIndex("user_stats_user_id_idx").on(table.userId),
 }));
 
+// Generated sentences from "See It In The Wild" feature
+export const generatedSentences = pgTable("generated_sentences", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionId: uuid("session_id").references(() => reviewSessions.id, { onDelete: "set null" }),
+  japanese: text("japanese").notNull(),
+  english: text("english").notNull(),
+  words: jsonb("words").notNull(), // Array of {text, reading?, isTarget}
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("generated_sentences_user_id_idx").on(table.userId),
+  sessionIdIdx: index("generated_sentences_session_id_idx").on(table.sessionId),
+  japaneseIdx: index("generated_sentences_japanese_idx").on(table.userId, table.japanese),
+}));
+
+// Junction: which kanji/vocab each generated sentence targets
+export const generatedSentenceTargets = pgTable("generated_sentence_targets", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sentenceId: uuid("sentence_id").notNull().references(() => generatedSentences.id, { onDelete: "cascade" }),
+  itemType: text("item_type").notNull(), // 'kanji' | 'vocab'
+  itemId: uuid("item_id").notNull(),
+  itemText: text("item_text").notNull(), // the character or word, for display/filtering
+}, (table) => ({
+  sentenceIdIdx: index("gen_sentence_targets_sentence_id_idx").on(table.sentenceId),
+  itemIdx: index("gen_sentence_targets_item_idx").on(table.itemType, table.itemId),
+  itemTextIdx: index("gen_sentence_targets_item_text_idx").on(table.itemText),
+}));
+
 // Content items - future reading engine (created now, populated later)
 export const contentItems = pgTable("content_items", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -189,3 +217,9 @@ export type NewUserStats = typeof userStats.$inferInsert;
 
 export type ContentItem = typeof contentItems.$inferSelect;
 export type NewContentItem = typeof contentItems.$inferInsert;
+
+export type GeneratedSentence = typeof generatedSentences.$inferSelect;
+export type NewGeneratedSentence = typeof generatedSentences.$inferInsert;
+
+export type GeneratedSentenceTarget = typeof generatedSentenceTargets.$inferSelect;
+export type NewGeneratedSentenceTarget = typeof generatedSentenceTargets.$inferInsert;

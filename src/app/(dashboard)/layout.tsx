@@ -74,12 +74,9 @@ export default async function DashboardLayout({
               </Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/read" className="relative">
+              <Link href="/read">
                 <FileText className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Read</span>
-                <span className="absolute -top-1 -right-1 text-[8px] bg-muted text-muted-foreground px-1 rounded font-medium">
-                  Soon
-                </span>
               </Link>
             </Button>
           </nav>
