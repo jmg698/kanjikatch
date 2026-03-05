@@ -83,7 +83,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
         body: JSON.stringify({
           word: addingWord.text,
           reading: addingWord.reading || addingWord.text,
-          meanings: ["(added from reading)"],
+          meanings: addingWord.meaning ? [addingWord.meaning] : ["(added from reading)"],
         }),
       });
 
@@ -178,11 +178,14 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
             className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4"
           >
             <div className="bg-card border-2 rounded-2xl shadow-xl p-4 max-w-sm w-full space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div>
                   <p className="font-bold text-lg">{addingWord.text}</p>
                   {addingWord.reading && (
                     <p className="text-sm text-muted-foreground">{addingWord.reading}</p>
+                  )}
+                  {addingWord.meaning && (
+                    <p className="text-sm font-medium mt-1">{addingWord.meaning}</p>
                   )}
                 </div>
                 <button

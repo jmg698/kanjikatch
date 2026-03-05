@@ -204,6 +204,7 @@ export interface WildSentenceWord {
   text: string;
   reading: string | null;
   isTarget: boolean;
+  meaning: string | null;
 }
 
 export interface WildSentence {
@@ -217,6 +218,7 @@ const wildSentenceWordSchema = z.object({
   text: z.string(),
   reading: z.string().nullable(),
   isTarget: z.boolean(),
+  meaning: z.string().nullable(),
 });
 
 const wildSentenceSchema = z.object({
@@ -244,11 +246,16 @@ You will be given a list of TARGET items (kanji or vocabulary) the learner just 
    - For hiragana/katakana-only words: reading is null
    - For particles and punctuation: reading is null
 
-4. WORD SEGMENTATION: Break the sentence into natural word boundaries. Each token in the "words" array is one word/particle/punctuation. Don't merge separate words, don't split single kanji compounds.
+4. MEANING FIELD — for each word:
+   - For content words (nouns, verbs, adjectives, adverbs, i-adjectives, na-adjectives): provide a concise English meaning (1-3 words)
+   - For particles, punctuation, and purely grammatical words: set meaning to null
+   - For verbs, use the dictionary form meaning (e.g. "to study", "to eat")
 
-5. TARGET MARKING: Set isTarget to true ONLY for words that match one of the target items. A target kanji character appearing inside a compound word counts — mark the whole compound as a target if it contains the target kanji.
+5. WORD SEGMENTATION: Break the sentence into natural word boundaries. Each token in the "words" array is one word/particle/punctuation. Don't merge separate words, don't split single kanji compounds.
 
-6. targetItems array: List which target item texts appear in each sentence.
+6. TARGET MARKING: Set isTarget to true ONLY for words that match one of the target items. A target kanji character appearing inside a compound word counts — mark the whole compound as a target if it contains the target kanji.
+
+7. targetItems array: List which target item texts appear in each sentence.
 
 Return ONLY valid JSON:
 {
@@ -257,13 +264,13 @@ Return ONLY valid JSON:
       "japanese": "今日は図書館で勉強した。",
       "english": "I studied at the library today.",
       "words": [
-        {"text": "今日", "reading": "きょう", "isTarget": false},
-        {"text": "は", "reading": null, "isTarget": false},
-        {"text": "図書館", "reading": null, "isTarget": true},
-        {"text": "で", "reading": null, "isTarget": false},
-        {"text": "勉強", "reading": null, "isTarget": true},
-        {"text": "した", "reading": null, "isTarget": false},
-        {"text": "。", "reading": null, "isTarget": false}
+        {"text": "今日", "reading": "きょう", "isTarget": false, "meaning": "today"},
+        {"text": "は", "reading": null, "isTarget": false, "meaning": null},
+        {"text": "図書館", "reading": null, "isTarget": true, "meaning": "library"},
+        {"text": "で", "reading": null, "isTarget": false, "meaning": null},
+        {"text": "勉強", "reading": null, "isTarget": true, "meaning": "study"},
+        {"text": "した", "reading": null, "isTarget": false, "meaning": "to do"},
+        {"text": "。", "reading": null, "isTarget": false, "meaning": null}
       ],
       "targetItems": ["図書館", "勉強"]
     }
