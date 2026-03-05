@@ -34,6 +34,9 @@ export function ReviewSession() {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [leveledUp, setLeveledUp] = useState(false);
 
+  // Wild sentences prefetch (fire early so it runs in parallel with session completion)
+  const [wildPrefetchStatus, setWildPrefetchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
   // Correct/wrong flash
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
@@ -53,6 +56,25 @@ export function ReviewSession() {
   useEffect(() => {
     fetchStats().finally(() => setLoading(false));
   }, [fetchStats]);
+
+  const prefetchWildSentences = useCallback((sid: string) => {
+    setWildPrefetchStatus("loading");
+    fetch("/api/sentences/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: sid }),
+    })
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Generation failed");
+      })
+      .then((data) => {
+        setWildPrefetchStatus(data.sentences?.length > 0 ? "ready" : "error");
+      })
+      .catch(() => {
+        setWildPrefetchStatus("error");
+      });
+  }, []);
 
   const startSession = async (type: SessionType, size: number) => {
     setLoading(true);
@@ -130,6 +152,7 @@ export function ReviewSession() {
       // Move to next item
       const nextIndex = currentIndex + 1;
       if (nextIndex >= queue.length) {
+        prefetchWildSentences(sessionId);
         await completeSession();
       } else {
         setCurrentIndex(nextIndex);
@@ -179,6 +202,7 @@ export function ReviewSession() {
     setSummary(null);
     setSessionId(null);
     setQueue([]);
+    setWildPrefetchStatus("idle");
     fetchStats();
   };
 
@@ -187,10 +211,12 @@ export function ReviewSession() {
   };
 
   const handleEndSessionEarly = useCallback(() => {
-    if (sessionId && queue.length > 0) completeSession();
-    // completeSession is stable in practice (same sessionId for the run)
+    if (sessionId && queue.length > 0) {
+      prefetchWildSentences(sessionId);
+      completeSession();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, queue.length]);
+  }, [sessionId, queue.length, prefetchWildSentences]);
 
   const isFullScreen = phase === "reviewing" || phase === "summary" || phase === "wild";
 
@@ -328,6 +354,7 @@ export function ReviewSession() {
                     onBackToDashboard={() => (window.location.href = "/dashboard")}
                     onShowWild={handleShowWild}
                     sessionId={summary.sessionId}
+                    wildPrefetchStatus={wildPrefetchStatus}
                   />
                 </motion.div>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ interface ReviewSummaryProps {
   onBackToDashboard: () => void;
   onShowWild?: () => void;
   sessionId?: string;
+  wildPrefetchStatus?: "idle" | "loading" | "ready" | "error";
 }
 
 function AnimatedNumber({ value, duration = 1 }: { value: number; duration?: number }) {
@@ -62,9 +63,12 @@ export function ReviewSummary({
   onBackToDashboard,
   onShowWild,
   sessionId,
+  wildPrefetchStatus,
 }: ReviewSummaryProps) {
   const [showConfetti, setShowConfetti] = useState(false);
-  const [wildStatus, setWildStatus] = useState<"loading" | "ready" | "error">("loading");
+  const wildStatus = wildPrefetchStatus === "ready" ? "ready"
+    : wildPrefetchStatus === "error" ? "error"
+    : "loading";
 
   useEffect(() => {
     if (leveledUp || summary.accuracy >= 90) {
@@ -73,35 +77,6 @@ export function ReviewSummary({
       return () => clearTimeout(timer);
     }
   }, [leveledUp, summary.accuracy]);
-
-  // Pre-fetch wild sentences in the background as soon as summary loads
-  useEffect(() => {
-    if (!sessionId || !onShowWild) return;
-    let cancelled = false;
-
-    async function prefetch() {
-      try {
-        const res = await fetch("/api/sentences/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        });
-        if (!cancelled) {
-          if (res.ok) {
-            const data = await res.json();
-            setWildStatus(data.sentences?.length > 0 ? "ready" : "error");
-          } else {
-            setWildStatus("error");
-          }
-        }
-      } catch {
-        if (!cancelled) setWildStatus("error");
-      }
-    }
-
-    prefetch();
-    return () => { cancelled = true; };
-  }, [sessionId, onShowWild]);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
