@@ -2,10 +2,9 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Camera, BookOpen, GraduationCap, LayoutDashboard, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { db, kanji, vocabulary } from "@/db";
 import { eq, and, or, lte, isNull, sql } from "drizzle-orm";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 async function getDueCount(userId: string): Promise<number> {
   const now = new Date();
@@ -35,62 +34,42 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-card">
-        <div className="container flex h-14 items-center px-4">
-          <Link href="/dashboard" className="flex items-center gap-2 mr-6">
-            <span className="text-xl font-bold text-primary">漢字</span>
-            <span className="font-semibold hidden sm:inline">KanjiKatch</span>
+      {/* Minimal premium header — logo + profile only */}
+      <header
+        className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md"
+        style={{ borderColor: 'hsl(35 15% 87%)' }}
+      >
+        <div className="container flex h-13 items-center justify-between px-4 py-3">
+          {/* Wordmark */}
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <span
+              className="text-2xl font-serif leading-none transition-opacity group-hover:opacity-80"
+              style={{ color: 'hsl(var(--deep-red))' }}
+            >
+              漢
+            </span>
+            <div className="flex flex-col leading-none">
+              <span className="font-semibold text-sm tracking-wide text-foreground">
+                KanjiKatch
+              </span>
+              <span className="text-[10px] tracking-[0.15em] text-muted-foreground font-sans">
+                漢字キャッチ
+              </span>
+            </div>
           </Link>
-          
-          <nav className="flex items-center gap-1 flex-1">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard">
-                <LayoutDashboard className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Dashboard</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/capture">
-                <Camera className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Capture</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/library">
-                <BookOpen className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Library</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/review" className="relative">
-                <GraduationCap className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Review</span>
-                {dueCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1">
-                    {dueCount > 99 ? "99+" : dueCount}
-                  </span>
-                )}
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/read">
-                <FileText className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Read</span>
-              </Link>
-            </Button>
-          </nav>
 
-          <div className="flex items-center gap-4">
-            <UserButton afterSignOutUrl="/" />
-          </div>
+          {/* User profile */}
+          <UserButton afterSignOutUrl="/" />
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="container px-4 py-6">
+      {/* Main content — padded bottom for fixed bottom nav */}
+      <main className="container px-4 py-6 pb-24">
         {children}
       </main>
+
+      {/* Permanent bottom navigation */}
+      <BottomNav dueCount={dueCount} />
     </div>
   );
 }
