@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Camera, BookOpen, GraduationCap, Flame, Zap, Target, BarChart3 } from "lucide-react";
+import { Camera, BookOpen, Flame, Zap, Target, BarChart3 } from "lucide-react";
 import { db, kanji, vocabulary, sentences, userStats, reviewSessions } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { eq, and, or, lte, isNull, desc, sql, gte, lt } from "drizzle-orm";
@@ -136,17 +135,17 @@ export default async function DashboardPage() {
   const isNewUser = data.counts.kanji === 0 && data.counts.vocab === 0;
 
   return (
-    <div className="space-y-5 animate-float-up">
+    <div className="space-y-5">
 
       {/* ── Hero Card ─────────────────────────────────────── */}
-      <div className="premium-hero rounded-2xl overflow-hidden">
+      <div className="dash-hero relative stagger-0">
         {/* Ghosted watermark character */}
         <span
-          className="absolute text-[clamp(8rem,30vw,18rem)] font-serif leading-none select-none pointer-events-none"
+          className="absolute text-[clamp(7rem,28vw,14rem)] font-serif leading-none select-none pointer-events-none"
           style={{
-            color: 'rgba(255,255,255,0.028)',
-            top: '-10%',
-            right: '-2%',
+            color: 'hsl(25 20% 12% / 0.03)',
+            top: '-8%',
+            right: '2%',
             lineHeight: 1,
           }}
           aria-hidden
@@ -154,135 +153,102 @@ export default async function DashboardPage() {
           漢
         </span>
 
-        <div className="relative z-10 px-6 py-7 sm:px-8 sm:py-9">
+        <div className="relative z-10 px-6 py-8 sm:px-8 sm:py-10">
           {isNewUser ? (
-            /* Welcome state */
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="text-center sm:text-left">
-                <p className="text-white/45 text-xs uppercase tracking-[0.3em] mb-2 font-sans">
-                  Welcome to KanjiKatch
-                </p>
-                <h2 className="text-3xl font-serif font-bold text-white leading-tight">
-                  Start your journey
-                </h2>
-                <p className="text-white/45 text-sm mt-2 font-sans">
-                  Capture kanji from your study materials to begin
-                </p>
-              </div>
-              <Button
-                asChild
-                className="shimmer-btn h-12 px-7 rounded-xl font-semibold text-base shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, hsl(38 70% 52%), hsl(33 80% 45%))',
-                  color: '#fff',
-                  border: 'none',
-                }}
-              >
-                <Link href="/capture">
-                  <Camera className="h-5 w-5 mr-2" />
+            /* ── Welcome state ── */
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-medium">
+                Welcome to KanjiKatch
+              </p>
+              <div className="border-t border-dashed border-border my-4 mx-auto max-w-[200px]" />
+              <h2 className="text-3xl font-serif font-bold text-foreground leading-tight">
+                はじめましょう
+              </h2>
+              <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                Capture kanji from your study materials to begin your journey
+              </p>
+              <div className="flex justify-center mt-6">
+                <Link href="/capture" className="start-review-cta">
+                  <Camera className="h-5 w-5" />
                   Capture Kanji
                 </Link>
-              </Button>
-            </div>
-          ) : data.due.total > 0 ? (
-            /* Items due state */
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="text-center sm:text-left">
-                <p className="text-white/45 text-xs uppercase tracking-[0.3em] mb-3 font-sans">
-                  Ready for Review
-                </p>
-                <div className="flex items-baseline gap-3">
-                  <span
-                    className="text-[5.5rem] font-serif font-bold text-white leading-none glow-pulse"
-                    style={{ lineHeight: 0.9 }}
-                  >
-                    {data.due.total}
-                  </span>
-                  <span className="text-white/35 text-xl font-sans mt-2">items</span>
-                </div>
-                <p className="text-white/40 text-sm mt-3 font-sans">
-                  {data.due.kanji > 0 && <span>{data.due.kanji} 漢字</span>}
-                  {data.due.kanji > 0 && data.due.vocab > 0 && <span className="mx-2 opacity-50">·</span>}
-                  {data.due.vocab > 0 && <span>{data.due.vocab} 語彙</span>}
-                </p>
               </div>
-              <Button
-                asChild
-                className="shimmer-btn h-13 px-8 rounded-xl font-bold text-base shadow-xl"
-                style={{
-                  background: 'linear-gradient(135deg, hsl(38 70% 52%), hsl(33 80% 42%))',
-                  color: '#fff',
-                  border: 'none',
-                  height: '3.25rem',
-                  minWidth: '10rem',
-                }}
-              >
-                <Link href="/review">
-                  <GraduationCap className="h-5 w-5 mr-2" />
+            </div>
+
+          ) : data.due.total > 0 ? (
+            /* ── Items due state ── */
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-medium">
+                Ready for Review
+              </p>
+              <div className="border-t border-dashed border-border my-4 mx-auto max-w-[200px]" />
+
+              <div className="py-2">
+                <span className="text-[5rem] sm:text-[6rem] font-display font-bold text-foreground leading-none">
+                  {data.due.total}
+                </span>
+              </div>
+
+              <p className="text-sm text-muted-foreground mt-1">
+                {data.due.kanji > 0 && <span>{data.due.kanji} 漢字</span>}
+                {data.due.kanji > 0 && data.due.vocab > 0 && <span className="mx-2 opacity-40">·</span>}
+                {data.due.vocab > 0 && <span>{data.due.vocab} 語彙</span>}
+              </p>
+
+              <div className="flex justify-center mt-7">
+                <Link href="/review" className="start-review-cta">
+                  <span className="font-serif text-sm opacity-70 mr-0.5">✦</span>
                   Start Review
                 </Link>
-              </Button>
-            </div>
-          ) : (
-            /* All caught up state */
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="text-center sm:text-left">
-                <p className="text-white/45 text-xs uppercase tracking-[0.3em] mb-2 font-sans">
-                  All caught up
-                </p>
-                <h2 className="text-3xl font-serif font-bold text-white">
-                  完璧です！
-                </h2>
-                <p className="text-white/40 text-sm mt-2 font-sans">
-                  No reviews due · Next up in{' '}
-                  {data.forecast[1]?.count
-                    ? `${data.forecast[1].count} items tomorrow`
-                    : 'a few days'}
-                </p>
               </div>
-              <Button
-                asChild
-                variant="outline"
-                className="shimmer-btn h-12 px-7 rounded-xl font-semibold text-base"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  borderColor: 'rgba(255,255,255,0.2)',
-                  color: 'rgba(255,255,255,0.85)',
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
-                <Link href="/capture">
-                  <Camera className="h-5 w-5 mr-2" />
+            </div>
+
+          ) : (
+            /* ── All caught up state ── */
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-medium">
+                All Caught Up
+              </p>
+              <div className="border-t border-dashed border-border my-4 mx-auto max-w-[200px]" />
+              <h2 className="text-4xl font-serif font-bold text-foreground">
+                完璧です！
+              </h2>
+              <p className="text-sm text-muted-foreground mt-3">
+                No reviews due · Next up in{' '}
+                {data.forecast[1]?.count
+                  ? `${data.forecast[1].count} items tomorrow`
+                  : 'a few days'}
+              </p>
+              <div className="flex justify-center mt-6">
+                <Link
+                  href="/capture"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-[1.5px] border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                >
+                  <Camera className="h-4 w-4" />
                   Capture More
                 </Link>
-              </Button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Stats Strip ───────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* ── Stats Stamps ──────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger-1">
 
         {/* Streak */}
         {data.stats && (
-          <div className="premium-stat-card relative overflow-hidden">
-            {/* Faint flame glyph behind */}
-            <span
-              className="absolute right-2 top-1 text-5xl select-none pointer-events-none"
-              style={{ opacity: 0.07 }}
-              aria-hidden
-            >
-              🔥
-            </span>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1 mb-2">
+          <div className="stat-stamp" style={{ background: 'hsl(25 80% 97%)' }}>
+            <div className="flex items-center justify-center gap-1 mb-2">
               <Flame className="h-3 w-3 text-orange-400" />
-              Streak
-            </p>
-            <p className="text-4xl font-serif font-bold leading-none" style={{ color: 'hsl(25 90% 52%)' }}>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+                Streak
+              </span>
+            </div>
+            <p className="text-3xl font-display font-bold leading-none" style={{ color: 'hsl(20 65% 45%)' }}>
               {data.stats.currentStreak}
             </p>
-            <p className="text-xs text-muted-foreground mt-1.5">
+            <p className="text-[11px] text-muted-foreground mt-1.5">
               {data.stats.currentStreak === 1 ? 'day' : 'days'}
               {data.stats.longestStreak > data.stats.currentStreak && (
                 <span className="ml-1 opacity-60">· best {data.stats.longestStreak}</span>
@@ -292,77 +258,59 @@ export default async function DashboardPage() {
         )}
 
         {/* Level */}
-        <div className="premium-stat-card relative overflow-hidden">
-          <span
-            className="absolute right-2 top-1 text-5xl select-none pointer-events-none"
-            style={{ opacity: 0.07 }}
-            aria-hidden
-          >
-            ⚡
-          </span>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1 mb-2">
+        <div className="stat-stamp" style={{ background: 'hsl(45 60% 97%)' }}>
+          <div className="flex items-center justify-center gap-1 mb-2">
             <Zap className="h-3 w-3 text-amber-500" />
-            Level
-          </p>
-          <p className="text-4xl font-serif font-bold leading-none text-primary">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+              Level
+            </span>
+          </div>
+          <p className="text-3xl font-display font-bold leading-none" style={{ color: 'hsl(38 60% 38%)' }}>
             {data.stats?.level ?? 1}
           </p>
           {data.stats && (
-            <p className="text-xs mt-1.5 font-serif" style={{ color: 'hsl(var(--deep-red))' }}>
+            <p className="text-[11px] mt-1.5 font-serif" style={{ color: 'hsl(var(--deep-red))' }}>
               {data.stats.levelTitle}
             </p>
           )}
         </div>
 
         {/* Kanji count */}
-        <div className="premium-stat-card relative overflow-hidden">
-          <span
-            className="absolute right-2 top-0 text-5xl font-serif select-none pointer-events-none"
-            style={{ opacity: 0.06, color: 'hsl(var(--deep-red))' }}
-            aria-hidden
-          >
-            漢
-          </span>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1 mb-2">
-            <BookOpen className="h-3 w-3" />
-            Kanji
-          </p>
-          <p className="text-4xl font-serif font-bold leading-none text-foreground">
+        <div className="stat-stamp" style={{ background: 'hsl(150 40% 97%)' }}>
+          <div className="flex items-center justify-center gap-1 mb-2">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+              漢字
+            </span>
+          </div>
+          <p className="text-3xl font-display font-bold leading-none" style={{ color: 'hsl(150 40% 32%)' }}>
             {data.counts.kanji}
           </p>
-          <p className="text-xs text-muted-foreground mt-1.5">learned</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5">learned</p>
         </div>
 
         {/* Vocab count */}
-        <div className="premium-stat-card relative overflow-hidden">
-          <span
-            className="absolute right-2 top-0 text-5xl font-serif select-none pointer-events-none"
-            style={{ opacity: 0.06, color: 'hsl(152 60% 30%)' }}
-            aria-hidden
-          >
-            語
-          </span>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1 mb-2">
-            <BookOpen className="h-3 w-3" />
-            Vocab
-          </p>
-          <p className="text-4xl font-serif font-bold leading-none text-foreground">
+        <div className="stat-stamp" style={{ background: 'hsl(240 40% 97%)' }}>
+          <div className="flex items-center justify-center gap-1 mb-2">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+              語彙
+            </span>
+          </div>
+          <p className="text-3xl font-display font-bold leading-none" style={{ color: 'hsl(240 35% 45%)' }}>
             {data.counts.vocab}
           </p>
-          <p className="text-xs text-muted-foreground mt-1.5">words</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5">words</p>
         </div>
       </div>
 
       {/* ── XP Progress + Daily Goal ──────────────────────── */}
       {data.stats && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 stagger-2">
 
-          {/* XP Progress bar */}
-          <div className="bg-white border rounded-xl p-5" style={{ borderColor: 'hsl(35 15% 87%)' }}>
+          {/* XP Progress */}
+          <div className="dash-card p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Zap className="h-4 w-4 text-amber-500" />
-              <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-medium">
-                XP Progress
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+                Experience
               </span>
             </div>
             <XPBar
@@ -374,10 +322,10 @@ export default async function DashboardPage() {
           </div>
 
           {/* Daily goal ring */}
-          <div className="bg-white border rounded-xl p-5" style={{ borderColor: 'hsl(35 15% 87%)' }}>
+          <div className="dash-card p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Target className="h-4 w-4 text-primary" />
-              <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-medium">
+              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
                 Daily Goal
               </span>
             </div>
@@ -386,23 +334,20 @@ export default async function DashboardPage() {
               <div className="flex-1 min-w-0">
                 {data.stats.dailyToday >= data.stats.dailyGoal ? (
                   <>
-                    <p className="font-serif font-bold text-lg text-primary leading-tight">
+                    <p className="font-display font-bold text-lg leading-tight" style={{ color: 'hsl(150 45% 38%)' }}>
                       Goal reached!
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Keep going for bonus XP ✦
+                      Keep going for bonus XP
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="font-serif font-bold text-lg text-foreground leading-tight">
+                    <p className="font-display font-bold text-lg text-foreground leading-tight">
                       {data.stats.dailyGoal - data.stats.dailyToday} more
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       to hit your daily goal
-                    </p>
-                    <p className="text-xs text-amber-600 mt-2 font-medium">
-                      ✦ Finish for bonus XP
                     </p>
                   </>
                 )}
@@ -414,14 +359,14 @@ export default async function DashboardPage() {
 
       {/* ── Recently Learned Kanji Strip ──────────────────── */}
       {data.recentKanji.length > 0 && (
-        <div>
+        <div className="stagger-3">
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">
+            <h2 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
               Recently Learned
             </h2>
             <Link
               href="/library"
-              className="text-xs text-primary hover:underline underline-offset-2 transition-opacity hover:opacity-80"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               View all →
             </Link>
@@ -429,7 +374,7 @@ export default async function DashboardPage() {
 
           {/* Horizontally scrollable strip */}
           <div
-            className="flex gap-3 overflow-x-auto pb-2"
+            className="flex gap-2.5 overflow-x-auto pb-2"
             style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
@@ -443,16 +388,15 @@ export default async function DashboardPage() {
                 <Link
                   key={k.character}
                   href="/library"
-                  className="flex-shrink-0 flex flex-col items-center gap-2 bg-white border rounded-xl p-3.5 w-[72px] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
-                  style={{ borderColor: 'hsl(35 15% 88%)', scrollSnapAlign: 'start' }}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 dash-card p-3 w-[68px] hover:-translate-y-0.5 transition-all duration-200 group"
+                  style={{ scrollSnapAlign: 'start' }}
                   title={meaning}
                 >
-                  <span className="text-[2.2rem] font-serif leading-none text-foreground group-hover:scale-105 transition-transform duration-200">
+                  <span className="text-[2rem] font-serif leading-none text-foreground group-hover:scale-105 transition-transform duration-200">
                     {k.character}
                   </span>
-                  {/* SRS stage dot */}
                   <span
-                    className={`w-2 h-2 rounded-full ${dotClass} flex-shrink-0`}
+                    className={`w-1.5 h-1.5 rounded-full ${dotClass} flex-shrink-0`}
                     title={SRS_LABEL[k.confidenceLevel]}
                   />
                 </Link>
@@ -464,7 +408,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-4 mt-2 pl-0.5">
             {Object.entries(SRS_LABEL).map(([key, label]) => (
               <div key={key} className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${SRS_DOT[key]}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${SRS_DOT[key]}`} />
                 <span className="text-[10px] text-muted-foreground">{label}</span>
               </div>
             ))}
@@ -473,13 +417,13 @@ export default async function DashboardPage() {
       )}
 
       {/* ── Review Forecast + Knowledge Strength ──────────── */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 stagger-4">
 
         {/* 7-day forecast */}
-        <div className="bg-white border rounded-xl p-5" style={{ borderColor: 'hsl(35 15% 87%)' }}>
+        <div className="dash-card p-5">
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-medium">
+            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
               Coming Up
             </span>
           </div>
@@ -490,14 +434,15 @@ export default async function DashboardPage() {
                   <span className="text-[10px] font-mono text-muted-foreground">{day.count}</span>
                 )}
                 <div
-                  className={`w-full rounded-t-sm transition-all ${
-                    i === 0 ? 'bg-primary' : 'bg-primary/25'
-                  }`}
-                  style={{ height: `${Math.max(3, (day.count / maxForecast) * 64)}px` }}
+                  className="w-full rounded-sm transition-all"
+                  style={{
+                    height: `${Math.max(3, (day.count / maxForecast) * 64)}px`,
+                    background: i === 0 ? 'hsl(15 55% 48%)' : 'hsl(25 20% 85%)',
+                  }}
                 />
                 <span
                   className={`text-[10px] font-medium ${
-                    i === 0 ? 'text-primary' : 'text-muted-foreground'
+                    i === 0 ? 'text-foreground' : 'text-muted-foreground'
                   }`}
                 >
                   {day.label}
@@ -508,13 +453,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* Knowledge strength */}
-        <div className="bg-white border rounded-xl p-5" style={{ borderColor: 'hsl(35 15% 87%)' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-medium">
-              Knowledge Strength
-            </span>
-          </div>
-          <div className="space-y-3">
+        <div className="dash-card p-5">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+            Knowledge Strength
+          </span>
+          <div className="space-y-3 mt-4">
             {(["kanji", "vocab"] as const).map((type) => {
               const conf = type === "kanji" ? data.confidence.kanji : data.confidence.vocab;
               const total = Object.values(conf).reduce((a, b) => a + b, 0);
@@ -522,10 +465,12 @@ export default async function DashboardPage() {
               return (
                 <div key={type}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium capitalize text-foreground">{type}</span>
+                    <span className="text-xs font-medium text-foreground">
+                      {type === "kanji" ? "漢字" : "語彙"}
+                    </span>
                     <span className="text-[11px] text-muted-foreground font-mono">{total}</span>
                   </div>
-                  <div className="h-2.5 bg-stone-100 rounded-full overflow-hidden flex">
+                  <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: 'hsl(35 20% 92%)' }}>
                     {(["known", "reviewing", "learning", "new"] as const).map((level) => {
                       const count = conf[level] || 0;
                       if (count === 0) return null;
@@ -547,7 +492,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4">
             {Object.entries(CONFIDENCE_COLORS).map(([key, { bg, label }]) => (
               <div key={key} className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${bg}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${bg}`} />
                 <span className="text-[10px] text-muted-foreground">{label}</span>
               </div>
             ))}
@@ -556,67 +501,64 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Quick Actions ─────────────────────────────────── */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 stagger-5">
         <Link
           href="/capture"
-          className="group flex items-center gap-4 bg-white border rounded-xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-          style={{ borderColor: 'hsl(35 15% 87%)' }}
+          className="group flex items-center gap-4 dash-card p-4 hover:-translate-y-0.5 transition-all duration-200"
         >
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
-            style={{ background: 'hsl(35 28% 94%)' }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border border-dashed transition-colors group-hover:border-foreground/20"
+            style={{ borderColor: 'hsl(35 15% 82%)' }}
           >
-            <Camera className="h-5 w-5 text-foreground/60" />
+            <Camera className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-sm text-foreground">Capture New</p>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            <p className="font-medium text-sm text-foreground">Capture New</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
               Upload notes or photos to extract kanji
             </p>
           </div>
-          <span className="ml-auto text-muted-foreground/50 group-hover:translate-x-0.5 transition-transform">→</span>
+          <span className="ml-auto text-muted-foreground/40 group-hover:translate-x-0.5 transition-transform text-sm">→</span>
         </Link>
 
         <Link
           href="/library"
-          className="group flex items-center gap-4 bg-white border rounded-xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-          style={{ borderColor: 'hsl(35 15% 87%)' }}
+          className="group flex items-center gap-4 dash-card p-4 hover:-translate-y-0.5 transition-all duration-200"
         >
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
-            style={{ background: 'hsl(35 28% 94%)' }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border border-dashed transition-colors group-hover:border-foreground/20"
+            style={{ borderColor: 'hsl(35 15% 82%)' }}
           >
-            <BookOpen className="h-5 w-5 text-foreground/60" />
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-sm text-foreground">Your Library</p>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            <p className="font-medium text-sm text-foreground">Your Library</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
               Browse kanji, vocabulary, and sentences
             </p>
           </div>
-          <span className="ml-auto text-muted-foreground/50 group-hover:translate-x-0.5 transition-transform">→</span>
+          <span className="ml-auto text-muted-foreground/40 group-hover:translate-x-0.5 transition-transform text-sm">→</span>
         </Link>
       </div>
 
       {/* ── Lifetime Stats ────────────────────────────────── */}
       {data.stats && data.stats.totalReviews > 0 && (
-        <div
-          className="bg-white border rounded-xl px-5 py-4 flex items-center justify-around text-center"
-          style={{ borderColor: 'hsl(35 15% 87%)' }}
-        >
-          <div>
-            <p className="text-2xl font-serif font-bold text-foreground">{data.stats.totalReviews}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 uppercase tracking-wide">Reviews</p>
-          </div>
-          <div className="h-8 w-px bg-border" />
-          <div>
-            <p className="text-2xl font-serif font-bold text-primary">{data.stats.accuracy}%</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 uppercase tracking-wide">Accuracy</p>
-          </div>
-          <div className="h-8 w-px bg-border" />
-          <div>
-            <p className="text-2xl font-serif font-bold text-foreground">{data.counts.sentences}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 uppercase tracking-wide">Sentences</p>
+        <div className="dash-card stagger-6">
+          <div className="flex items-center justify-around text-center px-5 py-4">
+            <div>
+              <p className="text-xl font-display font-bold text-foreground">{data.stats.totalReviews}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-[0.15em]">Reviews</p>
+            </div>
+            <div className="h-8 border-l border-dashed border-border" />
+            <div>
+              <p className="text-xl font-display font-bold" style={{ color: 'hsl(150 40% 35%)' }}>{data.stats.accuracy}%</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-[0.15em]">Accuracy</p>
+            </div>
+            <div className="h-8 border-l border-dashed border-border" />
+            <div>
+              <p className="text-xl font-display font-bold text-foreground">{data.counts.sentences}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-[0.15em]">Sentences</p>
+            </div>
           </div>
         </div>
       )}

@@ -66,6 +66,7 @@ const config: Config = {
       fontFamily: {
         sans: ["'Noto Sans JP'", "sans-serif"],
         serif: ["'Noto Serif JP'", "serif"],
+        display: ["'Fraunces'", "'Noto Serif JP'", "serif"],
         mono: ["'JetBrains Mono'", "monospace"],
       },
       borderRadius: {
