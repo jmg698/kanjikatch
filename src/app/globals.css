@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,32 +6,41 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 15% 15%;
+    /* Warm washi paper tones */
+    --background: 35 28% 97%;
+    --foreground: 25 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
+    --card-foreground: 25 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
+    --popover-foreground: 25 20% 12%;
     --primary: 152 100% 22%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 92%;
-    --secondary-foreground: 220 15% 15%;
-    --muted: 210 15% 94%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 210 15% 92%;
-    --accent-foreground: 220 15% 15%;
+    --secondary: 35 18% 92%;
+    --secondary-foreground: 25 20% 20%;
+    --muted: 35 18% 93%;
+    --muted-foreground: 30 10% 50%;
+    --accent: 35 18% 92%;
+    --accent-foreground: 25 20% 12%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
+    --border: 35 15% 87%;
+    --input: 35 15% 87%;
     --ring: 152 100% 22%;
-    --radius: 0.5rem;
-    
+    --radius: 0.75rem;
+
     /* JR-specific colors */
     --jr-green: 152 100% 22%;
     --jr-green-light: 152 45% 45%;
     --jr-orange: 25 95% 53%;
     --jr-red: 0 72% 51%;
+
+    /* Premium palette */
+    --ink: 25 20% 8%;
+    --gold: 38 70% 52%;
+    --sage: 150 35% 42%;
+    --deep-red: 0 50% 30%;
+    --paper: 35 28% 97%;
+    --warm-muted: 30 10% 50%;
   }
 
   .dark {
@@ -54,12 +63,18 @@
     --border: 220 15% 20%;
     --input: 220 15% 20%;
     --ring: 152 80% 40%;
-    
-    /* JR-specific colors - dark mode */
+
     --jr-green: 152 80% 40%;
     --jr-green-light: 152 50% 50%;
     --jr-orange: 25 90% 55%;
     --jr-red: 0 70% 55%;
+
+    --ink: 25 20% 6%;
+    --gold: 38 70% 52%;
+    --sage: 150 35% 42%;
+    --deep-red: 0 50% 32%;
+    --paper: 220 20% 10%;
+    --warm-muted: 215 15% 55%;
   }
 }
 
@@ -73,19 +88,131 @@
   }
 }
 
+/* ── Keyframe Animations ───────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px hsl(38 70% 52% / 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 22px hsl(38 70% 52% / 0.55)) drop-shadow(0 0 50px hsl(38 70% 52% / 0.2));
+  }
+}
+
+@keyframes shimmer-slide {
+  0% { transform: translateX(-150%) skewX(-15deg); }
+  100% { transform: translateX(250%) skewX(-15deg); }
+}
+
+@keyframes xp-shimmer {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(350%) skewX(-20deg); }
+}
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Component Classes ─────────────────────────────────── */
+
 @layer components {
+  /* Legacy panel — retained for backwards compat */
   .jr-panel {
     @apply bg-white border-2 rounded-lg;
-    box-shadow: 
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.07),
+      0 2px 4px -1px rgba(0, 0, 0, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
-  
+
   .jr-display {
     @apply bg-secondary rounded px-3 py-2;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
   }
+
+  /* Premium hero card (dark ink bg) */
+  .premium-hero {
+    background: linear-gradient(
+      135deg,
+      hsl(25 22% 7%) 0%,
+      hsl(0 30% 10%) 55%,
+      hsl(28 22% 8%) 100%
+    );
+    box-shadow:
+      0 30px 60px -15px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  /* Premium stat card */
+  .premium-stat-card {
+    @apply bg-white border rounded-xl p-5 cursor-default;
+    border-color: hsl(35 15% 88%);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 12px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .premium-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 12px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Shimmer hover button */
+  .shimmer-btn {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.28) 50%,
+      transparent 70%
+    );
+    transform: translateX(-150%) skewX(-15deg);
+  }
+
+  .shimmer-btn:hover::after {
+    animation: shimmer-slide 0.55s ease forwards;
+  }
+
+  /* XP bar shimmer overlay (inside fill div) */
+  .xp-bar-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 25%,
+      rgba(255, 255, 255, 0.38) 50%,
+      transparent 75%
+    );
+    animation: xp-shimmer 2.8s ease-in-out 1.6s infinite;
+  }
+
+  /* Glow pulse for the hero review count */
+  .glow-pulse {
+    animation: pulse-glow 3.5s ease-in-out infinite;
+  }
+
+  /* SRS stage dot colors (WaniKani-style) */
+  .srs-apprentice { @apply bg-rose-500; }
+  .srs-guru       { @apply bg-violet-500; }
+  .srs-master     { @apply bg-blue-500; }
+  .srs-known      { @apply bg-emerald-500; }
 
   /* "See It In The Wild" — reading-focused styles */
   .wild-sentence-text {
