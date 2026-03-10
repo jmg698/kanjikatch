@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Home, BookOpen, Plus, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,35 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [goNext, goPrev, onClose]);
 
+  // Swipe gesture handling
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const SWIPE_THRESHOLD = 50;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+
+    // Only trigger swipe if horizontal movement exceeds vertical (avoid interfering with scroll)
+    if (Math.abs(deltaX) > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX < 0) {
+        goNext();
+      } else {
+        goPrev();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }, [goNext, goPrev]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
@@ -202,7 +231,11 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
       </div>
 
       {/* Sentence content */}
-      <div className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden">
+      <div
+        className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
