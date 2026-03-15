@@ -33,7 +33,8 @@ export function CaptureUploader() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to process image");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to process image");
       }
 
       setState("success");

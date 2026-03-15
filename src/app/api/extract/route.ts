@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db, sourceImages, kanji, vocabulary, sentences, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
+import { checkExtractionRateLimit } from "@/lib/rate-limit";
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { allowed, remaining } = await checkExtractionRateLimit(userId);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Weekly extraction limit reached (200 per week). Please try again later." },
+        { status: 429 }
+      );
     }
 
     const body = await req.json();
