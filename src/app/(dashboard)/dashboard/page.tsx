@@ -148,23 +148,33 @@ export default async function DashboardPage() {
               )}
             </div>
 
-            {/* Right: Counts stacked */}
+            {/* Right: Capture button + combined counts */}
             <div className="flex flex-col gap-3">
+              <Link
+                href="/capture"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground py-5 font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
+              >
+                <Camera className="h-5 w-5" />
+                <span className="text-base">Capture</span>
+              </Link>
               <div className="bg-white border border-border rounded-2xl p-5 flex-1 flex flex-col justify-center">
-                <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
-                  {data.counts.kanji}
-                </p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2 font-medium">
-                  Kanji Learned
-                </p>
-              </div>
-              <div className="bg-white border border-border rounded-2xl p-5 flex-1 flex flex-col justify-center">
-                <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
-                  {data.counts.vocab}
-                </p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-2 font-medium">
-                  Vocabulary
-                </p>
+                <div className="flex items-baseline gap-3">
+                  <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
+                    {data.counts.kanji}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+                    Kanji
+                  </p>
+                </div>
+                <div className="border-t border-border my-3" />
+                <div className="flex items-baseline gap-3">
+                  <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
+                    {data.counts.vocab}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+                    Vocab
+                  </p>
+                </div>
               </div>
             </div>
           </div>
