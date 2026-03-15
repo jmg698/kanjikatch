@@ -42,8 +42,7 @@ export function TopNav({ dueCount }: TopNavProps) {
 
       <Link
         href="/capture"
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-white transition-all hover:opacity-90 active:scale-[0.97]"
-        style={{ backgroundColor: 'hsl(15 55% 48%)' }}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-primary-foreground bg-primary transition-all hover:bg-primary/90 active:scale-[0.97]"
       >
         <Camera className="h-3.5 w-3.5" />
         Capture
@@ -62,8 +61,7 @@ export function TopNav({ dueCount }: TopNavProps) {
         Review
         {dueCount > 0 && (
           <span
-            className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-white text-[10px] font-bold px-1 leading-none"
-            style={{ backgroundColor: 'hsl(15 55% 48%)' }}
+            className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1 leading-none"
           >
             {dueCount > 99 ? '99+' : dueCount}
           </span>
