@@ -217,7 +217,12 @@ export function ReviewCard({
                           )}
                         </div>
                       ) : (
-                        <p className="text-lg">{item.readings.join(", ")}</p>
+                        <div className="space-y-1">
+                          {item.prompt !== item.readings[0] && (
+                            <p className={fullScreen ? "text-3xl font-bold" : "text-2xl font-bold"}>{item.prompt}</p>
+                          )}
+                          <p className="text-lg">{item.readings.join(", ")}</p>
+                        </div>
                       )}
                     </div>
 
