@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Camera, Flame } from "lucide-react";
 import { db, kanji, vocabulary, userStats } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
-import { eq, and, or, lte, isNull, desc, sql } from "drizzle-orm";
+import { eq, and, or, lte, lt, isNull, desc, asc, sql, gte } from "drizzle-orm";
 
 async function getDashboardData(userId: string) {
   const now = new Date();
@@ -14,6 +14,7 @@ async function getDashboardData(userId: string) {
     [vocabDue],
     stats,
     recentKanji,
+    needsAttention,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(kanji).where(eq(kanji.userId, userId)),
     db.select({ count: sql<number>`count(*)::int` }).from(vocabulary).where(eq(vocabulary.userId, userId)),
@@ -33,6 +34,22 @@ async function getDashboardData(userId: string) {
       .where(eq(kanji.userId, userId))
       .orderBy(desc(kanji.firstSeenAt))
       .limit(20),
+    db.select({
+      character: kanji.character,
+      meanings: kanji.meanings,
+      reviewCount: kanji.reviewCount,
+      timesCorrect: kanji.timesCorrect,
+    })
+      .from(kanji)
+      .where(
+        and(
+          eq(kanji.userId, userId),
+          gte(kanji.reviewCount, 2),
+          lt(kanji.easeFactor, '2.00'),
+        )
+      )
+      .orderBy(asc(kanji.easeFactor))
+      .limit(6),
   ]);
 
   return {
@@ -40,6 +57,7 @@ async function getDashboardData(userId: string) {
     due: { kanji: kanjiDue.count, vocab: vocabDue.count, total: kanjiDue.count + vocabDue.count },
     streak: stats?.currentStreak ?? 0,
     recentKanji,
+    needsAttention,
   };
 }
 
@@ -181,6 +199,41 @@ export default async function DashboardPage() {
           </div>
         )}
       </section>
+
+      {/* ── "Needs Attention" ── */}
+      {data.needsAttention.length > 0 && (
+        <section className="stagger-1">
+          <h2 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-3">
+            Needs Attention
+          </h2>
+          <div
+            className="flex gap-2.5 overflow-x-auto pb-2"
+            style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory' }}
+          >
+            {data.needsAttention.map((k) => {
+              const accuracy = k.reviewCount > 0
+                ? Math.round((k.timesCorrect / k.reviewCount) * 100)
+                : 0;
+              return (
+                <Link
+                  key={k.character}
+                  href="/library"
+                  className="flex-shrink-0 flex flex-col items-center gap-1.5 bg-white border border-orange-200/60 rounded-xl p-3 w-[78px] hover:-translate-y-0.5 transition-all duration-200"
+                  style={{ scrollSnapAlign: 'start' }}
+                  title={k.meanings[0] ?? ''}
+                >
+                  <span className="text-[2rem] font-serif leading-none text-foreground">
+                    {k.character}
+                  </span>
+                  <span className="text-[10px] font-mono text-orange-500/80">
+                    {accuracy}%
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── "What have I been learning?" ── */}
       {data.recentKanji.length > 0 && (
