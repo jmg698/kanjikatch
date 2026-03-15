@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { db, kanji, vocabulary } from "@/db";
 import { eq, and, or, lte, isNull, sql } from "drizzle-orm";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { TopNav } from "@/components/dashboard/top-nav";
 
 async function getDueCount(userId: string): Promise<number> {
   const now = new Date();
@@ -34,42 +34,48 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimal premium header — logo + profile only */}
       <header
         className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md"
         style={{ borderColor: 'hsl(35 15% 87%)' }}
       >
-        <div className="container flex h-13 items-center justify-between px-4 py-3">
-          {/* Wordmark */}
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <span
-              className="text-2xl font-serif leading-none transition-opacity group-hover:opacity-80"
-              style={{ color: 'hsl(var(--deep-red))' }}
-            >
-              漢
-            </span>
-            <div className="flex flex-col leading-none">
-              <span className="font-semibold text-sm tracking-wide text-foreground">
-                KanjiKatch
+        <div className="container px-4">
+          {/* Primary row: logo + desktop nav + user */}
+          <div className="flex items-center justify-between py-2.5">
+            <Link href="/dashboard" className="flex items-center gap-2.5 group flex-shrink-0">
+              <span
+                className="text-2xl font-serif leading-none transition-opacity group-hover:opacity-80"
+                style={{ color: 'hsl(var(--deep-red))' }}
+              >
+                漢
               </span>
-              <span className="text-[10px] tracking-[0.15em] text-muted-foreground font-sans">
-                漢字キャッチ
-              </span>
-            </div>
-          </Link>
+              <div className="flex flex-col leading-none">
+                <span className="font-semibold text-sm tracking-wide text-foreground">
+                  KanjiKatch
+                </span>
+                <span className="text-[10px] tracking-[0.15em] text-muted-foreground font-sans">
+                  漢字キャッチ
+                </span>
+              </div>
+            </Link>
 
-          {/* User profile */}
-          <UserButton afterSignOutUrl="/" />
+            {/* Desktop navigation inline */}
+            <div className="hidden md:block flex-1 mx-6">
+              <TopNav dueCount={dueCount} />
+            </div>
+
+            <UserButton afterSignOutUrl="/" />
+          </div>
+
+          {/* Mobile navigation row */}
+          <div className="md:hidden pb-2 -mt-0.5">
+            <TopNav dueCount={dueCount} />
+          </div>
         </div>
       </header>
 
-      {/* Main content — padded bottom for fixed bottom nav */}
-      <main className="container px-4 py-6 pb-24">
+      <main className="container px-4 py-6">
         {children}
       </main>
-
-      {/* Permanent bottom navigation */}
-      <BottomNav dueCount={dueCount} />
     </div>
   );
 }
