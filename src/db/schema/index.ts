@@ -153,6 +153,8 @@ export const generatedSentences = pgTable("generated_sentences", {
   japanese: text("japanese").notNull(),
   english: text("english").notNull(),
   words: jsonb("words").notNull(), // Array of {text, reading?, isTarget}
+  difficultyRating: text("difficulty_rating"), // 'too_easy' | 'just_right' | 'too_hard' | null
+  ratedAt: timestamp("rated_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   userIdIdx: index("generated_sentences_user_id_idx").on(table.userId),

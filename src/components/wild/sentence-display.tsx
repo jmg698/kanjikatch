@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, Plus, Check, Loader2 } from "lucide-react";
+import { Eye, Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp } from "lucide-react";
 import type { WildSentenceData, WildWord } from "./in-the-wild";
+
+export type DifficultyRating = "too_easy" | "just_right" | "too_hard";
 
 interface SentenceDisplayProps {
   sentence: WildSentenceData;
   showAddWord?: boolean;
   compact?: boolean;
+  onRate?: (sentenceId: string, rating: DifficultyRating) => void;
+  currentRating?: DifficultyRating | null;
 }
 
 function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: WildWord) => void }) {
@@ -55,7 +59,47 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
   return <span>{content}</span>;
 }
 
-export function SentenceDisplay({ sentence, showAddWord = false, compact = false }: SentenceDisplayProps) {
+const RATING_CONFIG: Record<DifficultyRating, {
+  label: string;
+  icon: typeof Zap;
+  bg: string;
+  border: string;
+  text: string;
+  hoverBg: string;
+  activeBg: string;
+}> = {
+  too_easy: {
+    label: "Too Easy",
+    icon: Zap,
+    bg: "bg-sky-50 dark:bg-sky-950/40",
+    border: "border-sky-200 dark:border-sky-800",
+    text: "text-sky-700 dark:text-sky-300",
+    hoverBg: "hover:bg-sky-100 dark:hover:bg-sky-900/50",
+    activeBg: "bg-sky-100 dark:bg-sky-900/60 ring-2 ring-sky-400 dark:ring-sky-500",
+  },
+  just_right: {
+    label: "Just Right",
+    icon: ThumbsUp,
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    border: "border-emerald-200 dark:border-emerald-800",
+    text: "text-emerald-700 dark:text-emerald-300",
+    hoverBg: "hover:bg-emerald-100 dark:hover:bg-emerald-900/50",
+    activeBg: "bg-emerald-100 dark:bg-emerald-900/60 ring-2 ring-emerald-400 dark:ring-emerald-500",
+  },
+  too_hard: {
+    label: "Too Hard",
+    icon: TrendingUp,
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    border: "border-amber-200 dark:border-amber-800",
+    text: "text-amber-700 dark:text-amber-300",
+    hoverBg: "hover:bg-amber-100 dark:hover:bg-amber-900/50",
+    activeBg: "bg-amber-100 dark:bg-amber-900/60 ring-2 ring-amber-400 dark:ring-amber-500",
+  },
+};
+
+const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
+
+export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating }: SentenceDisplayProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
   const [addStatus, setAddStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -140,11 +184,52 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="space-y-2"
+              className="space-y-4"
             >
               <p className={`text-muted-foreground ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
                 {sentence.english}
               </p>
+
+              {/* Difficulty rating buttons */}
+              {onRate && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15, duration: 0.25 }}
+                  className="space-y-2"
+                >
+                  <p className="text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
+                    How was this sentence?
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    {RATINGS.map((rating) => {
+                      const config = RATING_CONFIG[rating];
+                      const Icon = config.icon;
+                      const isSelected = currentRating === rating;
+
+                      return (
+                        <button
+                          key={rating}
+                          onClick={() => onRate(sentence.id, rating)}
+                          className={`
+                            flex items-center gap-1.5 rounded-xl border-2 transition-all
+                            active:scale-95
+                            ${isSelected
+                              ? `${config.activeBg} ${config.border} ${config.text}`
+                              : `${config.bg} ${config.border} ${config.text} ${config.hoverBg}`
+                            }
+                            ${compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}
+                          `}
+                        >
+                          <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+                          <span className="font-medium">{config.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
               <button
                 onClick={() => setShowTranslation(false)}
                 className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Filter, X, Loader2, GraduationCap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { SentenceDisplay } from "./sentence-display";
+import { SentenceDisplay, type DifficultyRating } from "./sentence-display";
 import type { WildSentenceData } from "./in-the-wild";
 import Link from "next/link";
 
@@ -26,6 +26,21 @@ export function SentenceLibrary({ hasAnySentences }: SentenceLibraryProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [ratings, setRatings] = useState<Record<string, DifficultyRating>>({});
+
+  const handleRate = useCallback(async (sentenceId: string, rating: DifficultyRating) => {
+    setRatings((prev) => ({ ...prev, [sentenceId]: rating }));
+
+    try {
+      await fetch("/api/sentences/rate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sentenceId, rating }),
+      });
+    } catch {
+      // Optimistic — silent fail
+    }
+  }, []);
 
   const fetchSentences = useCallback(async (pageNum: number, filter: string | null, append: boolean = false) => {
     if (pageNum === 1) setLoading(true);
@@ -40,10 +55,19 @@ export function SentenceLibrary({ hasAnySentences }: SentenceLibraryProps) {
 
       const data = await res.json();
 
-      setSentences((prev) => append ? [...prev, ...data.sentences] : data.sentences);
+      const fetched: WildSentenceData[] = data.sentences || [];
+      setSentences((prev) => append ? [...prev, ...fetched] : fetched);
       setFilterOptions(data.filterOptions || []);
       setHasMore(data.hasMore);
       setPage(pageNum);
+
+      const newRatings: Record<string, DifficultyRating> = {};
+      for (const s of fetched) {
+        if (s.difficultyRating) newRatings[s.id] = s.difficultyRating;
+      }
+      if (Object.keys(newRatings).length > 0) {
+        setRatings((prev) => append ? { ...prev, ...newRatings } : newRatings);
+      }
     } catch (e) {
       console.error("Failed to fetch library:", e);
     } finally {
@@ -178,6 +202,8 @@ export function SentenceLibrary({ hasAnySentences }: SentenceLibraryProps) {
                       sentence={sentence}
                       showAddWord
                       compact
+                      onRate={handleRate}
+                      currentRating={ratings[sentence.id] || null}
                     />
                   </CardContent>
                 </Card>

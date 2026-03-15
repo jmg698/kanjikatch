@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Home, BookOpen, Plus, Check, X, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home, BookOpen, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SentenceDisplay } from "./sentence-display";
+import { SentenceDisplay, type DifficultyRating } from "./sentence-display";
 
 export interface WildWord {
   text: string;
@@ -27,6 +27,7 @@ export interface WildSentenceData {
   english: string;
   words: WildWord[];
   targets: WildSentenceTarget[];
+  difficultyRating: DifficultyRating | null;
   createdAt: string;
 }
 
@@ -42,6 +43,21 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [ratings, setRatings] = useState<Record<string, DifficultyRating>>({});
+
+  const handleRate = useCallback(async (sentenceId: string, rating: DifficultyRating) => {
+    setRatings((prev) => ({ ...prev, [sentenceId]: rating }));
+
+    try {
+      await fetch("/api/sentences/rate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sentenceId, rating }),
+      });
+    } catch {
+      // Rating saved optimistically — silent fail is fine
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +77,13 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
 
         const data = await res.json();
         if (!cancelled) {
-          setSentences(data.sentences || []);
+          const fetched: WildSentenceData[] = data.sentences || [];
+          setSentences(fetched);
+          const existingRatings: Record<string, DifficultyRating> = {};
+          for (const s of fetched) {
+            if (s.difficultyRating) existingRatings[s.id] = s.difficultyRating;
+          }
+          if (Object.keys(existingRatings).length > 0) setRatings(existingRatings);
           setLoading(false);
         }
       } catch (e) {
@@ -216,18 +238,23 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
 
       {/* Progress dots */}
       <div className="flex-shrink-0 flex items-center justify-center gap-2 py-3">
-        {sentences.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => { setDirection(i > currentIndex ? 1 : -1); setCurrentIndex(i); }}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              i === currentIndex
-                ? "w-6 bg-primary"
-                : "w-2 bg-border hover:bg-muted-foreground/30"
-            }`}
-            aria-label={`Sentence ${i + 1}`}
-          />
-        ))}
+        {sentences.map((s, i) => {
+          const rated = !!ratings[s.id];
+          return (
+            <button
+              key={i}
+              onClick={() => { setDirection(i > currentIndex ? 1 : -1); setCurrentIndex(i); }}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                i === currentIndex
+                  ? "w-6 bg-primary"
+                  : rated
+                    ? "w-2 bg-emerald-400 dark:bg-emerald-500"
+                    : "w-2 bg-border hover:bg-muted-foreground/30"
+              }`}
+              aria-label={`Sentence ${i + 1}${rated ? " (rated)" : ""}`}
+            />
+          );
+        })}
       </div>
 
       {/* Sentence content */}
@@ -249,6 +276,8 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
               <SentenceDisplay
                 sentence={sentence}
                 showAddWord
+                onRate={handleRate}
+                currentRating={ratings[sentence.id] || null}
               />
             </motion.div>
           </AnimatePresence>
