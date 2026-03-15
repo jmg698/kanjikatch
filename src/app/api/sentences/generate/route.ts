@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const history = await db
       .select()
       .from(reviewHistory)
-      .where(eq(reviewHistory.sessionId, sessionId));
+      .where(and(eq(reviewHistory.sessionId, sessionId), eq(reviewHistory.userId, userId)));
 
     if (history.length === 0) {
       return NextResponse.json({ sentences: [] });

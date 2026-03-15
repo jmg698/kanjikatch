@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db, reviewSessions, userStats } from "@/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getSessionCompletionXp, calculateLevel, updateStreak, getTodayDateString } from "@/lib/srs";
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       const [session] = await db
         .update(reviewSessions)
         .set({ completedAt: now })
-        .where(eq(reviewSessions.id, parsed.data.sessionId))
+        .where(and(eq(reviewSessions.id, parsed.data.sessionId), eq(reviewSessions.userId, userId)))
         .returning();
 
       if (!session) {
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       await db
         .update(reviewSessions)
         .set({ xpEarned: sql`${reviewSessions.xpEarned} + ${completionXp}` })
-        .where(eq(reviewSessions.id, session.id));
+        .where(and(eq(reviewSessions.id, session.id), eq(reviewSessions.userId, userId)));
 
       const durationMs = now.getTime() - session.startedAt.getTime();
 

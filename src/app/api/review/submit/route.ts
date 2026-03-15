@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
         itemsReviewed: sql`${reviewSessions.itemsReviewed} + 1`,
         itemsCorrect: wasCorrect ? sql`${reviewSessions.itemsCorrect} + 1` : reviewSessions.itemsCorrect,
       })
-      .where(eq(reviewSessions.id, sessionId));
+      .where(and(eq(reviewSessions.id, sessionId), eq(reviewSessions.userId, userId)));
 
     // 6. Calculate XP earned
     const xpEarned = calculateXp(grade as Grade, consecutiveCorrect);
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
     await db
       .update(reviewSessions)
       .set({ xpEarned: sql`${reviewSessions.xpEarned} + ${xpEarned}` })
-      .where(eq(reviewSessions.id, sessionId));
+      .where(and(eq(reviewSessions.id, sessionId), eq(reviewSessions.userId, userId)));
 
     return NextResponse.json({
       success: true,
