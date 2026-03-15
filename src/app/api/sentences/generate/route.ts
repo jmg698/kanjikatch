@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db, generatedSentences, generatedSentenceTargets, reviewHistory, kanji, vocabulary } from "@/db";
-import { eq, and, inArray } from "drizzle-orm";
-import { generateWildSentences, type WildTargetItem } from "@/lib/ai";
+import { eq, and, inArray, isNotNull, desc } from "drizzle-orm";
+import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
 import { z } from "zod";
 
 const MAX_SENTENCES_PER_SESSION = 5;
@@ -153,7 +153,36 @@ export async function POST(req: NextRequest) {
     let newSentences: typeof existing = [];
 
     if (uncoveredTargets.length > 0) {
-      const generated = await generateWildSentences(uncoveredTargets);
+      // Compute difficulty profile from recent rated sentences
+      const recentRated = await db
+        .select({
+          difficultyRating: generatedSentences.difficultyRating,
+        })
+        .from(generatedSentences)
+        .where(
+          and(
+            eq(generatedSentences.userId, userId),
+            isNotNull(generatedSentences.difficultyRating),
+          ),
+        )
+        .orderBy(desc(generatedSentences.ratedAt))
+        .limit(30);
+
+      let difficultyProfile: DifficultyProfile | undefined;
+      if (recentRated.length >= 5) {
+        const total = recentRated.length;
+        const tooEasy = recentRated.filter((r) => r.difficultyRating === "too_easy").length;
+        const justRight = recentRated.filter((r) => r.difficultyRating === "just_right").length;
+        const tooHard = recentRated.filter((r) => r.difficultyRating === "too_hard").length;
+        difficultyProfile = {
+          tooEasyPct: Math.round((tooEasy / total) * 100),
+          justRightPct: Math.round((justRight / total) * 100),
+          tooHardPct: Math.round((tooHard / total) * 100),
+          totalRated: total,
+        };
+      }
+
+      const generated = await generateWildSentences(uncoveredTargets, difficultyProfile);
 
       // Deduplicate: don't store same Japanese text twice for this user
       const existingJapanese = new Set(

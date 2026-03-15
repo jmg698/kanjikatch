@@ -277,7 +277,57 @@ Return ONLY valid JSON:
   ]
 }`;
 
-export async function generateWildSentences(targets: WildTargetItem[]): Promise<WildSentence[]> {
+export interface DifficultyProfile {
+  tooEasyPct: number;
+  justRightPct: number;
+  tooHardPct: number;
+  totalRated: number;
+}
+
+function buildDifficultyGuidance(profile: DifficultyProfile): string {
+  if (profile.totalRated < 5) return "";
+
+  const lines: string[] = [];
+
+  lines.push(`\n\nLEARNER DIFFICULTY CALIBRATION (based on ${profile.totalRated} recent ratings):`);
+  lines.push(`- ${profile.tooEasyPct}% rated "Too Easy", ${profile.justRightPct}% rated "Just Right", ${profile.tooHardPct}% rated "Too Hard"`);
+
+  if (profile.tooHardPct >= 50) {
+    lines.push(
+      "The learner finds most sentences TOO CHALLENGING. Adjust accordingly:",
+      "- Use shorter sentences (8-15 words max)",
+      "- Prefer common, everyday grammar (です/ます form, simple て-form, basic adjectives)",
+      "- Limit each sentence to 1-2 unfamiliar non-target words",
+      "- Favor concrete, daily-life topics (food, weather, routine, shopping)",
+      "- Avoid literary expressions, complex subordinate clauses, and rare vocabulary",
+    );
+  } else if (profile.tooHardPct >= 35) {
+    lines.push(
+      "The learner finds sentences somewhat challenging. Lean simpler:",
+      "- Keep sentences moderate length (10-20 words)",
+      "- Mix simple and intermediate grammar, but avoid advanced patterns",
+      "- Limit unfamiliar non-target words to 2-3 per sentence",
+    );
+  } else if (profile.tooEasyPct >= 50) {
+    lines.push(
+      "The learner finds most sentences TOO EASY. Increase the challenge:",
+      "- Use longer, more complex sentences with subordinate clauses",
+      "- Include intermediate-to-advanced grammar (conditionals, passive, causative, nominalization)",
+      "- Include 3-4 non-target words the learner may not know",
+      "- Use varied registers — news headlines, formal writing, casual speech",
+    );
+  } else if (profile.tooEasyPct >= 35) {
+    lines.push(
+      "The learner finds sentences somewhat easy. Nudge the difficulty up:",
+      "- Use slightly longer sentences with more varied grammar",
+      "- Include 2-3 non-target words that may be new",
+    );
+  }
+
+  return lines.join("\n");
+}
+
+export async function generateWildSentences(targets: WildTargetItem[], difficultyProfile?: DifficultyProfile): Promise<WildSentence[]> {
   const targetList = targets
     .map((t) => {
       const label = t.type === "kanji" ? "Kanji" : "Vocab";
@@ -288,13 +338,17 @@ export async function generateWildSentences(targets: WildTargetItem[]): Promise<
 
   const sentenceCount = targets.length <= 2 ? 3 : Math.min(5, targets.length + 1);
 
+  const difficultyGuidance = difficultyProfile
+    ? buildDifficultyGuidance(difficultyProfile)
+    : "";
+
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
     messages: [
       {
         role: "user",
-        content: `${WILD_SENTENCE_PROMPT}\n\n---\n\nTARGET ITEMS:\n${targetList}\n\nGenerate ${sentenceCount} sentences.`,
+        content: `${WILD_SENTENCE_PROMPT}${difficultyGuidance}\n\n---\n\nTARGET ITEMS:\n${targetList}\n\nGenerate ${sentenceCount} sentences.`,
       },
     ],
   });
