@@ -41,21 +41,13 @@ export default async function DashboardLayout({
         <div className="container px-4">
           {/* Primary row: logo + desktop nav + user */}
           <div className="flex items-center justify-between py-2.5">
-            <Link href="/dashboard" className="flex items-center gap-2.5 group flex-shrink-0">
-              <span
-                className="text-2xl font-serif leading-none transition-opacity group-hover:opacity-80"
-                style={{ color: 'hsl(var(--deep-red))' }}
-              >
-                漢
+            <Link href="/dashboard" className="flex flex-col leading-none group flex-shrink-0">
+              <span className="font-semibold text-sm tracking-wide text-foreground transition-opacity group-hover:opacity-80">
+                KanjiKatch
               </span>
-              <div className="flex flex-col leading-none">
-                <span className="font-semibold text-sm tracking-wide text-foreground">
-                  KanjiKatch
-                </span>
-                <span className="text-[10px] tracking-[0.15em] text-muted-foreground font-sans">
-                  漢字キャッチ
-                </span>
-              </div>
+              <span className="text-[10px] tracking-[0.15em] text-muted-foreground font-sans">
+                漢字キャッチ
+              </span>
             </Link>
 
             {/* Desktop navigation inline */}

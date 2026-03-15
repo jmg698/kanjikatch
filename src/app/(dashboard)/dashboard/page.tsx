@@ -152,10 +152,11 @@ export default async function DashboardPage() {
             <div className="flex flex-col gap-3">
               <Link
                 href="/capture"
-                className="flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground py-5 font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
+                className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-primary text-primary-foreground py-5 font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
               >
                 <Camera className="h-5 w-5" />
                 <span className="text-base">Capture</span>
+                <span className="text-xs font-normal opacity-90">add to your knowledge</span>
               </Link>
               <div className="bg-white border border-border rounded-2xl p-5 flex-1 flex flex-col justify-center">
                 <div className="flex items-baseline gap-3">
