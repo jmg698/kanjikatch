@@ -1,6 +1,7 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, users } from "@/db";
 import { eq } from "drizzle-orm";
 
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
       "svix-signature": svix_signature,
     }) as WebhookEvent;
   } catch (err) {
+    Sentry.captureException(err);
     console.error("Webhook verification failed:", err);
     return new Response("Error verifying webhook", { status: 400 });
   }

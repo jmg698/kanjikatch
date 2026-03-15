@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets } from "@/db";
 import { eq, desc, and, inArray } from "drizzle-orm";
 
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
       hasMore,
     });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Library fetch error:", error);
     return NextResponse.json({ error: "Failed to fetch library" }, { status: 500 });
   }

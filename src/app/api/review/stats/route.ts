@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, kanji, vocabulary, userStats, reviewSessions } from "@/db";
 import { eq, and, or, lte, isNull, desc, sql } from "drizzle-orm";
 import { calculateLevel, getLevelTitle, getTodayDateString } from "@/lib/srs";
@@ -111,6 +112,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Stats error:", error);
     return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
   }

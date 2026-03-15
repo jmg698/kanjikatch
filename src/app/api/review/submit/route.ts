@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, kanji, vocabulary, reviewHistory, reviewSessions, userStats } from "@/db";
 import { eq, and, sql } from "drizzle-orm";
 import { processReview, calculateXp, calculateLevel, updateStreak, getTodayDateString, type Grade, type SrsState } from "@/lib/srs";
@@ -167,6 +168,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Review submit error:", error);
     return NextResponse.json(
       { error: "Failed to submit review" },

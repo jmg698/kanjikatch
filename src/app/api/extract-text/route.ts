@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, sourceImages, kanji, vocabulary, sentences, users } from "@/db";
 import { textInputSchema } from "@/lib/validations";
 import { extractFromText } from "@/lib/ai";
@@ -151,6 +152,7 @@ export async function POST(req: NextRequest) {
       throw extractionError;
     }
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Text extraction error:", error);
     return NextResponse.json(
       {

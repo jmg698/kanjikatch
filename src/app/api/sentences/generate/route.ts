@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets, reviewHistory, kanji, vocabulary } from "@/db";
 import { eq, and, inArray, isNotNull, desc } from "drizzle-orm";
 import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
@@ -250,6 +251,7 @@ export async function POST(req: NextRequest) {
       })),
     });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Sentence generation error:", error);
 
     if (error instanceof Error && error.message.includes("overloaded")) {

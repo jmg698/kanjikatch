@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, kanji, vocabulary } from "@/db";
 import { eq, and, gte, lt, isNull, or, lte, sql } from "drizzle-orm";
 
@@ -68,6 +69,7 @@ export async function GET() {
 
     return NextResponse.json({ forecast });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Forecast error:", error);
     return NextResponse.json({ error: "Failed to fetch forecast" }, { status: 500 });
   }

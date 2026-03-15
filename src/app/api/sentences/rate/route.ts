@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, sentenceId: updated.id, rating: updated.difficultyRating });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Sentence rating error:", error);
     return NextResponse.json({ error: "Failed to rate sentence" }, { status: 500 });
   }

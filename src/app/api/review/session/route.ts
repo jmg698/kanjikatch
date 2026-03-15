@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, reviewSessions, userStats } from "@/db";
 import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Session error:", error);
     return NextResponse.json({ error: "Failed to process session" }, { status: 500 });
   }

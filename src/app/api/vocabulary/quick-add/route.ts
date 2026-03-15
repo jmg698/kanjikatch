@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, vocabulary } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ vocabulary: inserted }, { status: 201 });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Quick add error:", error);
     return NextResponse.json({ error: "Failed to add vocabulary" }, { status: 500 });
   }

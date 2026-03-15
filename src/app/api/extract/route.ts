@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, sourceImages, kanji, vocabulary, sentences, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
@@ -161,6 +162,7 @@ export async function POST(req: NextRequest) {
       throw extractionError;
     }
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Extraction error:", error);
     const rawMessage = error instanceof Error ? error.message : String(error);
     const isOverloaded =

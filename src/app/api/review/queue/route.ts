@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 import { db, kanji, vocabulary, sourceImages } from "@/db";
 import { eq, and, or, lte, isNull, asc, sql, inArray } from "drizzle-orm";
 
@@ -206,6 +207,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Review queue error:", error);
     return NextResponse.json(
       { error: "Failed to fetch review queue" },
