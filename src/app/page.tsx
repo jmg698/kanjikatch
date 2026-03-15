@@ -5,16 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Camera, BookOpen, Brain } from "lucide-react";
 
 export default async function HomePage() {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:9',message:'HomePage render start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C,E'})}).catch(()=>{});
-  // #endregion
-  
   try {
     const { userId } = await auth();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:15',message:'Auth result',data:{userId:userId||'null'},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C,E'})}).catch(()=>{});
-    // #endregion
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 to-background">
@@ -111,9 +103,6 @@ export default async function HomePage() {
     </div>
   );
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/95238550-d0b8-43ea-8c9b-d8d447bc1b58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:115',message:'HomePage error',data:{error:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:''},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C,E'})}).catch(()=>{});
-    // #endregion
     throw error;
   }
 }
