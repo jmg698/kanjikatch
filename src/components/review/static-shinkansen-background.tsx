@@ -1,170 +1,123 @@
 "use client";
 
-import { useMemo } from "react";
-
 /**
  * Static Japanese landscape background for the review screen: sky, mountains with snow caps,
- * sakura (cherry blossom) layer, and buildings. No parallax or animation — just a calm, pleasant scene.
- * Card stays white on top; this fills the area behind it.
+ * sakura trees, buildings, platform, and station sign. Single crisp SVG, no parallax.
+ * Scales cleanly on desktop and mobile. Card stays white on top (handled by parent).
  */
 export function StaticShinkansenBackground() {
-  const mountains = useMemo(
-    () =>
-      [
-        { width: 220, height: 200, x: 0 },
-        { width: 280, height: 260, x: 180 },
-        { width: 240, height: 220, x: 380 },
-        { width: 260, height: 240, x: 540 },
-        { width: 200, height: 180, x: 720 },
-        { width: 300, height: 280, x: 840 },
-      ].map((m, i) => ({ ...m, id: i })),
-    [],
-  );
-
-  const buildings = useMemo(
-    () =>
-      [
-        { width: 70, height: 50, x: 40 },
-        { width: 90, height: 60, x: 160 },
-        { width: 60, height: 45, x: 300 },
-        { width: 80, height: 55, x: 420 },
-        { width: 100, height: 65, x: 540 },
-        { width: 75, height: 52, x: 680 },
-        { width: 85, height: 58, x: 800 },
-        { width: 65, height: 48, x: 920 },
-      ].map((b, i) => ({ ...b, id: i })),
-    [],
-  );
-
-  const sakuraClusters = useMemo(
-    () =>
-      [
-        { cx: 80, cy: 72, r: 36 },
-        { cx: 220, cy: 68, r: 42 },
-        { cx: 380, cy: 75, r: 38 },
-        { cx: 520, cy: 70, r: 40 },
-        { cx: 680, cy: 72, r: 35 },
-        { cx: 820, cy: 68, r: 44 },
-      ].map((s, i) => ({ ...s, id: i })),
-    [],
-  );
-
   return (
     <div
       className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
       aria-hidden
     >
-      {/* Sky gradient — soft blue, slightly darker at top */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(to bottom, #9ec9dc 0%, #c5e4ef 45%, #e2f2f7 100%)",
-        }}
-      />
+      {/* Single SVG scene — crisp edges, reference palette, fills viewport */}
+      <svg
+        className="absolute w-full h-full"
+        viewBox="0 0 1200 700"
+        preserveAspectRatio="xMidYMax slice"
+        shapeRendering="crispEdges"
+      >
+        {/* Sky — solid reference blue */}
+        <rect width="1200" height="700" fill="#A9D6F1" />
 
-      {/* Subtle horizontal lines for texture (optional, very faint) */}
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent 3px, #fff 3px, #fff 4px)",
-        }}
-      />
+        {/* Mountains — lavender-grey base, white snow caps (isosceles triangles) */}
+        <g fill="#B4B9CC">
+          <polygon points="0,700 80,450 160,700" />
+          <polygon points="120,700 220,380 320,700" />
+          <polygon points="260,700 360,420 460,700" />
+          <polygon points="400,700 520,350 640,700" />
+          <polygon points="560,700 680,400 800,700" />
+          <polygon points="720,700 840,380 960,700" />
+          <polygon points="880,700 1000,440 1120,700" />
+          <polygon points="1040,700 1140,460 1200,700" />
+        </g>
+        <g fill="#FFFFFF">
+          <polygon points="56,580 80,450 104,580" />
+          <polygon points="190,520 220,380 250,520" />
+          <polygon points="328,548 360,420 392,548" />
+          <polygon points="472,518 520,350 568,518" />
+          <polygon points="632,540 680,400 728,540" />
+          <polygon points="792,524 840,380 888,524" />
+          <polygon points="952,564 1000,440 1048,564" />
+          <polygon points="1100,576 1140,460 1180,576" />
+        </g>
 
-      {/* Mountains — lavender-gray with white snow caps */}
-      <div className="absolute bottom-0 left-0 right-0 h-[45%] min-h-[280px]">
-        {mountains.map((m) => (
-          <div
-            key={m.id}
-            className="absolute bottom-0"
-            style={{ left: `${(m.x / 1100) * 100}%` }}
-          >
-            <svg
-              width="100%"
-              height="100%"
-              viewBox={`0 0 ${m.width} ${m.height}`}
-              preserveAspectRatio="xMidYMax meet"
-              className="h-full w-auto max-h-[280px]"
-              style={{ minWidth: m.width * 0.5 }}
-            >
-              <polygon
-                points={`0,${m.height} ${m.width / 2},0 ${m.width},${m.height}`}
-                fill="#B8B8D1"
-              />
-              <polygon
-                points={`${m.width * 0.35},${m.height * 0.32} ${m.width / 2},0 ${m.width * 0.65},${m.height * 0.32}`}
-                fill="#fff"
-                opacity={0.95}
-              />
-            </svg>
-          </div>
+        {/* Sakura — solid pink foliage, dark brown trunks */}
+        <g fill="#5C4033" stroke="#5C4033" strokeWidth="2">
+          <rect x="145" y="560" width="10" height="60" />
+          <rect x="345" y="548" width="10" height="72" />
+          <rect x="545" y="552" width="10" height="68" />
+          <rect x="745" y="556" width="10" height="64" />
+          <rect x="945" y="550" width="10" height="70" />
+        </g>
+        <g fill="#F9A1B1">
+          <circle cx="150" cy="518" r="26" />
+          <circle cx="150" cy="498" r="20" />
+          <circle cx="350" cy="522" r="30" />
+          <circle cx="350" cy="498" r="22" />
+          <circle cx="550" cy="520" r="28" />
+          <circle cx="550" cy="502" r="20" />
+          <circle cx="750" cy="518" r="26" />
+          <circle cx="750" cy="500" r="20" />
+          <circle cx="950" cy="520" r="28" />
+          <circle cx="950" cy="502" r="22" />
+        </g>
+
+        {/* Buildings — neutral grey body, slate roof, window grid */}
+        {[
+          { x: 30, w: 55, h: 90 },
+          { x: 100, w: 65, h: 110 },
+          { x: 180, w: 50, h: 75 },
+          { x: 245, w: 70, h: 95 },
+          { x: 330, w: 60, h: 85 },
+          { x: 405, w: 75, h: 100 },
+          { x: 495, w: 55, h: 80 },
+          { x: 565, w: 70, h: 105 },
+          { x: 650, w: 60, h: 90 },
+          { x: 725, w: 65, h: 95 },
+          { x: 805, w: 55, h: 82 },
+          { x: 875, w: 70, h: 98 },
+          { x: 960, w: 60, h: 88 },
+          { x: 1035, w: 65, h: 92 },
+        ].map((b, i) => (
+          <g key={i}>
+            <rect x={b.x} y={700 - b.h} width={b.w} height={b.h} fill="#B0B3B8" />
+            <rect x={b.x} y={700 - b.h} width={b.w} height="10" fill="#4F5B66" />
+            {/* Window grid 2×3 */}
+            {[0, 1].map((col) =>
+              [0, 1, 2].map((row) => (
+                <rect
+                  key={`${col}-${row}`}
+                  x={b.x + 8 + col * (b.w - 20) / 2}
+                  y={700 - b.h + 18 + row * (b.h - 28) / 3}
+                  width={(b.w - 20) / 2 - 4}
+                  height={(b.h - 28) / 3 - 4}
+                  rx="2"
+                  fill="#D8DCE0"
+                />
+              ))
+            )}
+          </g>
         ))}
-      </div>
 
-      {/* Sakura (cherry blossom) layer — pale pink cloud shapes */}
-      <div className="absolute bottom-[18%] left-0 right-0 h-[22%] min-h-[120px]">
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 1100 120"
-          preserveAspectRatio="none"
+        {/* Platform strip */}
+        <rect x="0" y="650" width="1200" height="50" fill="#E2E6E8" />
+
+        {/* Station sign — 1号車 */}
+        <rect x="24" y="608" width="52" height="32" rx="2" fill="#2D6A4F" />
+        <text
+          x="50"
+          y="628"
+          textAnchor="middle"
+          fill="#FFFFFF"
+          fontSize="14"
+          fontFamily="system-ui, sans-serif"
+          fontWeight="600"
         >
-          {sakuraClusters.map((s) => (
-            <g key={s.id}>
-              <ellipse cx={s.cx} cy={s.cy} rx={s.r} ry={s.r * 0.5} fill="#FBC4AB" opacity={0.92} />
-              <ellipse cx={s.cx + 15} cy={s.cy - 5} rx={s.r * 0.7} ry={s.r * 0.35} fill="#FAD4C4" opacity={0.88} />
-              <ellipse cx={s.cx - 10} cy={s.cy + 8} rx={s.r * 0.6} ry={s.r * 0.3} fill="#FBC4AB" opacity={0.85} />
-            </g>
-          ))}
-        </svg>
-      </div>
-
-      {/* Buildings — gray-beige with dark roofs and window grids */}
-      <div className="absolute bottom-0 left-0 right-0 h-[18%] min-h-[90px]">
-        {buildings.map((b) => {
-          const leftPct = (b.x / 1100) * 100;
-          return (
-            <div
-              key={b.id}
-              className="absolute bottom-0 rounded-t-sm overflow-hidden"
-              style={{
-                left: `${leftPct}%`,
-                width: "clamp(48px, 8vw, 90px)",
-                height: "100%",
-                minHeight: b.height,
-              }}
-            >
-              <div
-                className="absolute inset-0 rounded-t"
-                style={{ backgroundColor: "#C4C4B2" }}
-              />
-              <div
-                className="absolute top-0 left-0 right-0 h-4 rounded-t"
-                style={{ backgroundColor: "#6B6B6B" }}
-              />
-              <div
-                className="absolute left-1 right-1 top-5 bottom-1 grid gap-0.5"
-                style={{
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gridTemplateRows: "repeat(3, 1fr)",
-                }}
-              >
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="rounded-sm bg-sky-100/90"
-                    style={{ minHeight: 4 }}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Platform strip — very light gray */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-6"
-        style={{ backgroundColor: "#E8E8E4" }}
-      />
+          1号車
+        </text>
+      </svg>
     </div>
   );
 }
