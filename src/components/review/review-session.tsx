@@ -6,6 +6,7 @@ import { Home, CheckCircle2 } from "lucide-react";
 import { PreReview } from "./pre-review";
 import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
+import { StaticShinkansenBackground } from "./static-shinkansen-background";
 import { InTheWild } from "@/components/wild/in-the-wild";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType } from "./review-types";
 import type { Grade } from "@/lib/srs";
@@ -260,8 +261,10 @@ export function ReviewSession() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[100] flex flex-col bg-background"
+            className={`fixed inset-0 z-[100] flex flex-col ${phase === "reviewing" ? "" : "bg-background"}`}
           >
+            {/* Static landscape background only during card review */}
+            {phase === "reviewing" && <StaticShinkansenBackground />}
             {/* Flash feedback overlay (inside full-screen so it stays on top of content) */}
             <AnimatePresence>
               {flashColor && (
