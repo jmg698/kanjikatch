@@ -129,7 +129,7 @@ export function ReviewCard({
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
           <div
-            className={`jr-panel overflow-hidden cursor-pointer select-none ${fullScreen ? "rounded-3xl" : "rounded-2xl"}`}
+            className={`jr-panel overflow-hidden cursor-pointer select-none ${fullScreen ? "rounded-3xl bg-white shadow-xl" : "rounded-2xl"}`}
             onClick={handleReveal}
           >
             {/* Question Type / Prompt label — minimal in full-screen */}

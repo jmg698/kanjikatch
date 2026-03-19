@@ -51,7 +51,7 @@ export function StaticShinkansenBackground() {
 
   return (
     <div
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
       aria-hidden
     >
       {/* Sky gradient — soft blue, slightly darker at top */}

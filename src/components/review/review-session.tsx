@@ -281,7 +281,7 @@ export function ReviewSession() {
             </AnimatePresence>
 
             {phase === "reviewing" && queue.length > 0 && (
-              <>
+              <div className="relative z-10 flex flex-col flex-1 min-h-0">
                 {/* Minimal header: exit + progress only */}
                 <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-sm">
                   <button
@@ -336,7 +336,7 @@ export function ReviewSession() {
                     </AnimatePresence>
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
             {phase === "summary" && summary && (
