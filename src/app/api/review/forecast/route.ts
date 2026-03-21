@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, kanji, vocabulary } from "@/db";
+import { db, reviewTracks } from "@/db";
 import { eq, and, gte, lt, isNull, or, lte, sql } from "drizzle-orm";
 
 export async function GET() {
@@ -26,37 +26,39 @@ export async function GET() {
       let vocabCondition;
 
       if (dayOffset === 0) {
-        // Today: items already overdue + items due today
         kanjiCondition = and(
-          eq(kanji.userId, userId),
-          or(lte(kanji.nextReviewAt, dayEnd), isNull(kanji.nextReviewAt)),
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "kanji"),
+          or(lte(reviewTracks.nextReviewAt, dayEnd), isNull(reviewTracks.nextReviewAt)),
         );
         vocabCondition = and(
-          eq(vocabulary.userId, userId),
-          or(lte(vocabulary.nextReviewAt, dayEnd), isNull(vocabulary.nextReviewAt)),
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "vocab"),
+          or(lte(reviewTracks.nextReviewAt, dayEnd), isNull(reviewTracks.nextReviewAt)),
         );
       } else {
-        // Future days: items due in that window
         kanjiCondition = and(
-          eq(kanji.userId, userId),
-          gte(kanji.nextReviewAt, dayStart),
-          lt(kanji.nextReviewAt, dayEnd),
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "kanji"),
+          gte(reviewTracks.nextReviewAt, dayStart),
+          lt(reviewTracks.nextReviewAt, dayEnd),
         );
         vocabCondition = and(
-          eq(vocabulary.userId, userId),
-          gte(vocabulary.nextReviewAt, dayStart),
-          lt(vocabulary.nextReviewAt, dayEnd),
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "vocab"),
+          gte(reviewTracks.nextReviewAt, dayStart),
+          lt(reviewTracks.nextReviewAt, dayEnd),
         );
       }
 
       const [kanjiCount] = await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(kanji)
+        .from(reviewTracks)
         .where(kanjiCondition);
 
       const [vocabCount] = await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(vocabulary)
+        .from(reviewTracks)
         .where(vocabCondition);
 
       forecast.push({

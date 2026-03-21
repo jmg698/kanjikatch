@@ -16,7 +16,9 @@ export interface RequeueState {
 
 export interface ReviewQueueItem {
   id: string;
+  trackId: string;
   type: "kanji" | "vocab";
+  questionType: "meaning" | "reading";
   prompt: string;
   readings: string[];
   readingsKun?: string[];

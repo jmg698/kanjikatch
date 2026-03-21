@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, kanji, vocabulary, sourceImages } from "@/db";
+import { db, kanji, vocabulary, sourceImages, reviewTracks } from "@/db";
 import { eq, and, or, lte, isNull, asc, sql, inArray } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
@@ -12,14 +12,16 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") || "mixed"; // 'kanji' | 'vocab' | 'mixed'
+    const type = searchParams.get("type") || "mixed";
     const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 50);
 
     const now = new Date();
 
     type ReviewItem = {
       id: string;
+      trackId: string;
       type: "kanji" | "vocab";
+      questionType: "meaning" | "reading";
       prompt: string;
       readings: string[];
       readingsKun?: string[];
@@ -38,92 +40,149 @@ export async function GET(req: NextRequest) {
     };
 
     const items: ReviewItem[] = [];
+    const seenItemIds = new Set<string>();
 
     if (type === "kanji" || type === "mixed") {
-      const kanjiDue = await db
-        .select()
-        .from(kanji)
+      const kanjiTracks = await db
+        .select({
+          trackId: reviewTracks.id,
+          trackQuestionType: reviewTracks.questionType,
+          trackNextReviewAt: reviewTracks.nextReviewAt,
+          trackIntervalDays: reviewTracks.intervalDays,
+          trackEaseFactor: reviewTracks.easeFactor,
+          trackReviewCount: reviewTracks.reviewCount,
+          trackTimesCorrect: reviewTracks.timesCorrect,
+          trackConfidenceLevel: reviewTracks.confidenceLevel,
+          itemId: kanji.id,
+          character: kanji.character,
+          readingsOn: kanji.readingsOn,
+          readingsKun: kanji.readingsKun,
+          meanings: kanji.meanings,
+          jlptLevel: kanji.jlptLevel,
+          firstSeenAt: kanji.firstSeenAt,
+          timesSeen: kanji.timesSeen,
+          sourceImageIds: kanji.sourceImageIds,
+        })
+        .from(reviewTracks)
+        .innerJoin(kanji, eq(reviewTracks.itemId, kanji.id))
         .where(
           and(
-            eq(kanji.userId, userId),
+            eq(reviewTracks.userId, userId),
+            eq(reviewTracks.itemType, "kanji"),
             or(
-              lte(kanji.nextReviewAt, now),
-              isNull(kanji.nextReviewAt),
-            )
-          )
+              lte(reviewTracks.nextReviewAt, now),
+              isNull(reviewTracks.nextReviewAt),
+            ),
+          ),
         )
         .orderBy(
-          // Overdue items first (non-null and past due), then new items (null)
-          sql`CASE WHEN ${kanji.nextReviewAt} IS NULL THEN 1 ELSE 0 END`,
-          asc(kanji.nextReviewAt),
+          sql`CASE WHEN ${reviewTracks.nextReviewAt} IS NULL THEN 1 ELSE 0 END`,
+          asc(reviewTracks.nextReviewAt),
         )
-        .limit(type === "mixed" ? Math.ceil(limit / 2) : limit);
+        .limit(type === "mixed" ? limit : limit * 2);
 
-      for (const k of kanjiDue) {
+      for (const row of kanjiTracks) {
+        if (seenItemIds.has(row.itemId)) continue;
+        seenItemIds.add(row.itemId);
+
         items.push({
-          id: k.id,
+          id: row.itemId,
+          trackId: row.trackId,
           type: "kanji",
-          prompt: k.character,
-          readings: k.readingsOn,
-          readingsKun: k.readingsKun,
-          meanings: k.meanings,
-          jlptLevel: k.jlptLevel,
-          firstSeenAt: k.firstSeenAt,
-          timesSeen: k.timesSeen,
-          sourceImageIds: k.sourceImageIds,
-          reviewCount: k.reviewCount,
-          confidenceLevel: k.confidenceLevel,
-          intervalDays: k.intervalDays,
-          easeFactor: k.easeFactor,
-          timesCorrect: k.timesCorrect,
-          nextReviewAt: k.nextReviewAt,
+          questionType: row.trackQuestionType as "meaning" | "reading",
+          prompt: row.character,
+          readings: row.readingsOn,
+          readingsKun: row.readingsKun,
+          meanings: row.meanings,
+          jlptLevel: row.jlptLevel,
+          firstSeenAt: row.firstSeenAt,
+          timesSeen: row.timesSeen,
+          sourceImageIds: row.sourceImageIds,
+          reviewCount: row.trackReviewCount,
+          confidenceLevel: row.trackConfidenceLevel,
+          intervalDays: row.trackIntervalDays,
+          easeFactor: row.trackEaseFactor,
+          timesCorrect: row.trackTimesCorrect,
+          nextReviewAt: row.trackNextReviewAt,
         });
+
+        if (type !== "mixed" && items.length >= limit) break;
+        if (type === "mixed" && items.length >= Math.ceil(limit / 2)) break;
       }
     }
 
     if (type === "vocab" || type === "mixed") {
       const remaining = type === "mixed" ? Math.max(limit - items.length, Math.floor(limit / 2)) : limit;
-      const vocabDue = await db
-        .select()
-        .from(vocabulary)
+
+      const vocabTracks = await db
+        .select({
+          trackId: reviewTracks.id,
+          trackQuestionType: reviewTracks.questionType,
+          trackNextReviewAt: reviewTracks.nextReviewAt,
+          trackIntervalDays: reviewTracks.intervalDays,
+          trackEaseFactor: reviewTracks.easeFactor,
+          trackReviewCount: reviewTracks.reviewCount,
+          trackTimesCorrect: reviewTracks.timesCorrect,
+          trackConfidenceLevel: reviewTracks.confidenceLevel,
+          itemId: vocabulary.id,
+          word: vocabulary.word,
+          reading: vocabulary.reading,
+          meanings: vocabulary.meanings,
+          partOfSpeech: vocabulary.partOfSpeech,
+          jlptLevel: vocabulary.jlptLevel,
+          firstSeenAt: vocabulary.firstSeenAt,
+          timesSeen: vocabulary.timesSeen,
+          sourceImageIds: vocabulary.sourceImageIds,
+        })
+        .from(reviewTracks)
+        .innerJoin(vocabulary, eq(reviewTracks.itemId, vocabulary.id))
         .where(
           and(
-            eq(vocabulary.userId, userId),
+            eq(reviewTracks.userId, userId),
+            eq(reviewTracks.itemType, "vocab"),
             or(
-              lte(vocabulary.nextReviewAt, now),
-              isNull(vocabulary.nextReviewAt),
-            )
-          )
+              lte(reviewTracks.nextReviewAt, now),
+              isNull(reviewTracks.nextReviewAt),
+            ),
+          ),
         )
         .orderBy(
-          sql`CASE WHEN ${vocabulary.nextReviewAt} IS NULL THEN 1 ELSE 0 END`,
-          asc(vocabulary.nextReviewAt),
+          sql`CASE WHEN ${reviewTracks.nextReviewAt} IS NULL THEN 1 ELSE 0 END`,
+          asc(reviewTracks.nextReviewAt),
         )
-        .limit(remaining);
+        .limit(remaining * 2);
 
-      for (const v of vocabDue) {
+      let vocabCount = 0;
+      for (const row of vocabTracks) {
+        if (seenItemIds.has(row.itemId)) continue;
+        seenItemIds.add(row.itemId);
+
         items.push({
-          id: v.id,
+          id: row.itemId,
+          trackId: row.trackId,
           type: "vocab",
-          prompt: v.word,
-          readings: [v.reading],
-          meanings: v.meanings,
-          partOfSpeech: v.partOfSpeech,
-          jlptLevel: v.jlptLevel,
-          firstSeenAt: v.firstSeenAt,
-          timesSeen: v.timesSeen,
-          sourceImageIds: v.sourceImageIds,
-          reviewCount: v.reviewCount,
-          confidenceLevel: v.confidenceLevel,
-          intervalDays: v.intervalDays,
-          easeFactor: v.easeFactor,
-          timesCorrect: v.timesCorrect,
-          nextReviewAt: v.nextReviewAt,
+          questionType: row.trackQuestionType as "meaning" | "reading",
+          prompt: row.word,
+          readings: [row.reading],
+          meanings: row.meanings,
+          partOfSpeech: row.partOfSpeech,
+          jlptLevel: row.jlptLevel,
+          firstSeenAt: row.firstSeenAt,
+          timesSeen: row.timesSeen,
+          sourceImageIds: row.sourceImageIds,
+          reviewCount: row.trackReviewCount,
+          confidenceLevel: row.trackConfidenceLevel,
+          intervalDays: row.trackIntervalDays,
+          easeFactor: row.trackEaseFactor,
+          timesCorrect: row.trackTimesCorrect,
+          nextReviewAt: row.trackNextReviewAt,
         });
+
+        vocabCount++;
+        if (vocabCount >= remaining) break;
       }
     }
 
-    // For mixed, interleave kanji and vocab so it's not all-kanji-then-all-vocab
     if (type === "mixed" && items.length > 1) {
       items.sort(() => Math.random() - 0.5);
     }
@@ -187,16 +246,28 @@ export async function GET(req: NextRequest) {
       return base;
     });
 
-    // Get total due counts for the header
+    // Due counts: count due tracks (not items)
     const [kanjiDueCount] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(kanji)
-      .where(and(eq(kanji.userId, userId), or(lte(kanji.nextReviewAt, now), isNull(kanji.nextReviewAt))));
+      .from(reviewTracks)
+      .where(
+        and(
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "kanji"),
+          or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+        ),
+      );
 
     const [vocabDueCount] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(vocabulary)
-      .where(and(eq(vocabulary.userId, userId), or(lte(vocabulary.nextReviewAt, now), isNull(vocabulary.nextReviewAt))));
+      .from(reviewTracks)
+      .where(
+        and(
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "vocab"),
+          or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+        ),
+      );
 
     return NextResponse.json({
       items: enrichedItems,

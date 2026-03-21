@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, kanji, vocabulary, sentences } from "@/db";
+import { db, kanji, vocabulary, sentences, reviewTracks } from "@/db";
 import { eq, desc, asc, and, or, ilike, inArray, sql, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { computeEffectiveConfidence } from "@/lib/track-queries";
 
 const VALID_TABS = ["kanji", "vocabulary", "sentences"] as const;
 type Tab = (typeof VALID_TABS)[number];
@@ -20,6 +21,53 @@ function parseCommaSeparated(val: string | null): string[] {
 
 function sanitizeSearch(q: string): string {
   return q.replace(/[%_\\]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * SQL subquery: effective confidence for an item = MIN(track confidences).
+ * Returns 'new' if no tracks exist.
+ */
+function effectiveConfidenceSubquery(itemIdCol: typeof kanji.id | typeof vocabulary.id, itemType: "kanji" | "vocab") {
+  return sql<string>`COALESCE((
+    SELECT CASE MIN(CASE rt.confidence_level
+      WHEN 'new' THEN 0 WHEN 'learning' THEN 1
+      WHEN 'reviewing' THEN 2 WHEN 'known' THEN 3
+    END)
+      WHEN 0 THEN 'new' WHEN 1 THEN 'learning'
+      WHEN 2 THEN 'reviewing' WHEN 3 THEN 'known'
+    END
+    FROM review_tracks rt
+    WHERE rt.item_id = ${itemIdCol} AND rt.item_type = ${itemType}
+  ), 'new')`;
+}
+
+/**
+ * SQL subquery: earliest next_review_at across both tracks for an item.
+ */
+function earliestReviewSubquery(itemIdCol: typeof kanji.id | typeof vocabulary.id, itemType: "kanji" | "vocab") {
+  return sql`(
+    SELECT MIN(rt.next_review_at)
+    FROM review_tracks rt
+    WHERE rt.item_id = ${itemIdCol} AND rt.item_type = ${itemType}
+  )`;
+}
+
+/**
+ * SQL filter: item's effective confidence is in the given stages.
+ */
+function stageFilterSubquery(itemIdCol: typeof kanji.id | typeof vocabulary.id, itemType: "kanji" | "vocab", stages: string[]) {
+  const stageParams = stages.map((s) => sql`${s}`);
+  return sql`COALESCE((
+    SELECT CASE MIN(CASE rt.confidence_level
+      WHEN 'new' THEN 0 WHEN 'learning' THEN 1
+      WHEN 'reviewing' THEN 2 WHEN 'known' THEN 3
+    END)
+      WHEN 0 THEN 'new' WHEN 1 THEN 'learning'
+      WHEN 2 THEN 'reviewing' WHEN 3 THEN 'known'
+    END
+    FROM review_tracks rt
+    WHERE rt.item_id = ${itemIdCol} AND rt.item_type = ${itemType}
+  ), 'new') IN (${sql.join(stageParams, sql`, `)})`;
 }
 
 export async function GET(req: NextRequest) {
@@ -69,7 +117,7 @@ export async function GET(req: NextRequest) {
       }
 
       if (stages.length > 0) {
-        conditions.push(inArray(kanji.confidenceLevel, stages));
+        conditions.push(stageFilterSubquery(kanji.id, "kanji", stages));
       }
 
       const where = and(...conditions)!;
@@ -78,7 +126,7 @@ export async function GET(req: NextRequest) {
         switch (sortBy) {
           case "oldest": return asc(kanji.firstSeenAt);
           case "alphabetical": return asc(kanji.character);
-          case "next_review": return asc(kanji.nextReviewAt);
+          case "next_review": return asc(earliestReviewSubquery(kanji.id, "kanji"));
           case "jlpt_asc": return asc(kanji.jlptLevel);
           case "jlpt_desc": return desc(kanji.jlptLevel);
           case "recent":
@@ -91,8 +139,28 @@ export async function GET(req: NextRequest) {
         db.select({ total: count() }).from(kanji).where(where),
       ]);
 
+      // Batch-fetch tracks for all returned items to compute effective confidence
+      const itemIds = items.map((i) => i.id);
+      const tracks = itemIds.length > 0
+        ? await db.select().from(reviewTracks).where(
+            and(inArray(reviewTracks.itemId, itemIds), eq(reviewTracks.itemType, "kanji")),
+          )
+        : [];
+
+      const tracksByItem = new Map<string, typeof tracks>();
+      for (const t of tracks) {
+        const existing = tracksByItem.get(t.itemId) || [];
+        existing.push(t);
+        tracksByItem.set(t.itemId, existing);
+      }
+
+      const enrichedItems = items.map((item) => ({
+        ...item,
+        confidenceLevel: computeEffectiveConfidence(tracksByItem.get(item.id) || []),
+      }));
+
       return NextResponse.json({
-        items,
+        items: enrichedItems,
         total,
         page,
         hasMore: offset + items.length < total,
@@ -117,7 +185,7 @@ export async function GET(req: NextRequest) {
       }
 
       if (stages.length > 0) {
-        conditions.push(inArray(vocabulary.confidenceLevel, stages));
+        conditions.push(stageFilterSubquery(vocabulary.id, "vocab", stages));
       }
 
       const where = and(...conditions)!;
@@ -126,7 +194,7 @@ export async function GET(req: NextRequest) {
         switch (sortBy) {
           case "oldest": return asc(vocabulary.firstSeenAt);
           case "alphabetical": return asc(vocabulary.word);
-          case "next_review": return asc(vocabulary.nextReviewAt);
+          case "next_review": return asc(earliestReviewSubquery(vocabulary.id, "vocab"));
           case "jlpt_asc": return asc(vocabulary.jlptLevel);
           case "jlpt_desc": return desc(vocabulary.jlptLevel);
           case "recent":
@@ -139,15 +207,34 @@ export async function GET(req: NextRequest) {
         db.select({ total: count() }).from(vocabulary).where(where),
       ]);
 
+      const itemIds = items.map((i) => i.id);
+      const tracks = itemIds.length > 0
+        ? await db.select().from(reviewTracks).where(
+            and(inArray(reviewTracks.itemId, itemIds), eq(reviewTracks.itemType, "vocab")),
+          )
+        : [];
+
+      const tracksByItem = new Map<string, typeof tracks>();
+      for (const t of tracks) {
+        const existing = tracksByItem.get(t.itemId) || [];
+        existing.push(t);
+        tracksByItem.set(t.itemId, existing);
+      }
+
+      const enrichedItems = items.map((item) => ({
+        ...item,
+        confidenceLevel: computeEffectiveConfidence(tracksByItem.get(item.id) || []),
+      }));
+
       return NextResponse.json({
-        items,
+        items: enrichedItems,
         total,
         page,
         hasMore: offset + items.length < total,
       });
     }
 
-    // Sentences tab
+    // Sentences tab — no SRS changes
     const conditions: SQL[] = [eq(sentences.userId, userId)];
 
     if (searchTerm) {

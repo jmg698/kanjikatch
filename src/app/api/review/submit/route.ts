@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, kanji, vocabulary, reviewHistory, reviewSessions, userStats } from "@/db";
+import { db, reviewTracks, reviewHistory, reviewSessions, userStats } from "@/db";
 import { eq, and, sql } from "drizzle-orm";
 import { processReview, calculateXp, calculateLevel, updateStreak, getTodayDateString, type Grade, type SrsState } from "@/lib/srs";
 import { z } from "zod";
@@ -37,49 +37,47 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const todayStr = getTodayDateString();
 
-    // 1. Fetch current SRS state
-    let currentState: SrsState;
-    if (itemType === "kanji") {
-      const [item] = await db.select().from(kanji).where(and(eq(kanji.id, itemId), eq(kanji.userId, userId)));
-      if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
-      currentState = {
-        intervalDays: item.intervalDays,
-        easeFactor: parseFloat(item.easeFactor),
-        reviewCount: item.reviewCount,
-        timesCorrect: item.timesCorrect,
-        confidenceLevel: item.confidenceLevel as SrsState["confidenceLevel"],
-      };
-    } else {
-      const [item] = await db.select().from(vocabulary).where(and(eq(vocabulary.id, itemId), eq(vocabulary.userId, userId)));
-      if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
-      currentState = {
-        intervalDays: item.intervalDays,
-        easeFactor: parseFloat(item.easeFactor),
-        reviewCount: item.reviewCount,
-        timesCorrect: item.timesCorrect,
-        confidenceLevel: item.confidenceLevel as SrsState["confidenceLevel"],
-      };
+    // 1. Fetch current SRS state from the specific track
+    const [track] = await db
+      .select()
+      .from(reviewTracks)
+      .where(
+        and(
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemId, itemId),
+          eq(reviewTracks.itemType, itemType),
+          eq(reviewTracks.questionType, questionType),
+        ),
+      );
+
+    if (!track) {
+      return NextResponse.json({ error: "Track not found" }, { status: 404 });
     }
+
+    const currentState: SrsState = {
+      intervalDays: track.intervalDays,
+      easeFactor: parseFloat(track.easeFactor),
+      reviewCount: track.reviewCount,
+      timesCorrect: track.timesCorrect,
+      confidenceLevel: track.confidenceLevel as SrsState["confidenceLevel"],
+    };
 
     // 2. Calculate SRS update
     const srsUpdate = processReview(grade as Grade, currentState, now);
 
-    // 3. Update item SRS fields
-    const updateFields = {
-      intervalDays: srsUpdate.intervalDays,
-      easeFactor: srsUpdate.easeFactor.toFixed(2),
-      reviewCount: srsUpdate.reviewCount,
-      timesCorrect: srsUpdate.timesCorrect,
-      confidenceLevel: srsUpdate.confidenceLevel,
-      nextReviewAt: srsUpdate.nextReviewAt,
-      lastReviewedAt: srsUpdate.lastReviewedAt,
-    };
-
-    if (itemType === "kanji") {
-      await db.update(kanji).set(updateFields).where(eq(kanji.id, itemId));
-    } else {
-      await db.update(vocabulary).set(updateFields).where(eq(vocabulary.id, itemId));
-    }
+    // 3. Update the specific track's SRS fields
+    await db
+      .update(reviewTracks)
+      .set({
+        intervalDays: srsUpdate.intervalDays,
+        easeFactor: srsUpdate.easeFactor.toFixed(2),
+        reviewCount: srsUpdate.reviewCount,
+        timesCorrect: srsUpdate.timesCorrect,
+        confidenceLevel: srsUpdate.confidenceLevel,
+        nextReviewAt: srsUpdate.nextReviewAt,
+        lastReviewedAt: srsUpdate.lastReviewedAt,
+      })
+      .where(eq(reviewTracks.id, track.id));
 
     // 4. Record in review history
     await db.insert(reviewHistory).values({

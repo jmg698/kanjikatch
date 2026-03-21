@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, vocabulary } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { ensureReviewTracks } from "@/lib/track-queries";
 import { z } from "zod";
 
 const quickAddSchema = z.object({
@@ -47,6 +48,8 @@ export async function POST(req: NextRequest) {
         partOfSpeech: partOfSpeech ?? null,
       })
       .returning();
+
+    await ensureReviewTracks(userId, inserted.id, "vocab");
 
     return NextResponse.json({ vocabulary: inserted }, { status: 201 });
   } catch (error) {

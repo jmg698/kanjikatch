@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, kanji, vocabulary, userStats, reviewSessions } from "@/db";
+import { db, reviewTracks, userStats, reviewSessions } from "@/db";
 import { eq, and, or, lte, isNull, desc, sql } from "drizzle-orm";
 import { calculateLevel, getLevelTitle, getTodayDateString } from "@/lib/srs";
 
@@ -15,49 +15,60 @@ export async function GET() {
     const now = new Date();
     const todayStr = getTodayDateString();
 
-    // Get user stats
     const [stats] = await db.select().from(userStats).where(eq(userStats.userId, userId));
 
-    // Due counts
+    // Due counts from review tracks
     const [kanjiDue] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(kanji)
-      .where(and(eq(kanji.userId, userId), or(lte(kanji.nextReviewAt, now), isNull(kanji.nextReviewAt))));
+      .from(reviewTracks)
+      .where(
+        and(
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "kanji"),
+          or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+        ),
+      );
 
     const [vocabDue] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(vocabulary)
-      .where(and(eq(vocabulary.userId, userId), or(lte(vocabulary.nextReviewAt, now), isNull(vocabulary.nextReviewAt))));
+      .from(reviewTracks)
+      .where(
+        and(
+          eq(reviewTracks.userId, userId),
+          eq(reviewTracks.itemType, "vocab"),
+          or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+        ),
+      );
 
-    // Total counts
+    // Total track counts (for totals display)
     const [kanjiTotal] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(kanji)
-      .where(eq(kanji.userId, userId));
+      .select({ count: sql<number>`count(DISTINCT item_id)::int` })
+      .from(reviewTracks)
+      .where(and(eq(reviewTracks.userId, userId), eq(reviewTracks.itemType, "kanji")));
 
     const [vocabTotal] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(vocabulary)
-      .where(eq(vocabulary.userId, userId));
+      .select({ count: sql<number>`count(DISTINCT item_id)::int` })
+      .from(reviewTracks)
+      .where(and(eq(reviewTracks.userId, userId), eq(reviewTracks.itemType, "vocab")));
 
-    // Confidence breakdown
+    // Confidence breakdown per track (meaning + reading counted independently)
     const kanjiConfidence = await db
       .select({
-        level: kanji.confidenceLevel,
+        level: reviewTracks.confidenceLevel,
         count: sql<number>`count(*)::int`,
       })
-      .from(kanji)
-      .where(eq(kanji.userId, userId))
-      .groupBy(kanji.confidenceLevel);
+      .from(reviewTracks)
+      .where(and(eq(reviewTracks.userId, userId), eq(reviewTracks.itemType, "kanji")))
+      .groupBy(reviewTracks.confidenceLevel);
 
     const vocabConfidence = await db
       .select({
-        level: vocabulary.confidenceLevel,
+        level: reviewTracks.confidenceLevel,
         count: sql<number>`count(*)::int`,
       })
-      .from(vocabulary)
-      .where(eq(vocabulary.userId, userId))
-      .groupBy(vocabulary.confidenceLevel);
+      .from(reviewTracks)
+      .where(and(eq(reviewTracks.userId, userId), eq(reviewTracks.itemType, "vocab")))
+      .groupBy(reviewTracks.confidenceLevel);
 
     // Recent sessions (last 5)
     const recentSessions = await db

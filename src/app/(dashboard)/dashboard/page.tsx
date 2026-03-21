@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Camera, Flame } from "lucide-react";
-import { db, kanji, vocabulary, userStats } from "@/db";
+import { db, kanji, vocabulary, userStats, reviewTracks } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
-import { eq, and, or, lte, lt, isNull, desc, asc, sql, gte } from "drizzle-orm";
+import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
+import { computeEffectiveConfidence } from "@/lib/track-queries";
 
 async function getDashboardData(userId: string) {
   const now = new Date();
@@ -14,49 +15,112 @@ async function getDashboardData(userId: string) {
     [vocabDue],
     stats,
     recentKanji,
-    needsAttention,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(kanji).where(eq(kanji.userId, userId)),
     db.select({ count: sql<number>`count(*)::int` }).from(vocabulary).where(eq(vocabulary.userId, userId)),
-    db.select({ count: sql<number>`count(*)::int` }).from(kanji).where(
-      and(eq(kanji.userId, userId), or(lte(kanji.nextReviewAt, now), isNull(kanji.nextReviewAt)))
+    db.select({ count: sql<number>`count(*)::int` }).from(reviewTracks).where(
+      and(
+        eq(reviewTracks.userId, userId),
+        eq(reviewTracks.itemType, "kanji"),
+        or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+      )
     ),
-    db.select({ count: sql<number>`count(*)::int` }).from(vocabulary).where(
-      and(eq(vocabulary.userId, userId), or(lte(vocabulary.nextReviewAt, now), isNull(vocabulary.nextReviewAt)))
+    db.select({ count: sql<number>`count(*)::int` }).from(reviewTracks).where(
+      and(
+        eq(reviewTracks.userId, userId),
+        eq(reviewTracks.itemType, "vocab"),
+        or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+      )
     ),
     db.select().from(userStats).where(eq(userStats.userId, userId)).then((r) => r[0] ?? null),
     db.select({
       character: kanji.character,
-      confidenceLevel: kanji.confidenceLevel,
+      id: kanji.id,
       meanings: kanji.meanings,
     })
       .from(kanji)
       .where(eq(kanji.userId, userId))
       .orderBy(desc(kanji.firstSeenAt))
       .limit(20),
-    db.select({
-      character: kanji.character,
-      meanings: kanji.meanings,
-      reviewCount: kanji.reviewCount,
-      timesCorrect: kanji.timesCorrect,
-    })
-      .from(kanji)
-      .where(
-        and(
-          eq(kanji.userId, userId),
-          gte(kanji.reviewCount, 2),
-          lt(kanji.easeFactor, '2.00'),
-        )
-      )
-      .orderBy(asc(kanji.easeFactor))
-      .limit(6),
   ]);
+
+  // Compute effective confidence for recent kanji from their tracks
+  const recentKanjiIds = recentKanji.map((k) => k.id);
+  const recentTracks = recentKanjiIds.length > 0
+    ? await db.select().from(reviewTracks).where(
+        and(
+          inArray(reviewTracks.itemId, recentKanjiIds),
+          eq(reviewTracks.itemType, "kanji"),
+        ),
+      )
+    : [];
+
+  const tracksByItem = new Map<string, typeof recentTracks>();
+  for (const t of recentTracks) {
+    const existing = tracksByItem.get(t.itemId) || [];
+    existing.push(t);
+    tracksByItem.set(t.itemId, existing);
+  }
+
+  const recentKanjiWithConfidence = recentKanji.map((k) => ({
+    character: k.character,
+    confidenceLevel: computeEffectiveConfidence(tracksByItem.get(k.id) || []),
+    meanings: k.meanings,
+  }));
+
+  // "Needs attention": items where any track has ease_factor < 2.00 and review_count >= 2
+  const attentionTrackRows = await db
+    .select({
+      itemId: reviewTracks.itemId,
+      easeFactor: sql<number>`MIN(${reviewTracks.easeFactor}::numeric)`,
+      reviewCount: sql<number>`SUM(${reviewTracks.reviewCount})::int`,
+      timesCorrect: sql<number>`SUM(${reviewTracks.timesCorrect})::int`,
+    })
+    .from(reviewTracks)
+    .where(
+      and(
+        eq(reviewTracks.userId, userId),
+        eq(reviewTracks.itemType, "kanji"),
+      ),
+    )
+    .groupBy(reviewTracks.itemId)
+    .having(
+      and(
+        sql`MIN(${reviewTracks.easeFactor}::numeric) < 2.00`,
+        sql`MAX(${reviewTracks.reviewCount}) >= 2`,
+      ),
+    )
+    .orderBy(sql`MIN(${reviewTracks.easeFactor}::numeric) ASC`)
+    .limit(6);
+
+  let needsAttention: { character: string; meanings: string[]; reviewCount: number; timesCorrect: number }[] = [];
+  if (attentionTrackRows.length > 0) {
+    const attentionItemIds = attentionTrackRows.map((r) => r.itemId);
+    const attentionKanji = await db
+      .select({ id: kanji.id, character: kanji.character, meanings: kanji.meanings })
+      .from(kanji)
+      .where(inArray(kanji.id, attentionItemIds));
+
+    const kanjiMap = new Map(attentionKanji.map((k) => [k.id, k]));
+    needsAttention = attentionTrackRows
+      .map((row) => {
+        const k = kanjiMap.get(row.itemId);
+        if (!k) return null;
+        return {
+          character: k.character,
+          meanings: k.meanings,
+          reviewCount: row.reviewCount,
+          timesCorrect: row.timesCorrect,
+        };
+      })
+      .filter(Boolean) as typeof needsAttention;
+  }
 
   return {
     counts: { kanji: kanjiCount.count, vocab: vocabCount.count },
     due: { kanji: kanjiDue.count, vocab: vocabDue.count, total: kanjiDue.count + vocabDue.count },
     streak: stats?.currentStreak ?? 0,
-    recentKanji,
+    recentKanji: recentKanjiWithConfidence,
     needsAttention,
   };
 }

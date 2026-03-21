@@ -1,5 +1,5 @@
-import { db, kanji, vocabulary } from "@/db";
-import { eq, sql } from "drizzle-orm";
+import { db, reviewTracks } from "@/db";
+import { eq, and, sql } from "drizzle-orm";
 
 export interface ProficiencyProfile {
   estimatedJlptLevel: number | null;
@@ -46,62 +46,72 @@ function estimateJlptLevel(kanjiKnown: number, vocabKnown: number): number | nul
     }
   }
 
-  // Below N5 — estimate based on progress toward N5
   if (kanjiKnown >= 40 || vocabKnown >= 400) return 5;
   return null;
 }
 
-export async function getUserProficiency(userId: string): Promise<ProficiencyProfile> {
-  const [kanjiConf, vocabConf] = await Promise.all([
-    db.select({
-      level: kanji.confidenceLevel,
-      count: sql<number>`count(*)::int`,
+/**
+ * Compute effective confidence per item from tracks, then bucket by level.
+ * Effective confidence = MIN confidence across both tracks for each item.
+ */
+async function getEffectiveConfidenceCounts(userId: string, itemType: "kanji" | "vocab") {
+  const allTracks = await db
+    .select({
+      itemId: reviewTracks.itemId,
+      confidenceLevel: reviewTracks.confidenceLevel,
     })
-    .from(kanji)
-    .where(eq(kanji.userId, userId))
-    .groupBy(kanji.confidenceLevel),
+    .from(reviewTracks)
+    .where(and(eq(reviewTracks.userId, userId), eq(reviewTracks.itemType, itemType)));
 
-    db.select({
-      level: vocabulary.confidenceLevel,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(vocabulary)
-    .where(eq(vocabulary.userId, userId))
-    .groupBy(vocabulary.confidenceLevel),
+  const ord: Record<string, number> = { new: 0, learning: 1, reviewing: 2, known: 3 };
+  const labels = ["new", "learning", "reviewing", "known"];
+
+  // Group tracks by item, compute MIN confidence
+  const itemConfidence = new Map<string, number>();
+  for (const t of allTracks) {
+    const val = ord[t.confidenceLevel] ?? 0;
+    const current = itemConfidence.get(t.itemId);
+    if (current === undefined || val < current) {
+      itemConfidence.set(t.itemId, val);
+    }
+  }
+
+  // Count items per effective confidence level
+  const counts: Record<string, number> = { new: 0, learning: 0, reviewing: 0, known: 0 };
+  for (const val of itemConfidence.values()) {
+    counts[labels[val]]++;
+  }
+
+  return counts;
+}
+
+export async function getUserProficiency(userId: string): Promise<ProficiencyProfile> {
+  const [kanjiCounts, vocabCounts] = await Promise.all([
+    getEffectiveConfidenceCounts(userId, "kanji"),
+    getEffectiveConfidenceCounts(userId, "vocab"),
   ]);
 
-  const kanjiByLevel: Record<string, number> = {};
-  let kanjiTotal = 0;
-  for (const row of kanjiConf) {
-    kanjiByLevel[row.level] = row.count;
-    kanjiTotal += row.count;
-  }
+  const kanjiTotal = Object.values(kanjiCounts).reduce((a, b) => a + b, 0);
+  const vocabTotal = Object.values(vocabCounts).reduce((a, b) => a + b, 0);
 
-  const vocabByLevel: Record<string, number> = {};
-  let vocabTotal = 0;
-  for (const row of vocabConf) {
-    vocabByLevel[row.level] = row.count;
-    vocabTotal += row.count;
-  }
-
-  const kanjiKnown = (kanjiByLevel["known"] ?? 0) + (kanjiByLevel["reviewing"] ?? 0);
-  const vocabKnown = (vocabByLevel["known"] ?? 0) + (vocabByLevel["reviewing"] ?? 0);
+  const kanjiKnown = (kanjiCounts["known"] ?? 0) + (kanjiCounts["reviewing"] ?? 0);
+  const vocabKnown = (vocabCounts["known"] ?? 0) + (vocabCounts["reviewing"] ?? 0);
 
   return {
     estimatedJlptLevel: estimateJlptLevel(kanjiKnown, vocabKnown),
     kanji: {
       total: kanjiTotal,
-      new: kanjiByLevel["new"] ?? 0,
-      learning: kanjiByLevel["learning"] ?? 0,
-      reviewing: kanjiByLevel["reviewing"] ?? 0,
-      known: kanjiByLevel["known"] ?? 0,
+      new: kanjiCounts["new"] ?? 0,
+      learning: kanjiCounts["learning"] ?? 0,
+      reviewing: kanjiCounts["reviewing"] ?? 0,
+      known: kanjiCounts["known"] ?? 0,
     },
     vocab: {
       total: vocabTotal,
-      new: vocabByLevel["new"] ?? 0,
-      learning: vocabByLevel["learning"] ?? 0,
-      reviewing: vocabByLevel["reviewing"] ?? 0,
-      known: vocabByLevel["known"] ?? 0,
+      new: vocabCounts["new"] ?? 0,
+      learning: vocabCounts["learning"] ?? 0,
+      reviewing: vocabCounts["reviewing"] ?? 0,
+      known: vocabCounts["known"] ?? 0,
     },
     totalItems: kanjiTotal + vocabTotal,
     totalKnown: kanjiKnown + vocabKnown,

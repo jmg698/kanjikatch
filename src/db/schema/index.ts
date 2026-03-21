@@ -175,6 +175,29 @@ export const generatedSentenceTargets = pgTable("generated_sentence_targets", {
   itemTextIdx: index("gen_sentence_targets_item_text_idx").on(table.itemText),
 }));
 
+// Review tracks — per-question-type SRS state for each kanji/vocab item
+// Each item has two tracks: "meaning" and "reading", scheduled independently.
+export const reviewTracks = pgTable("review_tracks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  itemId: uuid("item_id").notNull(),
+  itemType: text("item_type").notNull(), // 'kanji' | 'vocab'
+  questionType: text("question_type").notNull(), // 'meaning' | 'reading'
+  nextReviewAt: timestamp("next_review_at"),
+  intervalDays: integer("interval_days").default(1).notNull(),
+  easeFactor: numeric("ease_factor", { precision: 3, scale: 2 }).default("2.50").notNull(),
+  reviewCount: integer("review_count").default(0).notNull(),
+  timesCorrect: integer("times_correct").default(0).notNull(),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  confidenceLevel: text("confidence_level").default("new").notNull(), // 'new' | 'learning' | 'reviewing' | 'known'
+}, (table) => ({
+  uniqueTrack: uniqueIndex("review_tracks_unique_idx").on(table.itemId, table.itemType, table.questionType),
+  userDueIdx: index("review_tracks_user_due_idx").on(table.userId, table.nextReviewAt),
+  itemIdx: index("review_tracks_item_idx").on(table.itemId, table.itemType),
+  userIdIdx: index("review_tracks_user_id_idx").on(table.userId),
+  userItemTypeIdx: index("review_tracks_user_item_type_idx").on(table.userId, table.itemType, table.nextReviewAt),
+}));
+
 // Content items - future reading engine (created now, populated later)
 export const contentItems = pgTable("content_items", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -225,3 +248,6 @@ export type NewGeneratedSentence = typeof generatedSentences.$inferInsert;
 
 export type GeneratedSentenceTarget = typeof generatedSentenceTargets.$inferSelect;
 export type NewGeneratedSentenceTarget = typeof generatedSentenceTargets.$inferInsert;
+
+export type ReviewTrack = typeof reviewTracks.$inferSelect;
+export type NewReviewTrack = typeof reviewTracks.$inferInsert;

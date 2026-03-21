@@ -2,21 +2,22 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { db, kanji, vocabulary } from "@/db";
+import { db, reviewTracks } from "@/db";
 import { eq, and, or, lte, isNull, sql } from "drizzle-orm";
 import { TopNav } from "@/components/dashboard/top-nav";
 
 async function getDueCount(userId: string): Promise<number> {
   const now = new Date();
-  const [kanjiDue] = await db
+  const [result] = await db
     .select({ count: sql<number>`count(*)::int` })
-    .from(kanji)
-    .where(and(eq(kanji.userId, userId), or(lte(kanji.nextReviewAt, now), isNull(kanji.nextReviewAt))));
-  const [vocabDue] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(vocabulary)
-    .where(and(eq(vocabulary.userId, userId), or(lte(vocabulary.nextReviewAt, now), isNull(vocabulary.nextReviewAt))));
-  return kanjiDue.count + vocabDue.count;
+    .from(reviewTracks)
+    .where(
+      and(
+        eq(reviewTracks.userId, userId),
+        or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+      ),
+    );
+  return result.count;
 }
 
 export default async function DashboardLayout({

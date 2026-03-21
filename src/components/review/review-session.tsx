@@ -26,7 +26,6 @@ export function ReviewSession() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [questionType, setQuestionType] = useState<"meaning" | "reading">("meaning");
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
   const previousLevelRef = useRef(1);
@@ -126,7 +125,6 @@ export function ReviewSession() {
       setCurrentIndex(0);
       setConsecutiveCorrect(0);
       setTotalXpEarned(0);
-      setQuestionType(Math.random() > 0.5 ? "meaning" : "reading");
 
       requeueMapRef.current = new Map();
       originalQueueSizeRef.current = entries.length;
@@ -162,7 +160,7 @@ export function ReviewSession() {
             sessionId,
             itemId: item.id,
             itemType: item.type,
-            questionType,
+            questionType: item.questionType,
             grade,
             consecutiveCorrect,
           }),
@@ -173,14 +171,14 @@ export function ReviewSession() {
         setTotalXpEarned((prev) => prev + (data.xpEarned || 0));
 
         if (grade === "again") {
-          requeueMapRef.current.set(item.id, {
+          requeueMapRef.current.set(item.trackId, {
             tier: "again",
             consecutiveCorrect: 0,
             requiredCorrect: 2,
           });
           shouldRequeue = true;
         } else if (grade === "hard") {
-          requeueMapRef.current.set(item.id, {
+          requeueMapRef.current.set(item.trackId, {
             tier: "hard",
             consecutiveCorrect: 0,
             requiredCorrect: 1,
@@ -189,12 +187,12 @@ export function ReviewSession() {
         }
       } else {
         // Retry — session-local only, no API call, no SRS update
-        const state = requeueMapRef.current.get(item.id);
+        const state = requeueMapRef.current.get(item.trackId);
         if (state) {
           if (wasCorrect) {
             const newConsecutive = state.consecutiveCorrect + 1;
             if (newConsecutive >= state.requiredCorrect) {
-              requeueMapRef.current.delete(item.id);
+              requeueMapRef.current.delete(item.trackId);
             } else {
               state.consecutiveCorrect = newConsecutive;
               shouldRequeue = true;
@@ -237,7 +235,6 @@ export function ReviewSession() {
         await completeSession();
       } else {
         setCurrentIndex(nextIndex);
-        setQuestionType(Math.random() > 0.5 ? "meaning" : "reading");
       }
     } catch (e) {
       console.error("Failed to submit grade:", e);
@@ -413,7 +410,7 @@ export function ReviewSession() {
                           item={queue[currentIndex].item}
                           index={currentIndex}
                           total={queue.length}
-                          questionType={questionType}
+                          questionType={queue[currentIndex].item.questionType}
                           consecutiveCorrect={consecutiveCorrect}
                           onGrade={handleGrade}
                           disabled={submitting}

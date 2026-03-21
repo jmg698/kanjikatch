@@ -5,6 +5,7 @@ import { db, sourceImages, kanji, vocabulary, sentences, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
 import { checkExtractionRateLimit } from "@/lib/rate-limit";
+import { ensureReviewTracks } from "@/lib/track-queries";
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
 
       // Process kanji with frequency tracking (upsert)
       for (const k of extraction.kanji) {
-        await db
+        const [row] = await db
           .insert(kanji)
           .values({
             userId,
@@ -90,13 +91,15 @@ export async function POST(req: NextRequest) {
               timesSeen: sql`${kanji.timesSeen} + 1`,
               sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${sourceImage.id}::uuid)`,
             },
-          });
+          })
+          .returning({ id: kanji.id });
+        await ensureReviewTracks(userId, row.id, "kanji");
         extractedCounts.kanji++;
       }
 
       // Process vocabulary with frequency tracking (upsert)
       for (const v of extraction.vocabulary) {
-        await db
+        const [row] = await db
           .insert(vocabulary)
           .values({
             userId,
@@ -115,7 +118,9 @@ export async function POST(req: NextRequest) {
               timesSeen: sql`${vocabulary.timesSeen} + 1`,
               sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${sourceImage.id}::uuid)`,
             },
-          });
+          })
+          .returning({ id: vocabulary.id });
+        await ensureReviewTracks(userId, row.id, "vocab");
         extractedCounts.vocabulary++;
       }
 
