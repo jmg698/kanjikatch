@@ -1,5 +1,19 @@
 export type SessionType = "kanji" | "vocab" | "mixed";
 
+export interface QueueEntry {
+  item: ReviewQueueItem;
+  isRetry: boolean;
+  entryId: number;
+}
+
+export type RequeueTier = "again" | "hard";
+
+export interface RequeueState {
+  tier: RequeueTier;
+  consecutiveCorrect: number;
+  requiredCorrect: number;
+}
+
 export interface ReviewQueueItem {
   id: string;
   type: "kanji" | "vocab";

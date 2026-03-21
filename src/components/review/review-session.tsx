@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, CheckCircle2 } from "lucide-react";
 import { PreReview } from "./pre-review";
@@ -8,7 +8,7 @@ import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
 import { StaticShinkansenBackground } from "./static-shinkansen-background";
 import { InTheWild } from "@/components/wild/in-the-wild";
-import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType } from "./review-types";
+import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
 type Phase = "setup" | "reviewing" | "summary" | "wild";
@@ -24,12 +24,17 @@ export function ReviewSession() {
 
   // Review state
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [queue, setQueue] = useState<ReviewQueueItem[]>([]);
+  const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionType, setQuestionType] = useState<"meaning" | "reading">("meaning");
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
   const previousLevelRef = useRef(1);
+
+  // Intra-session re-queue tracking (refs for synchronous access in handleGrade)
+  const requeueMapRef = useRef<Map<string, RequeueState>>(new Map());
+  const entryIdCounterRef = useRef(0);
+  const originalQueueSizeRef = useRef(0);
 
   // Summary state
   const [summary, setSummary] = useState<SessionSummary | null>(null);
@@ -40,6 +45,17 @@ export function ReviewSession() {
 
   // Correct/wrong flash
   const [flashColor, setFlashColor] = useState<string | null>(null);
+
+  // Derived progress: original cards completed vs retries remaining
+  const { completedOriginal, retriesRemaining } = useMemo(() => {
+    let completed = 0;
+    let retries = 0;
+    for (let i = 0; i < queue.length; i++) {
+      if (i < currentIndex && !queue[i].isRetry) completed++;
+      if (i >= currentIndex && queue[i].isRetry) retries++;
+    }
+    return { completedOriginal: completed, retriesRemaining: retries };
+  }, [queue, currentIndex]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -80,7 +96,6 @@ export function ReviewSession() {
   const startSession = async (type: SessionType, size: number) => {
     setLoading(true);
     try {
-      // Fetch queue
       const queueRes = await fetch(`/api/review/queue?type=${type}&limit=${size}`);
       if (!queueRes.ok) throw new Error("Failed to fetch queue");
       const queueData = await queueRes.json();
@@ -90,7 +105,6 @@ export function ReviewSession() {
         return;
       }
 
-      // Start session
       const sessionRes = await fetch("/api/review/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,13 +113,24 @@ export function ReviewSession() {
       if (!sessionRes.ok) throw new Error("Failed to start session");
       const sessionData = await sessionRes.json();
 
+      entryIdCounterRef.current = 0;
+      const entries: QueueEntry[] = queueData.items.map((item: ReviewQueueItem) => ({
+        item,
+        isRetry: false,
+        entryId: entryIdCounterRef.current++,
+      }));
+
       previousLevelRef.current = stats?.level ?? 1;
       setSessionId(sessionData.sessionId);
-      setQueue(queueData.items);
+      setQueue(entries);
       setCurrentIndex(0);
       setConsecutiveCorrect(0);
       setTotalXpEarned(0);
       setQuestionType(Math.random() > 0.5 ? "meaning" : "reading");
+
+      requeueMapRef.current = new Map();
+      originalQueueSizeRef.current = entries.length;
+
       setPhase("reviewing");
     } catch (e) {
       console.error("Failed to start session:", e);
@@ -118,31 +143,87 @@ export function ReviewSession() {
     if (submitting || !sessionId) return;
     setSubmitting(true);
 
-    const item = queue[currentIndex];
+    const entry = queue[currentIndex];
+    const { item, isRetry } = entry;
     const wasCorrect = grade !== "again";
 
-    // Visual feedback
     setFlashColor(wasCorrect ? "emerald" : "orange");
     setTimeout(() => setFlashColor(null), 400);
 
+    let shouldRequeue = false;
+
     try {
-      const res = await fetch("/api/review/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId,
-          itemId: item.id,
-          itemType: item.type,
-          questionType,
-          grade,
-          consecutiveCorrect,
-        }),
-      });
+      if (!isRetry) {
+        // First appearance — submit to API for SRS update + history
+        const res = await fetch("/api/review/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            itemId: item.id,
+            itemType: item.type,
+            questionType,
+            grade,
+            consecutiveCorrect,
+          }),
+        });
 
-      if (!res.ok) throw new Error("Failed to submit");
-      const data = await res.json();
+        if (!res.ok) throw new Error("Failed to submit");
+        const data = await res.json();
+        setTotalXpEarned((prev) => prev + (data.xpEarned || 0));
 
-      setTotalXpEarned((prev) => prev + (data.xpEarned || 0));
+        if (grade === "again") {
+          requeueMapRef.current.set(item.id, {
+            tier: "again",
+            consecutiveCorrect: 0,
+            requiredCorrect: 2,
+          });
+          shouldRequeue = true;
+        } else if (grade === "hard") {
+          requeueMapRef.current.set(item.id, {
+            tier: "hard",
+            consecutiveCorrect: 0,
+            requiredCorrect: 1,
+          });
+          shouldRequeue = true;
+        }
+      } else {
+        // Retry — session-local only, no API call, no SRS update
+        const state = requeueMapRef.current.get(item.id);
+        if (state) {
+          if (wasCorrect) {
+            const newConsecutive = state.consecutiveCorrect + 1;
+            if (newConsecutive >= state.requiredCorrect) {
+              requeueMapRef.current.delete(item.id);
+            } else {
+              state.consecutiveCorrect = newConsecutive;
+              shouldRequeue = true;
+            }
+          } else {
+            if (state.tier === "hard") {
+              state.tier = "again";
+              state.requiredCorrect = 2;
+            }
+            state.consecutiveCorrect = 0;
+            shouldRequeue = true;
+          }
+        }
+      }
+
+      // Re-insert into queue with 4-6 card spacing
+      let updatedQueue = queue;
+      if (shouldRequeue) {
+        const spacing = Math.floor(Math.random() * 3) + 4;
+        const insertAt = Math.min(currentIndex + 1 + spacing, queue.length);
+        const retryEntry: QueueEntry = {
+          item,
+          isRetry: true,
+          entryId: entryIdCounterRef.current++,
+        };
+        updatedQueue = [...queue];
+        updatedQueue.splice(insertAt, 0, retryEntry);
+        setQueue(updatedQueue);
+      }
 
       if (wasCorrect) {
         setConsecutiveCorrect((prev) => prev + 1);
@@ -150,9 +231,8 @@ export function ReviewSession() {
         setConsecutiveCorrect(0);
       }
 
-      // Move to next item
       const nextIndex = currentIndex + 1;
-      if (nextIndex >= queue.length) {
+      if (nextIndex >= updatedQueue.length) {
         prefetchWildSentences(sessionId);
         await completeSession();
       } else {
@@ -204,6 +284,8 @@ export function ReviewSession() {
     setSessionId(null);
     setQueue([]);
     setWildPrefetchStatus("idle");
+    requeueMapRef.current = new Map();
+    originalQueueSizeRef.current = 0;
     fetchStats();
   };
 
@@ -296,9 +378,14 @@ export function ReviewSession() {
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                       <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-                      <span className="font-mono">{currentIndex}</span>
+                      <span className="font-mono">{completedOriginal}</span>
                       <span className="opacity-50">/</span>
-                      <span className="font-mono">{queue.length}</span>
+                      <span className="font-mono">{originalQueueSizeRef.current}</span>
+                      {retriesRemaining > 0 && (
+                        <span className="text-xs text-orange-500 font-medium ml-0.5">
+                          +{retriesRemaining}
+                        </span>
+                      )}
                     </span>
                     <div className="w-20 h-1.5 bg-secondary rounded-full overflow-hidden hidden sm:block">
                       <motion.div
@@ -323,7 +410,7 @@ export function ReviewSession() {
                         className="w-full max-w-2xl mx-auto"
                       >
                         <ReviewCard
-                          item={queue[currentIndex]}
+                          item={queue[currentIndex].item}
                           index={currentIndex}
                           total={queue.length}
                           questionType={questionType}
@@ -331,6 +418,7 @@ export function ReviewSession() {
                           onGrade={handleGrade}
                           disabled={submitting}
                           fullScreen
+                          isRetry={queue[currentIndex].isRetry}
                         />
                       </motion.div>
                     </AnimatePresence>

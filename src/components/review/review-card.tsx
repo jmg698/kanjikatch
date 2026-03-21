@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { RotateCcw } from "lucide-react";
 import type { ReviewQueueItem } from "./review-types";
 import type { Grade } from "@/lib/srs";
 import { getGradeOptions, type SrsState } from "@/lib/srs";
@@ -16,6 +17,8 @@ interface ReviewCardProps {
   disabled: boolean;
   /** When true, card is shown in full-screen review mode (larger, no in-card progress) */
   fullScreen?: boolean;
+  /** Whether this card is a re-queued retry within the current session */
+  isRetry?: boolean;
 }
 
 const GRADE_STYLES: Record<Grade, { bg: string; border: string; text: string; hoverBg: string }> = {
@@ -46,13 +49,14 @@ export function ReviewCard({
   onGrade,
   disabled,
   fullScreen = false,
+  isRetry = false,
 }: ReviewCardProps) {
   const [revealed, setRevealed] = useState(false);
 
-  // Reset on new item
+  // Reset on new item (index included so retries of the same item re-trigger)
   useEffect(() => {
     setRevealed(false);
-  }, [item.id, questionType]);
+  }, [item.id, questionType, index]);
 
   const srsState: SrsState = {
     intervalDays: item.intervalDays,
@@ -122,7 +126,7 @@ export function ReviewCard({
       {/* Card */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${item.id}-${questionType}`}
+          key={`${item.id}-${questionType}-${index}`}
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -40 }}
@@ -133,10 +137,16 @@ export function ReviewCard({
             onClick={handleReveal}
           >
             {/* Question Type / Prompt label — minimal in full-screen */}
-            <div className={fullScreen ? "px-8 pt-6 flex items-center justify-center" : "px-6 pt-5 flex items-center justify-between"}>
+            <div className={fullScreen ? "px-8 pt-6 flex items-center justify-center gap-2" : "px-6 pt-5 flex items-center justify-between"}>
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {item.type === "kanji" ? "Kanji" : "Vocabulary"}
               </span>
+              {isRetry && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-orange-500 bg-orange-50 border border-orange-200/60">
+                  <RotateCcw className="h-2.5 w-2.5" />
+                  retry
+                </span>
+              )}
               {revealed && !fullScreen && (
                 <span className="text-xs text-muted-foreground">
                   {questionText}
