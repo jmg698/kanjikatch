@@ -257,53 +257,55 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
         })}
       </div>
 
-      {/* Sentence content with desktop side arrows */}
-      <div
-        className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden relative"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Desktop prev arrow */}
-        <button
-          type="button"
-          onClick={goPrev}
-          disabled={currentIndex === 0}
-          className="hidden md:flex items-center justify-center absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-10 h-11 w-11 rounded-full border-2 border-border/60 bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-border hover:bg-background transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
-          aria-label="Previous sentence"
+      {/* Sentence content — arrows sit beside the card, not at viewport edges */}
+      <div className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden min-h-0">
+        <div
+          className="flex items-center justify-center gap-1 sm:gap-2 md:gap-3 w-full max-w-5xl mx-auto"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+          {/* Desktop prev — flush to sentence column */}
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={currentIndex === 0}
+            className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border-2 border-border bg-background/90 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:border-primary/40 hover:bg-background shadow-sm transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+            aria-label="Previous sentence"
+          >
+            <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
+          </button>
 
-        <div className="w-full max-w-2xl">
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={sentence.id}
-              custom={direction}
-              initial={{ opacity: 0, x: direction * 60 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction * -60 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <SentenceDisplay
-                sentence={sentence}
-                showAddWord
-                onRate={handleRate}
-                currentRating={ratings[sentence.id] || null}
-              />
-            </motion.div>
-          </AnimatePresence>
+          <div className="min-w-0 w-full max-w-2xl grow md:grow-0">
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={sentence.id}
+                custom={direction}
+                initial={{ opacity: 0, x: direction * 60 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: direction * -60 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <SentenceDisplay
+                  sentence={sentence}
+                  showAddWord
+                  onRate={handleRate}
+                  currentRating={ratings[sentence.id] || null}
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Desktop next */}
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={currentIndex === sentences.length - 1}
+            className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border-2 border-border bg-background/90 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:border-primary/40 hover:bg-background shadow-sm transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+            aria-label="Next sentence"
+          >
+            <ChevronRight className="h-5 w-5" strokeWidth={2.25} />
+          </button>
         </div>
-
-        {/* Desktop next arrow */}
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={currentIndex === sentences.length - 1}
-          className="hidden md:flex items-center justify-center absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-10 h-11 w-11 rounded-full border-2 border-border/60 bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-border hover:bg-background transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
-          aria-label="Next sentence"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
       </div>
 
       {/* Mobile bottom navigation */}
