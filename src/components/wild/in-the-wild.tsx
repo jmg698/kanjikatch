@@ -257,12 +257,23 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
         })}
       </div>
 
-      {/* Sentence content */}
+      {/* Sentence content with desktop side arrows */}
       <div
-        className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden"
+        className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden relative"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
+        {/* Desktop prev arrow */}
+        <button
+          type="button"
+          onClick={goPrev}
+          disabled={currentIndex === 0}
+          className="hidden md:flex items-center justify-center absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-10 h-11 w-11 rounded-full border-2 border-border/60 bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-border hover:bg-background transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+          aria-label="Previous sentence"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+
         <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
@@ -282,10 +293,21 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Desktop next arrow */}
+        <button
+          type="button"
+          onClick={goNext}
+          disabled={currentIndex === sentences.length - 1}
+          className="hidden md:flex items-center justify-center absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-10 h-11 w-11 rounded-full border-2 border-border/60 bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-border hover:bg-background transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+          aria-label="Next sentence"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
       </div>
 
-      {/* Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-10">
+      {/* Mobile bottom navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 md:hidden">
         <div className="wild-nav-gradient">
           <div className="flex items-center justify-between max-w-2xl mx-auto px-6 py-5">
             <Button
@@ -315,6 +337,15 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
           </div>
         </div>
       </div>
+
+      {/* Desktop finish button (shown on last sentence) */}
+      {currentIndex === sentences.length - 1 && (
+        <div className="hidden md:flex fixed bottom-6 left-0 right-0 z-10 justify-center">
+          <Button onClick={onBackToDashboard} size="lg" className="h-12 px-8 rounded-full shadow-lg">
+            Finish Reading
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
