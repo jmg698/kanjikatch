@@ -178,12 +178,6 @@ export async function POST(req: NextRequest) {
       ? "Our AI is temporarily overloaded. Please try again in a minute."
       : "Failed to process image";
 
-    return NextResponse.json(
-      {
-        error: userMessage,
-        details: rawMessage || "Unknown error",
-      },
-      { status: isOverloaded ? 503 : 500 }
-    );
+    return NextResponse.json({ error: userMessage }, { status: isOverloaded ? 503 : 500 });
   }
 }

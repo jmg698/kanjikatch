@@ -170,8 +170,6 @@ export function CaptureInput() {
           const data = await response.json();
           if (data && typeof data.error === "string") {
             errorMessage = data.error;
-          } else if (data && typeof data.details === "string") {
-            errorMessage = data.details;
           }
         } catch {
           // keep default

@@ -159,12 +159,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     Sentry.captureException(error);
     console.error("Text extraction error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to process text",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to process text" }, { status: 500 });
   }
 }
