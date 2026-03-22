@@ -6,9 +6,6 @@ import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
 
 async function getDashboardData(userId: string) {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/f6d443fc-81bd-4a2a-96c6-1029ff40c4d4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'01298a'},body:JSON.stringify({sessionId:'01298a',location:'dashboard/page.tsx:getDashboardData',message:'getDashboardData called',data:{userId},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
   const now = new Date();
 
   const [
@@ -27,14 +24,14 @@ async function getDashboardData(userId: string) {
         eq(reviewTracks.itemType, "kanji"),
         or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
       )
-    ).catch((err: unknown) => { fetch('http://127.0.0.1:7243/ingest/f6d443fc-81bd-4a2a-96c6-1029ff40c4d4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'01298a'},body:JSON.stringify({sessionId:'01298a',location:'dashboard:kanjiDueQuery',message:'kanjiDue query FAILED',data:{error:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{}); throw err; }),
+    ),
     db.select({ count: sql<number>`count(*)::int` }).from(reviewTracks).where(
       and(
         eq(reviewTracks.userId, userId),
         eq(reviewTracks.itemType, "vocab"),
         or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
       )
-    ).catch((err: unknown) => { fetch('http://127.0.0.1:7243/ingest/f6d443fc-81bd-4a2a-96c6-1029ff40c4d4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'01298a'},body:JSON.stringify({sessionId:'01298a',location:'dashboard:vocabDueQuery',message:'vocabDue query FAILED',data:{error:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{}); throw err; }),
+    ),
     db.select().from(userStats).where(eq(userStats.userId, userId)).then((r) => r[0] ?? null),
     db.select({
       character: kanji.character,

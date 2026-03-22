@@ -7,31 +7,17 @@ import { eq, and, or, lte, isNull, sql } from "drizzle-orm";
 import { TopNav } from "@/components/dashboard/top-nav";
 
 async function getDueCount(userId: string): Promise<number> {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/f6d443fc-81bd-4a2a-96c6-1029ff40c4d4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'01298a'},body:JSON.stringify({sessionId:'01298a',location:'layout.tsx:getDueCount',message:'getDueCount called',data:{userId},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
-  try {
-    const now = new Date();
-    const [result] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(reviewTracks)
-      .where(
-        and(
-          eq(reviewTracks.userId, userId),
-          or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
-        ),
-      );
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/f6d443fc-81bd-4a2a-96c6-1029ff40c4d4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'01298a'},body:JSON.stringify({sessionId:'01298a',location:'layout.tsx:getDueCount:success',message:'getDueCount succeeded',data:{count:result?.count},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
-    return result.count;
-  } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/f6d443fc-81bd-4a2a-96c6-1029ff40c4d4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'01298a'},body:JSON.stringify({sessionId:'01298a',location:'layout.tsx:getDueCount:error',message:'getDueCount FAILED',data:{error:errMsg},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
-    throw err;
-  }
+  const now = new Date();
+  const [result] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(reviewTracks)
+    .where(
+      and(
+        eq(reviewTracks.userId, userId),
+        or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
+      ),
+    );
+  return result.count;
 }
 
 export default async function DashboardLayout({
