@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+/** Hostnames we allow the server to fetch for image extraction (SSRF protection). */
+export const ALLOWED_EXTRACTION_IMAGE_HOSTNAMES = ["utfs.io"] as const;
+
+/**
+ * Returns true if the URL is HTTPS and its host is an allowed CDN (Uploadthing).
+ * Used by upload validation and server-side fetch before calling external APIs.
+ */
+export function isAllowedExtractionImageUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    const host = parsed.hostname.toLowerCase();
+    return (ALLOWED_EXTRACTION_IMAGE_HOSTNAMES as readonly string[]).includes(host);
+  } catch {
+    return false;
+  }
+}
+
 // Kanji validation - now with arrays
 export const kanjiSchema = z.object({
   character: z.string().min(1).max(1),
@@ -27,7 +47,12 @@ export const sentenceSchema = z.object({
 
 // Source image upload validation
 export const uploadSchema = z.object({
-  imageUrl: z.string().url(),
+  imageUrl: z
+    .string()
+    .url()
+    .refine(isAllowedExtractionImageUrl, {
+      message: "Image URL must be a valid Uploadthing URL (https://utfs.io/...)",
+    }),
   fileName: z.string().min(1).max(255),
 });
 

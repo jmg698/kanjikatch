@@ -1,5 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { extractionResultSchema, type ExtractionResult } from "./validations";
+import {
+  extractionResultSchema,
+  isAllowedExtractionImageUrl,
+  type ExtractionResult,
+} from "./validations";
 import { z } from "zod";
 
 const anthropic = new Anthropic({
@@ -61,6 +65,10 @@ Return ONLY valid JSON in this exact format:
 If a category has no items, return an empty array for that category.`;
 
 async function fetchImageAsBase64(url: string): Promise<{ base64: string; mediaType: string }> {
+  if (!isAllowedExtractionImageUrl(url)) {
+    throw new Error("Refusing to fetch image: URL host is not allowed");
+  }
+
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString("base64");
