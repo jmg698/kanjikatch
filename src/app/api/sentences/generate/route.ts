@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets, reviewHistory, kanji, vocabulary } from "@/db";
-import { eq, and, inArray, isNotNull, desc } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, desc, gte } from "drizzle-orm";
 import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
 import { z } from "zod";
 
 const MAX_SENTENCES_PER_SESSION = 5;
 const MAX_GENERATION_CALLS_PER_DAY = 20;
+type WildCoverageScope = "all_time" | "session" | "window_7d";
+const WILD_COVERAGE_SCOPE: WildCoverageScope = "window_7d";
 
 const requestSchema = z.object({
   sessionId: z.string().uuid(),
@@ -120,16 +122,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sentences: [] });
     }
 
-    // Check for existing sentences covering these items
+    // Check for existing sentence coverage for these items.
+    // Important: coverage must be scoped to the current user (multi-tenant correctness).
     const targetTexts = targets.map((t) => t.text);
-    const existingTargets = await db
-      .select()
+    const coverageQuery = db
+      .select({
+        sentenceId: generatedSentenceTargets.sentenceId,
+        itemText: generatedSentenceTargets.itemText,
+      })
       .from(generatedSentenceTargets)
-      .where(
-        and(
-          inArray(generatedSentenceTargets.itemText, targetTexts),
-        ),
-      );
+      .innerJoin(generatedSentences, eq(generatedSentenceTargets.sentenceId, generatedSentences.id));
+
+    const existingTargets = WILD_COVERAGE_SCOPE === "session"
+      ? await coverageQuery.where(
+          and(
+            eq(generatedSentences.userId, userId),
+            inArray(generatedSentenceTargets.itemText, targetTexts),
+            eq(generatedSentences.sessionId, sessionId),
+          ),
+        )
+      : WILD_COVERAGE_SCOPE === "window_7d"
+        ? await coverageQuery.where(
+            and(
+              eq(generatedSentences.userId, userId),
+              inArray(generatedSentenceTargets.itemText, targetTexts),
+              gte(generatedSentences.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+            ),
+          )
+        : await coverageQuery.where(
+            and(
+              eq(generatedSentences.userId, userId),
+              inArray(generatedSentenceTargets.itemText, targetTexts),
+            ),
+          );
 
     // Find which items already have sentence coverage for this user
     const coveredSentenceIds = [...new Set(existingTargets.map((t) => t.sentenceId))];
