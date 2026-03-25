@@ -106,6 +106,7 @@ export function CaptureInput() {
     const imageItem = items.find((item) => ACCEPTED_TYPES.includes(item.type));
     if (imageItem) {
       e.preventDefault();
+      e.stopPropagation();
       const file = imageItem.getAsFile();
       if (file) loadImage(file);
     }
@@ -428,7 +429,7 @@ export function CaptureInput() {
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onPaste={handlePaste}
-              tabIndex={mode === "image" ? 0 : undefined}
+              tabIndex={0}
               className={`
                 relative rounded-lg border-2 border-dashed transition-colors outline-none
                 ${isDragOver
@@ -469,7 +470,7 @@ export function CaptureInput() {
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
                     placeholder={isDragOver ? "" : "Paste your Japanese notes here..."}
-                    className="relative z-10 w-full min-h-[220px] bg-transparent px-4 py-4 text-base resize-y placeholder:text-muted-foreground/60 focus:outline-none"
+                    className="w-full min-h-[220px] bg-transparent px-4 py-4 text-base resize-y placeholder:text-muted-foreground/60 focus:outline-none"
                   />
 
                   {mode === "empty" && !isDragOver && (
