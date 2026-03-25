@@ -305,28 +305,29 @@ export function ReviewSession() {
       {/* Setup: normal in-page layout */}
       {phase === "setup" && (
         <div className="relative min-h-[60vh]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key="setup"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-            >
-              <PreReview
-                dueCounts={dueCounts}
-                stats={stats}
-                onStart={startSession}
-                loading={loading}
-              />
-            </motion.div>
-          </AnimatePresence>
-          {loading && (
-            <div className="max-w-lg mx-auto space-y-4">
+          {loading ? (
+            <div className="max-w-lg mx-auto space-y-4 pt-6">
               <div className="h-8 bg-secondary animate-pulse rounded-lg w-48 mx-auto" />
               <div className="h-40 bg-secondary animate-pulse rounded-2xl" />
               <div className="h-12 bg-secondary animate-pulse rounded-lg" />
             </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="setup"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PreReview
+                  dueCounts={dueCounts}
+                  stats={stats}
+                  onStart={startSession}
+                  loading={loading}
+                />
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
       )}
