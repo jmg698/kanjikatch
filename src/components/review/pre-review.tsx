@@ -14,14 +14,14 @@ interface PreReviewProps {
   loading: boolean;
 }
 
-const SESSION_SIZES = [5, 10, 15, 25];
+const SESSION_SIZES: (number | "all")[] = [5, 15, 25, 50, "all"];
 
 export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps) {
   const sessionType: SessionType = "mixed";
-  const [sessionSize, setSessionSize] = useState(10);
+  const [sessionSize, setSessionSize] = useState<number | "all">(15);
 
   const hasDueItems = dueCounts.total > 0;
-  const effectiveSize = Math.min(sessionSize, dueCounts.total);
+  const effectiveSize = sessionSize === "all" ? dueCounts.total : Math.min(sessionSize, dueCounts.total);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -102,17 +102,18 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
             <div className="flex justify-center gap-2">
               {SESSION_SIZES.map((size) => (
                 <button
-                  key={size}
+                  key={String(size)}
                   onClick={() => setSessionSize(size)}
                   className={`
-                    px-4 py-2 rounded-lg border-2 font-mono font-medium text-sm transition-all
+                    px-4 py-2 rounded-lg border-2 font-medium text-sm transition-all
+                    ${size === "all" ? "" : "font-mono"}
                     ${sessionSize === size
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border hover:border-primary/30 text-muted-foreground"
                     }
                   `}
                 >
-                  {size}
+                  {size === "all" ? "All" : size}
                 </button>
               ))}
             </div>
