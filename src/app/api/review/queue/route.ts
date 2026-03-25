@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || "mixed";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 50);
+    const limit = parseInt(searchParams.get("limit") || "10", 10);
 
     const now = new Date();
 
