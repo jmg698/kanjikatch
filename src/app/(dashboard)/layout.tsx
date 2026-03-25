@@ -34,7 +34,7 @@ export default async function DashboardLayout({
   const dueCount = await getDueCount(userId);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen dash-bg">
       <header
         className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md"
         style={{ borderColor: 'hsl(35 15% 87%)' }}

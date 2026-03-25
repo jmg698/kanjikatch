@@ -186,10 +186,10 @@ export default async function DashboardPage() {
                     {data.due.vocab > 0 && <span>{data.due.vocab} vocab</span>}
                   </p>
                   {data.streak > 1 && (
-                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                      <Flame className="h-3 w-3 text-orange-400" />
+                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 rounded-full px-2.5 py-1 text-xs font-medium mt-2">
+                      <Flame className="h-3.5 w-3.5" />
                       {data.streak} day streak
-                    </p>
+                    </span>
                   )}
                   <div className="mt-auto pt-4">
                     <Link
@@ -212,10 +212,10 @@ export default async function DashboardPage() {
                     No reviews due right now
                   </p>
                   {data.streak > 1 && (
-                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                      <Flame className="h-3 w-3 text-orange-400" />
+                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 rounded-full px-2.5 py-1 text-xs font-medium mt-2">
+                      <Flame className="h-3.5 w-3.5" />
                       {data.streak} day streak
-                    </p>
+                    </span>
                   )}
                   <div className="mt-auto pt-4">
                     <Link
@@ -267,7 +267,7 @@ export default async function DashboardPage() {
       {/* ── "Needs Attention" ── */}
       {data.needsAttention.length > 0 && (
         <section className="stagger-1">
-          <h2 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-3">
+          <h2 className="text-[10px] uppercase tracking-[0.2em] text-[#C4707E] font-semibold mb-3">
             Needs Attention
           </h2>
           <div
@@ -282,7 +282,7 @@ export default async function DashboardPage() {
                 <Link
                   key={k.character}
                   href="/library"
-                  className="flex-shrink-0 flex flex-col items-center gap-1.5 bg-white border border-orange-200/60 rounded-xl p-3 w-[78px] hover:-translate-y-0.5 transition-all duration-200"
+                  className="flex-shrink-0 flex flex-col items-center gap-1.5 bg-white border border-[#F9A1B1]/40 rounded-xl p-3 w-[78px] hover:-translate-y-0.5 hover:shadow-md hover:border-[#F9A1B1]/70 transition-all duration-200"
                   style={{ scrollSnapAlign: 'start' }}
                   title={k.meanings[0] ?? ''}
                 >
@@ -303,7 +303,7 @@ export default async function DashboardPage() {
       {data.recentKanji.length > 0 && (
         <section className="stagger-2">
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+            <h2 className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
               Recently Learned
             </h2>
             <Link
@@ -324,7 +324,7 @@ export default async function DashboardPage() {
                 <Link
                   key={k.character}
                   href="/library"
-                  className="flex-shrink-0 flex flex-col items-center gap-2 bg-white border border-border rounded-xl p-3 w-[68px] hover:-translate-y-0.5 transition-all duration-200"
+                  className="flex-shrink-0 flex flex-col items-center gap-2 bg-white border border-border rounded-xl p-3 w-[68px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
                   style={{ scrollSnapAlign: 'start' }}
                   title={k.meanings[0] ?? ''}
                 >
