@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, Zap, GraduationCap, BookOpen, Languages } from "lucide-react";
+import { Flame, Zap, BookOpen, Languages } from "lucide-react";
 import type { DueCounts, ReviewStats, SessionType } from "./review-types";
 
 interface PreReviewProps {
@@ -17,16 +17,11 @@ interface PreReviewProps {
 const SESSION_SIZES = [5, 10, 15, 25];
 
 export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps) {
-  const [sessionType, setSessionType] = useState<SessionType>("mixed");
+  const sessionType: SessionType = "mixed";
   const [sessionSize, setSessionSize] = useState(10);
 
   const hasDueItems = dueCounts.total > 0;
-  const effectiveSize = Math.min(
-    sessionSize,
-    sessionType === "kanji" ? dueCounts.kanji :
-    sessionType === "vocab" ? dueCounts.vocab :
-    dueCounts.total,
-  );
+  const effectiveSize = Math.min(sessionSize, dueCounts.total);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -94,48 +89,11 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
 
       {hasDueItems && (
         <>
-          {/* Session Type */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-2"
-          >
-            <label className="text-sm font-medium text-muted-foreground block text-center">
-              Session Type
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { value: "mixed" as const, label: "Mixed", icon: GraduationCap, count: dueCounts.total },
-                { value: "kanji" as const, label: "Kanji", icon: BookOpen, count: dueCounts.kanji },
-                { value: "vocab" as const, label: "Vocab", icon: Languages, count: dueCounts.vocab },
-              ]).map(({ value, label, icon: Icon, count }) => (
-                <button
-                  key={value}
-                  onClick={() => setSessionType(value)}
-                  disabled={count === 0}
-                  className={`
-                    flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all
-                    ${sessionType === value
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border hover:border-primary/30 text-muted-foreground"
-                    }
-                    ${count === 0 ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
-                  `}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-sm font-medium">{label}</span>
-                  <span className="text-xs opacity-70">{count}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-
           {/* Session Size */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.2 }}
             className="space-y-2"
           >
             <label className="text-sm font-medium text-muted-foreground block text-center">
@@ -164,7 +122,7 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.3 }}
           >
             <Button
               onClick={() => onStart(sessionType, effectiveSize)}
@@ -181,7 +139,7 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.4 }}
               className="text-center text-sm text-muted-foreground"
             >
               Today: {stats.dailyReviewsToday} / {stats.dailyGoal} daily goal
@@ -190,7 +148,7 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
                   className="h-full bg-primary rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(100, (stats.dailyReviewsToday / stats.dailyGoal) * 100)}%` }}
-                  transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
+                  transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
                 />
               </div>
             </motion.div>
