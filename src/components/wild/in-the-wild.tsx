@@ -162,17 +162,19 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        >
-          <BookOpen className="h-12 w-12 text-primary opacity-60" />
-        </motion.div>
-        <div className="text-center space-y-2">
-          <p className="text-lg font-medium">Crafting your sentences...</p>
-          <p className="text-sm text-muted-foreground">
-            Creating natural Japanese using what you just reviewed
-          </p>
+        <div className="rounded-2xl bg-background/90 backdrop-blur-sm px-10 py-8 shadow-lg flex flex-col items-center gap-6">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          >
+            <BookOpen className="h-12 w-12 text-primary opacity-60" />
+          </motion.div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-medium">Crafting your sentences...</p>
+            <p className="text-sm text-muted-foreground">
+              Creating natural Japanese using what you just reviewed
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -181,14 +183,16 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <X className="h-12 w-12 text-muted-foreground opacity-40" />
-        <div className="text-center space-y-2">
-          <p className="text-lg font-medium">Couldn&apos;t generate sentences</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
+        <div className="rounded-2xl bg-background/90 backdrop-blur-sm px-10 py-8 shadow-lg flex flex-col items-center gap-6">
+          <X className="h-12 w-12 text-muted-foreground opacity-40" />
+          <div className="text-center space-y-2">
+            <p className="text-lg font-medium">Couldn&apos;t generate sentences</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+          <Button variant="outline" onClick={onBackToDashboard}>
+            Back to Dashboard
+          </Button>
         </div>
-        <Button variant="outline" onClick={onBackToDashboard}>
-          Back to Dashboard
-        </Button>
       </div>
     );
   }
@@ -196,16 +200,18 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   if (sentences.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <BookOpen className="h-12 w-12 text-muted-foreground opacity-40" />
-        <div className="text-center space-y-2">
-          <p className="text-lg font-medium">No sentences to show</p>
-          <p className="text-sm text-muted-foreground">
-            Review more items to unlock contextual sentences
-          </p>
+        <div className="rounded-2xl bg-background/90 backdrop-blur-sm px-10 py-8 shadow-lg flex flex-col items-center gap-6">
+          <BookOpen className="h-12 w-12 text-muted-foreground opacity-40" />
+          <div className="text-center space-y-2">
+            <p className="text-lg font-medium">No sentences to show</p>
+            <p className="text-sm text-muted-foreground">
+              Review more items to unlock contextual sentences
+            </p>
+          </div>
+          <Button variant="outline" onClick={onBackToDashboard}>
+            Back to Dashboard
+          </Button>
         </div>
-        <Button variant="outline" onClick={onBackToDashboard}>
-          Back to Dashboard
-        </Button>
       </div>
     );
   }
@@ -237,7 +243,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
       </header>
 
       {/* Progress dots */}
-      <div className="flex-shrink-0 flex items-center justify-center gap-2 py-3">
+      <div className="flex-shrink-0 flex items-center justify-center gap-2 py-3 bg-background/60 backdrop-blur-[2px]">
         {sentences.map((s, i) => {
           const rated = !!ratings[s.id];
           return (

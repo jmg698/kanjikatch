@@ -8,6 +8,7 @@ import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
 import { StaticShinkansenBackground } from "./static-shinkansen-background";
 import { InTheWild } from "@/components/wild/in-the-wild";
+import { StaticForestBackground } from "@/components/wild/static-forest-background";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
@@ -455,13 +456,16 @@ export function ReviewSession() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="flex-1 min-h-0"
+                className="flex-1 min-h-0 relative"
               >
-                <InTheWild
-                  sessionId={sessionId}
-                  onClose={() => (window.location.href = "/dashboard")}
-                  onBackToDashboard={() => (window.location.href = "/dashboard")}
-                />
+                <StaticForestBackground />
+                <div className="relative z-10 h-full">
+                  <InTheWild
+                    sessionId={sessionId}
+                    onClose={() => (window.location.href = "/dashboard")}
+                    onBackToDashboard={() => (window.location.href = "/dashboard")}
+                  />
+                </div>
               </motion.div>
             )}
           </motion.div>
