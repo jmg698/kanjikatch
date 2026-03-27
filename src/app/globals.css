@@ -420,7 +420,7 @@
 
   /* Golden hour frosted glass panel for sentence review */
   .wild-golden-panel {
-    background: rgba(30, 26, 48, 0.35);
+    background: rgba(30, 26, 48, 0.55);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.08);
