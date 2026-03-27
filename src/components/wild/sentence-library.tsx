@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Search, X, Loader2, GraduationCap, ArrowUpDown, ChevronDown } from "lucide-react";
+import { BookOpen, Search, X, Loader2, GraduationCap, ArrowUpDown, ChevronDown, Shuffle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SentenceDisplay, type DifficultyRating } from "./sentence-display";
 import type { WildSentenceData } from "./in-the-wild";
+import { SentenceReviewSession } from "./sentence-review-session";
 import Link from "next/link";
 
 const SORT_OPTIONS = [
@@ -30,6 +31,7 @@ export function SentenceLibrary({ hasAnySentences }: SentenceLibraryProps) {
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [ratings, setRatings] = useState<Record<string, DifficultyRating>>({});
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -149,16 +151,30 @@ export function SentenceLibrary({ hasAnySentences }: SentenceLibraryProps) {
     );
   }
 
+  if (reviewOpen) {
+    return <SentenceReviewSession onClose={() => setReviewOpen(false)} />;
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sentence Library</h1>
-        <p className="text-muted-foreground mt-1">
-          Your personal collection of contextual Japanese sentences.
-          {!loading && (
-            <span className="ml-1">{total} sentences</span>
-          )}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Sentence Library</h1>
+          <p className="text-muted-foreground mt-1">
+            Your personal collection of contextual Japanese sentences.
+            {!loading && (
+              <span className="ml-1">{total} sentences</span>
+            )}
+          </p>
+        </div>
+        <Button
+          onClick={() => setReviewOpen(true)}
+          className="flex-shrink-0 gap-2"
+        >
+          <Shuffle className="h-4 w-4" />
+          <span className="hidden sm:inline">Review Sentences</span>
+          <span className="sm:hidden">Review</span>
+        </Button>
       </div>
 
       {/* Search + Sort Bar */}

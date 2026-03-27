@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets } from "@/db";
-import { eq, desc, asc, and, or, ilike, inArray, count } from "drizzle-orm";
+import { eq, desc, asc, sql, and, or, ilike, inArray, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
@@ -59,6 +59,9 @@ export async function GET(req: NextRequest) {
         break;
       case "alphabetical":
         orderBy = asc(generatedSentences.japanese);
+        break;
+      case "random":
+        orderBy = sql`RANDOM()`;
         break;
       default:
         orderBy = desc(generatedSentences.createdAt);
