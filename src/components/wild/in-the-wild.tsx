@@ -162,16 +162,16 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="rounded-2xl bg-background/90 backdrop-blur-sm px-10 py-8 shadow-lg flex flex-col items-center gap-6">
+        <div className="rounded-[14px] bg-[rgba(30,26,48,0.35)] backdrop-blur-[16px] px-10 py-8 border border-white/[0.08] flex flex-col items-center gap-6" style={{ WebkitBackdropFilter: "blur(16px)" }}>
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           >
-            <BookOpen className="h-12 w-12 text-primary opacity-60" />
+            <BookOpen className="h-12 w-12 text-[#F0C88A] opacity-60" />
           </motion.div>
           <div className="text-center space-y-2">
-            <p className="text-lg font-medium">Crafting your sentences...</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-lg font-medium text-[#F5F0E6]">Crafting your sentences...</p>
+            <p className="text-sm text-[#F5F0E6]/50">
               Creating natural Japanese using what you just reviewed
             </p>
           </div>
@@ -183,11 +183,11 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="rounded-2xl bg-background/90 backdrop-blur-sm px-10 py-8 shadow-lg flex flex-col items-center gap-6">
-          <X className="h-12 w-12 text-muted-foreground opacity-40" />
+        <div className="rounded-[14px] bg-[rgba(30,26,48,0.35)] backdrop-blur-[16px] px-10 py-8 border border-white/[0.08] flex flex-col items-center gap-6" style={{ WebkitBackdropFilter: "blur(16px)" }}>
+          <X className="h-12 w-12 text-[#F5F0E6]/40" />
           <div className="text-center space-y-2">
-            <p className="text-lg font-medium">Couldn&apos;t generate sentences</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
+            <p className="text-lg font-medium text-[#F5F0E6]">Couldn&apos;t generate sentences</p>
+            <p className="text-sm text-[#F5F0E6]/50">{error}</p>
           </div>
           <Button variant="outline" onClick={onBackToDashboard}>
             Back to Dashboard
@@ -200,11 +200,11 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   if (sentences.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="rounded-2xl bg-background/90 backdrop-blur-sm px-10 py-8 shadow-lg flex flex-col items-center gap-6">
-          <BookOpen className="h-12 w-12 text-muted-foreground opacity-40" />
+        <div className="rounded-[14px] bg-[rgba(30,26,48,0.35)] backdrop-blur-[16px] px-10 py-8 border border-white/[0.08] flex flex-col items-center gap-6" style={{ WebkitBackdropFilter: "blur(16px)" }}>
+          <BookOpen className="h-12 w-12 text-[#F5F0E6]/40" />
           <div className="text-center space-y-2">
-            <p className="text-lg font-medium">No sentences to show</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-lg font-medium text-[#F5F0E6]">No sentences to show</p>
+            <p className="text-sm text-[#F5F0E6]/50">
               Review more items to unlock contextual sentences
             </p>
           </div>
@@ -221,21 +221,21 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-[rgba(30,26,48,0.5)] backdrop-blur-md" style={{ WebkitBackdropFilter: "blur(12px)" }}>
         <button
           type="button"
           onClick={onClose}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg p-2 -ml-2"
+          className="flex items-center gap-2 text-[#F5F0E6]/60 hover:text-[#F5F0E6] transition-colors rounded-lg p-2 -ml-2"
           aria-label="Close"
         >
           <Home className="h-5 w-5" />
           <span className="text-sm font-medium hidden sm:inline">Done</span>
         </button>
         <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-primary">See It In The Wild</span>
+          <BookOpen className="h-4 w-4 text-[#F0C88A]" />
+          <span className="text-sm font-medium text-[#F0C88A]">See It In The Wild</span>
         </div>
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-sm text-[#F5F0E6]/50">
           <span className="font-mono">{currentIndex + 1}</span>
           <span className="opacity-50">/</span>
           <span className="font-mono">{sentences.length}</span>
@@ -243,7 +243,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
       </header>
 
       {/* Progress dots */}
-      <div className="flex-shrink-0 flex items-center justify-center gap-2 py-3 bg-background/60 backdrop-blur-[2px]">
+      <div className="flex-shrink-0 flex items-center justify-center gap-2 py-3 bg-[rgba(30,26,48,0.25)]">
         {sentences.map((s, i) => {
           const rated = !!ratings[s.id];
           return (
@@ -252,10 +252,10 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
               onClick={() => { setDirection(i > currentIndex ? 1 : -1); setCurrentIndex(i); }}
               className={`h-2 rounded-full transition-all duration-300 ${
                 i === currentIndex
-                  ? "w-6 bg-primary"
+                  ? "w-6 bg-[#F0C88A]"
                   : rated
-                    ? "w-2 bg-emerald-400 dark:bg-emerald-500"
-                    : "w-2 bg-border hover:bg-muted-foreground/30"
+                    ? "w-2 bg-emerald-400/70"
+                    : "w-2 bg-white/15 hover:bg-white/25"
               }`}
               aria-label={`Sentence ${i + 1}${rated ? " (rated)" : ""}`}
             />
@@ -275,13 +275,14 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
             type="button"
             onClick={goPrev}
             disabled={currentIndex === 0}
-            className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border-2 border-border bg-background/90 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:border-primary/40 hover:bg-background shadow-sm transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+            className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border border-white/[0.08] bg-[rgba(30,26,48,0.35)] backdrop-blur-md text-[#F5F0E6]/60 hover:text-[#F5F0E6] hover:border-white/20 transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+            style={{ WebkitBackdropFilter: "blur(12px)" }}
             aria-label="Previous sentence"
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
           </button>
 
-          <div className="min-w-0 w-full max-w-2xl grow md:grow-0">
+          <div className="min-w-0 w-full max-w-[88vw] max-w-2xl grow md:grow-0">
             <AnimatePresence mode="wait" custom={direction}>
               <motion.div
                 key={sentence.id}
@@ -291,12 +292,14 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
                 exit={{ opacity: 0, x: direction * -60 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <SentenceDisplay
-                  sentence={sentence}
-                  showAddWord
-                  onRate={handleRate}
-                  currentRating={ratings[sentence.id] || null}
-                />
+                <div className="wild-golden-panel">
+                  <SentenceDisplay
+                    sentence={sentence}
+                    showAddWord
+                    onRate={handleRate}
+                    currentRating={ratings[sentence.id] || null}
+                  />
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -306,7 +309,8 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
             type="button"
             onClick={goNext}
             disabled={currentIndex === sentences.length - 1}
-            className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border-2 border-border bg-background/90 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:border-primary/40 hover:bg-background shadow-sm transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+            className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border border-white/[0.08] bg-[rgba(30,26,48,0.35)] backdrop-blur-md text-[#F5F0E6]/60 hover:text-[#F5F0E6] hover:border-white/20 transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
+            style={{ WebkitBackdropFilter: "blur(12px)" }}
             aria-label="Next sentence"
           >
             <ChevronRight className="h-5 w-5" strokeWidth={2.25} />
@@ -316,7 +320,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
 
       {/* Mobile bottom navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-10 md:hidden">
-        <div className="wild-nav-gradient">
+        <div className="wild-nav-gradient-golden">
           <div className="flex items-center justify-between max-w-2xl mx-auto px-6 py-5">
             <Button
               variant="ghost"

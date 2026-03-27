@@ -8,7 +8,7 @@ import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
 import { StaticShinkansenBackground } from "./static-shinkansen-background";
 import { InTheWild } from "@/components/wild/in-the-wild";
-import { StaticForestBackground } from "@/components/wild/static-forest-background";
+import { StaticGoldenHourBackground } from "@/components/wild/static-golden-hour-background";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
@@ -458,7 +458,7 @@ export function ReviewSession() {
                 transition={{ duration: 0.3 }}
                 className="flex-1 min-h-0 relative"
               >
-                <StaticForestBackground />
+                <StaticGoldenHourBackground />
                 <div className="relative z-10 h-full">
                   <InTheWild
                     sessionId={sessionId}
