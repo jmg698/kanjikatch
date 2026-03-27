@@ -155,7 +155,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
           {targetItems.map((item) => (
             <span
               key={item}
-              className="inline-flex items-center px-3 py-1 rounded-full bg-amber-100/80 text-amber-800 text-sm font-medium dark:bg-amber-900/30 dark:text-amber-200"
+              className="wild-kanji-pill inline-flex items-center px-3 py-1 rounded-full bg-amber-100/80 text-amber-800 text-sm font-medium dark:bg-amber-900/30 dark:text-amber-200"
             >
               {item}
             </span>
@@ -186,7 +186,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
               transition={{ duration: 0.25 }}
               className="space-y-4"
             >
-              <p className={`text-muted-foreground ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
+              <p className={`wild-translation-text text-muted-foreground ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
                 {sentence.english}
               </p>
 
@@ -198,7 +198,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
                   transition={{ delay: 0.15, duration: 0.25 }}
                   className="space-y-2"
                 >
-                  <p className="text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
+                  <p className="wild-rating-label text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
                     How was this sentence?
                   </p>
                   <div className="flex items-center justify-center gap-2">
@@ -232,7 +232,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
 
               <button
                 onClick={() => setShowTranslation(false)}
-                className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                className="wild-hide-translation text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
               >
                 hide translation
               </button>
@@ -244,7 +244,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowTranslation(true)}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors py-2 px-4 rounded-full hover:bg-muted/50"
+              className="wild-hint-text inline-flex items-center gap-2 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors py-2 px-4 rounded-full hover:bg-white/[0.06]"
             >
               <Eye className="h-4 w-4" />
               Tap to see translation

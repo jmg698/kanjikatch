@@ -407,4 +407,81 @@
     );
     padding-top: 2rem;
   }
+
+  .wild-nav-gradient-golden {
+    background: linear-gradient(
+      to top,
+      rgba(30, 26, 48, 0.7) 60%,
+      rgba(30, 26, 48, 0.4) 80%,
+      transparent
+    );
+    padding-top: 2rem;
+  }
+
+  /* Golden hour frosted glass panel for sentence review */
+  .wild-golden-panel {
+    background: rgba(30, 26, 48, 0.35);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 24px 36px;
+  }
+
+  /* Text overrides inside the golden panel */
+  .wild-golden-panel .wild-sentence-text {
+    color: #F5F0E6;
+  }
+
+  .wild-golden-panel .wild-target-word {
+    color: #F5F0E6;
+    background: linear-gradient(
+      180deg,
+      transparent 55%,
+      hsl(45 100% 72% / 0.4) 55%,
+      hsl(45 100% 72% / 0.4) 90%,
+      transparent 90%
+    );
+  }
+
+  .wild-golden-panel .wild-ruby rt {
+    color: rgba(245, 240, 230, 0.5);
+  }
+
+  .wild-golden-panel .wild-punctuation {
+    color: rgba(245, 240, 230, 0.45);
+  }
+
+  .wild-golden-panel .wild-tappable-word:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .wild-golden-panel .wild-tappable-word:active {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .wild-golden-panel .wild-kanji-pill {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(245, 240, 230, 0.8);
+  }
+
+  .wild-golden-panel .wild-hint-text {
+    color: rgba(245, 240, 230, 0.4);
+  }
+
+  .wild-golden-panel .wild-translation-text {
+    color: rgba(245, 240, 230, 0.6);
+  }
+
+  .wild-golden-panel .wild-rating-label {
+    color: rgba(245, 240, 230, 0.35);
+  }
+
+  .wild-golden-panel .wild-hide-translation {
+    color: rgba(245, 240, 230, 0.35);
+  }
+
+  .wild-golden-panel .wild-hide-translation:hover {
+    color: rgba(245, 240, 230, 0.6);
+  }
 }
