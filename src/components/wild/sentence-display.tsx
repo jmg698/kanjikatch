@@ -164,7 +164,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
       )}
 
       {/* Japanese sentence */}
-      <div className={`wild-sentence-text ${compact ? "text-xl" : "text-2xl sm:text-3xl"} leading-relaxed text-center`}>
+      <div className={`wild-sentence-text ${compact ? "text-xl" : "text-3xl sm:text-4xl"} leading-relaxed text-center`}>
         {words.map((word, i) => (
           <WordToken
             key={`${word.text}-${i}`}
@@ -186,7 +186,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
               transition={{ duration: 0.25 }}
               className="space-y-4"
             >
-              <p className={`wild-translation-text text-muted-foreground ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
+              <p className={`wild-translation-text text-muted-foreground ${compact ? "text-sm" : "text-lg sm:text-xl"}`}>
                 {sentence.english}
               </p>
 
