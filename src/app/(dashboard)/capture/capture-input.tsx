@@ -20,6 +20,16 @@ interface ExtractionCounts {
   sentences: number;
 }
 
+interface ExtractedItems {
+  kanji: { text: string; isNew: boolean }[];
+  vocabulary: { text: string; reading: string; isNew: boolean }[];
+}
+
+interface ExtractionResponse {
+  extracted: ExtractionCounts;
+  items: ExtractedItems;
+}
+
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export function CaptureInput() {
@@ -30,7 +40,7 @@ export function CaptureInput() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [extractionResult, setExtractionResult] = useState<ExtractionCounts | null>(null);
+  const [extractionResult, setExtractionResult] = useState<ExtractionResponse | null>(null);
   const [mobileTextMode, setMobileTextMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -186,7 +196,7 @@ export function CaptureInput() {
         throw new Error(errorMessage);
       }
       const data = await response.json();
-      onSuccess(data.extracted);
+      onSuccess(data);
     } catch (err) {
       onError(err);
     }
@@ -207,16 +217,17 @@ export function CaptureInput() {
         throw new Error(data.error || "Failed to process text");
       }
       const data = await response.json();
-      onSuccess(data.extracted);
+      onSuccess(data);
     } catch (err) {
       onError(err);
     }
   };
 
-  const onSuccess = (counts: ExtractionCounts) => {
-    setExtractionResult(counts);
+  const onSuccess = (data: ExtractionResponse) => {
+    setExtractionResult(data);
     setState("success");
 
+    const counts = data.extracted;
     const totalFound = counts.kanji.total + counts.vocabulary.total + counts.sentences;
     const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
 
@@ -270,9 +281,16 @@ export function CaptureInput() {
   }
 
   if (state === "success" && extractionResult) {
-    const totalFound = extractionResult.kanji.total + extractionResult.vocabulary.total + extractionResult.sentences;
-    const totalNew = extractionResult.kanji.new + extractionResult.vocabulary.new + extractionResult.sentences;
+    const counts = extractionResult.extracted;
+    const { items: extractedItems } = extractionResult;
+    const totalFound = counts.kanji.total + counts.vocabulary.total + counts.sentences;
+    const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
     const nothingFound = totalFound === 0;
+
+    const newKanji = extractedItems.kanji.filter(i => i.isNew);
+    const existingKanji = extractedItems.kanji.filter(i => !i.isNew);
+    const newVocab = extractedItems.vocabulary.filter(i => i.isNew);
+    const existingVocab = extractedItems.vocabulary.filter(i => !i.isNew);
 
     if (nothingFound) {
       return (
@@ -302,60 +320,78 @@ export function CaptureInput() {
             <h3 className="text-lg font-semibold">
               {totalNew > 0 ? "Content extracted!" : "All items already in library"}
             </h3>
-
-            <div className="mt-5 space-y-2 text-sm max-w-xs mx-auto">
-              {extractionResult.kanji.total > 0 && (
-                <div className="flex justify-between px-2 py-1.5 rounded-md bg-muted/40">
-                  <span className="text-muted-foreground">Kanji</span>
-                  <span className="font-medium">
-                    {extractionResult.kanji.new > 0 && (
-                      <span className="text-primary">{extractionResult.kanji.new} new</span>
-                    )}
-                    {extractionResult.kanji.new > 0 && extractionResult.kanji.existing > 0 && (
-                      <span className="text-muted-foreground">, </span>
-                    )}
-                    {extractionResult.kanji.existing > 0 && (
-                      <span className="text-muted-foreground">{extractionResult.kanji.existing} seen</span>
-                    )}
-                  </span>
-                </div>
-              )}
-              {extractionResult.vocabulary.total > 0 && (
-                <div className="flex justify-between px-2 py-1.5 rounded-md bg-muted/40">
-                  <span className="text-muted-foreground">Vocabulary</span>
-                  <span className="font-medium">
-                    {extractionResult.vocabulary.new > 0 && (
-                      <span className="text-primary">{extractionResult.vocabulary.new} new</span>
-                    )}
-                    {extractionResult.vocabulary.new > 0 && extractionResult.vocabulary.existing > 0 && (
-                      <span className="text-muted-foreground">, </span>
-                    )}
-                    {extractionResult.vocabulary.existing > 0 && (
-                      <span className="text-muted-foreground">{extractionResult.vocabulary.existing} seen</span>
-                    )}
-                  </span>
-                </div>
-              )}
-              {extractionResult.sentences > 0 && (
-                <div className="flex justify-between px-2 py-1.5 rounded-md bg-muted/40">
-                  <span className="text-muted-foreground">Sentences</span>
-                  <span className="font-medium text-primary">{extractionResult.sentences} added</span>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex gap-3 justify-center">
-              <Button variant="outline" onClick={clearAll}>
-                Capture More
-              </Button>
-              <Button onClick={() => { router.push("/library"); router.refresh(); }}>
-                View Library
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Redirecting to library...
-            </p>
           </div>
+
+          <div className="mt-5 space-y-4 max-w-sm mx-auto text-sm">
+            {extractedItems.kanji.length > 0 && (
+              <div>
+                <div className="flex justify-between items-baseline mb-2 px-1">
+                  <span className="font-medium text-muted-foreground">Kanji</span>
+                  <span className="text-xs text-muted-foreground">
+                    {counts.kanji.new > 0 && <span className="text-primary">{counts.kanji.new} new</span>}
+                    {counts.kanji.new > 0 && counts.kanji.existing > 0 && ", "}
+                    {counts.kanji.existing > 0 && `${counts.kanji.existing} seen`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 px-1">
+                  {newKanji.map(k => (
+                    <span key={k.text} className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-primary/10 text-primary font-medium text-base">
+                      {k.text}
+                    </span>
+                  ))}
+                  {existingKanji.map(k => (
+                    <span key={k.text} className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-muted/60 text-muted-foreground font-medium text-base">
+                      {k.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {extractedItems.vocabulary.length > 0 && (
+              <div>
+                <div className="flex justify-between items-baseline mb-2 px-1">
+                  <span className="font-medium text-muted-foreground">Vocabulary</span>
+                  <span className="text-xs text-muted-foreground">
+                    {counts.vocabulary.new > 0 && <span className="text-primary">{counts.vocabulary.new} new</span>}
+                    {counts.vocabulary.new > 0 && counts.vocabulary.existing > 0 && ", "}
+                    {counts.vocabulary.existing > 0 && `${counts.vocabulary.existing} seen`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 px-1">
+                  {newVocab.map(v => (
+                    <span key={`${v.text}-${v.reading}`} className="inline-flex items-center px-2.5 py-1 rounded-md bg-primary/10 text-primary font-medium text-sm">
+                      {v.text}
+                    </span>
+                  ))}
+                  {existingVocab.map(v => (
+                    <span key={`${v.text}-${v.reading}`} className="inline-flex items-center px-2.5 py-1 rounded-md bg-muted/60 text-muted-foreground font-medium text-sm">
+                      {v.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {counts.sentences > 0 && (
+              <div className="flex justify-between px-1 py-1.5 rounded-md bg-muted/40">
+                <span className="text-muted-foreground">Sentences</span>
+                <span className="font-medium text-primary">{counts.sentences} added</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 flex gap-3 justify-center">
+            <Button variant="outline" onClick={clearAll}>
+              Capture More
+            </Button>
+            <Button onClick={() => { router.push("/library"); router.refresh(); }}>
+              View Library
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 text-center">
+            Redirecting to library...
+          </p>
         </CardContent>
       </Card>
     );

@@ -59,6 +59,10 @@ export async function POST(req: NextRequest) {
       vocabulary: { total: 0, new: 0, existing: 0 },
       sentences: 0,
     };
+    const items: {
+      kanji: { text: string; isNew: boolean }[];
+      vocabulary: { text: string; reading: string; isNew: boolean }[];
+    } = { kanji: [], vocabulary: [] };
 
     try {
       const extraction = await extractFromText(text);
@@ -69,14 +73,17 @@ export async function POST(req: NextRequest) {
         .where(eq(sourceImages.id, source.id));
 
       for (const k of extraction.kanji) {
+        const newMeanings = k.meanings;
+        const newOn = k.readingsOn ?? [];
+        const newKun = k.readingsKun ?? [];
         const [row] = await db
           .insert(kanji)
           .values({
             userId,
             character: k.character,
-            meanings: k.meanings,
-            readingsOn: k.readingsOn ?? [],
-            readingsKun: k.readingsKun ?? [],
+            meanings: newMeanings,
+            readingsOn: newOn,
+            readingsKun: newKun,
             jlptLevel: k.jlptLevel ?? null,
             strokeCount: k.strokeCount ?? null,
             sourceImageIds: [source.id],
@@ -88,23 +95,31 @@ export async function POST(req: NextRequest) {
               lastSeenAt: new Date(),
               timesSeen: sql`${kanji.timesSeen} + 1`,
               sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${source.id}::uuid)`,
+              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${kanji.meanings}, ${newMeanings})) AS val)`,
+              readingsOn: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${kanji.readingsOn}, ${newOn})) AS val)`,
+              readingsKun: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${kanji.readingsKun}, ${newKun})) AS val)`,
+              jlptLevel: sql`coalesce(${k.jlptLevel ?? null}::integer, ${kanji.jlptLevel})`,
+              strokeCount: sql`coalesce(${k.strokeCount ?? null}::integer, ${kanji.strokeCount})`,
             },
           })
           .returning({ id: kanji.id, timesSeen: kanji.timesSeen });
         await ensureReviewTracks(userId, row.id, "kanji");
+        const isNew = row.timesSeen === 1;
         counts.kanji.total++;
-        if (row.timesSeen === 1) counts.kanji.new++;
+        if (isNew) counts.kanji.new++;
         else counts.kanji.existing++;
+        items.kanji.push({ text: k.character, isNew });
       }
 
       for (const v of extraction.vocabulary) {
+        const newMeanings = v.meanings;
         const [row] = await db
           .insert(vocabulary)
           .values({
             userId,
             word: v.word,
             reading: v.reading,
-            meanings: v.meanings,
+            meanings: newMeanings,
             partOfSpeech: v.partOfSpeech ?? null,
             jlptLevel: v.jlptLevel ?? null,
             sourceImageIds: [source.id],
@@ -116,13 +131,18 @@ export async function POST(req: NextRequest) {
               lastSeenAt: new Date(),
               timesSeen: sql`${vocabulary.timesSeen} + 1`,
               sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${source.id}::uuid)`,
+              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${vocabulary.meanings}, ${newMeanings})) AS val)`,
+              partOfSpeech: sql`coalesce(${v.partOfSpeech ?? null}, ${vocabulary.partOfSpeech})`,
+              jlptLevel: sql`coalesce(${v.jlptLevel ?? null}::integer, ${vocabulary.jlptLevel})`,
             },
           })
           .returning({ id: vocabulary.id, timesSeen: vocabulary.timesSeen });
         await ensureReviewTracks(userId, row.id, "vocab");
+        const isNew = row.timesSeen === 1;
         counts.vocabulary.total++;
-        if (row.timesSeen === 1) counts.vocabulary.new++;
+        if (isNew) counts.vocabulary.new++;
         else counts.vocabulary.existing++;
+        items.vocabulary.push({ text: v.word, reading: v.reading, isNew });
       }
 
       if (extraction.sentences.length > 0) {
@@ -147,6 +167,7 @@ export async function POST(req: NextRequest) {
         success: true,
         sourceId: source.id,
         extracted: counts,
+        items,
       });
     } catch (extractionError) {
       const errorMessage =

@@ -23,8 +23,9 @@ IMPORTANT CONTEXT: The images you receive are typically handwritten study notes 
 Use ALL visible context (romaji, English glosses, annotations) as clues to identify and enrich the Japanese items. For example, if you see "犬 = inu = dog", extract kanji 犬 with meaning ["dog"] and kun reading ["いぬ"], using the romaji and English as supporting evidence.
 
 EXTRACTION RULES:
-- Extract ALL Japanese content visible in the image. Prefer over-extracting to missing items.
-- If handwriting is ambiguous but you can make a reasonable guess, include it.
+- Extract ALL Japanese content visible in the image. Prefer over-extracting to missing items — the user would rather review a few extra items than miss content.
+- If handwriting is ambiguous but you can make a reasonable guess, include it. If a kanji is partially obscured or cut off, include your best guess.
+- Use your knowledge of Japanese to fill in readings, meanings, JLPT levels, and stroke counts even if they are not explicitly written in the notes.
 - Romaji and English text should NOT be extracted as standalone items — they are context for the Japanese items they annotate.
 - For each kanji character that appears, extract it individually even if it also appears inside a vocabulary compound.
 
