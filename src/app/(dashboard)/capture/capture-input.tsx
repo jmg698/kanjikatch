@@ -7,12 +7,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle, AlertCircle, Upload, X,
-  Image as ImageIcon, Camera, Type, ChevronLeft,
+  Image as ImageIcon, Camera, Type, ChevronLeft, SearchX,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type InputMode = "empty" | "text" | "image";
 type ProcessState = "idle" | "uploading" | "processing" | "success" | "error";
+
+interface ExtractionCounts {
+  kanji: { total: number; new: number; existing: number };
+  vocabulary: { total: number; new: number; existing: number };
+  sentences: number;
+}
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -24,6 +30,7 @@ export function CaptureInput() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extractionResult, setExtractionResult] = useState<ExtractionCounts | null>(null);
   const [mobileTextMode, setMobileTextMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +139,7 @@ export function CaptureInput() {
     setMode("empty");
     setState("idle");
     setError(null);
+    setExtractionResult(null);
     setMobileTextMode(false);
   };
 
@@ -177,7 +185,8 @@ export function CaptureInput() {
         }
         throw new Error(errorMessage);
       }
-      onSuccess();
+      const data = await response.json();
+      onSuccess(data.extracted);
     } catch (err) {
       onError(err);
     }
@@ -197,22 +206,32 @@ export function CaptureInput() {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Failed to process text");
       }
-      onSuccess();
+      const data = await response.json();
+      onSuccess(data.extracted);
     } catch (err) {
       onError(err);
     }
   };
 
-  const onSuccess = () => {
+  const onSuccess = (counts: ExtractionCounts) => {
+    setExtractionResult(counts);
     setState("success");
-    toast({
-      title: "Success!",
-      description: "Content has been extracted and added to your library.",
-    });
-    setTimeout(() => {
-      router.push("/library");
-      router.refresh();
-    }, 1500);
+
+    const totalFound = counts.kanji.total + counts.vocabulary.total + counts.sentences;
+    const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
+
+    if (totalFound > 0) {
+      toast({
+        title: totalNew > 0 ? "New content added!" : "All items already in library",
+        description: totalNew > 0
+          ? `Found ${totalFound} items (${totalNew} new)`
+          : `Found ${totalFound} items you've already captured`,
+      });
+      setTimeout(() => {
+        router.push("/library");
+        router.refresh();
+      }, 3000);
+    }
   };
 
   const onError = (err: unknown) => {
@@ -250,15 +269,91 @@ export function CaptureInput() {
     );
   }
 
-  if (state === "success") {
+  if (state === "success" && extractionResult) {
+    const totalFound = extractionResult.kanji.total + extractionResult.vocabulary.total + extractionResult.sentences;
+    const totalNew = extractionResult.kanji.new + extractionResult.vocabulary.new + extractionResult.sentences;
+    const nothingFound = totalFound === 0;
+
+    if (nothingFound) {
+      return (
+        <Card className="jr-panel">
+          <CardContent className="py-16">
+            <div className="text-center">
+              <SearchX className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">No Japanese content found</h3>
+              <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+                The AI couldn&apos;t detect any kanji, vocabulary, or sentences.
+                Try a clearer photo, better lighting, or crop closer to your notes.
+              </p>
+              <Button className="mt-6" onClick={clearAll}>
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
       <Card className="jr-panel">
-        <CardContent className="py-16">
+        <CardContent className="py-10">
           <div className="text-center">
             <CheckCircle className="h-12 w-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">Success!</h3>
-            <p className="text-muted-foreground mt-2">
-              Redirecting to your library...
+            <h3 className="text-lg font-semibold">
+              {totalNew > 0 ? "Content extracted!" : "All items already in library"}
+            </h3>
+
+            <div className="mt-5 space-y-2 text-sm max-w-xs mx-auto">
+              {extractionResult.kanji.total > 0 && (
+                <div className="flex justify-between px-2 py-1.5 rounded-md bg-muted/40">
+                  <span className="text-muted-foreground">Kanji</span>
+                  <span className="font-medium">
+                    {extractionResult.kanji.new > 0 && (
+                      <span className="text-primary">{extractionResult.kanji.new} new</span>
+                    )}
+                    {extractionResult.kanji.new > 0 && extractionResult.kanji.existing > 0 && (
+                      <span className="text-muted-foreground">, </span>
+                    )}
+                    {extractionResult.kanji.existing > 0 && (
+                      <span className="text-muted-foreground">{extractionResult.kanji.existing} seen</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {extractionResult.vocabulary.total > 0 && (
+                <div className="flex justify-between px-2 py-1.5 rounded-md bg-muted/40">
+                  <span className="text-muted-foreground">Vocabulary</span>
+                  <span className="font-medium">
+                    {extractionResult.vocabulary.new > 0 && (
+                      <span className="text-primary">{extractionResult.vocabulary.new} new</span>
+                    )}
+                    {extractionResult.vocabulary.new > 0 && extractionResult.vocabulary.existing > 0 && (
+                      <span className="text-muted-foreground">, </span>
+                    )}
+                    {extractionResult.vocabulary.existing > 0 && (
+                      <span className="text-muted-foreground">{extractionResult.vocabulary.existing} seen</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {extractionResult.sentences > 0 && (
+                <div className="flex justify-between px-2 py-1.5 rounded-md bg-muted/40">
+                  <span className="text-muted-foreground">Sentences</span>
+                  <span className="font-medium text-primary">{extractionResult.sentences} added</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex gap-3 justify-center">
+              <Button variant="outline" onClick={clearAll}>
+                Capture More
+              </Button>
+              <Button onClick={() => { router.push("/library"); router.refresh(); }}>
+                View Library
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Redirecting to library...
             </p>
           </div>
         </CardContent>

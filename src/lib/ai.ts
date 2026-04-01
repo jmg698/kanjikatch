@@ -10,54 +10,70 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-const EXTRACTION_PROMPT = `You are a Japanese language learning assistant. Analyze the provided image of handwritten notes or printed Japanese learning material.
+const EXTRACTION_PROMPT = `You are a Japanese language extraction assistant. Your job is to find every piece of Japanese language content in an image and return structured data.
 
-Extract the following information and return it as valid JSON:
+IMPORTANT CONTEXT: The images you receive are typically handwritten study notes from an English-speaking Japanese learner. These notes commonly mix:
+- Kanji and kana (hiragana/katakana)
+- Romaji phonetic annotations (e.g. "taberu" next to 食べる)
+- English translations or glosses (e.g. "to eat" written near a word)
+- Arrows, brackets, underlines, or other markings connecting related info
+- Vocabulary lists, grammar notes, practice sentences
+- Messy or informal handwriting in varying sizes
+
+Use ALL visible context (romaji, English glosses, annotations) as clues to identify and enrich the Japanese items. For example, if you see "犬 = inu = dog", extract kanji 犬 with meaning ["dog"] and kun reading ["いぬ"], using the romaji and English as supporting evidence.
+
+EXTRACTION RULES:
+- Extract ALL Japanese content visible in the image. Prefer over-extracting to missing items.
+- If handwriting is ambiguous but you can make a reasonable guess, include it.
+- Romaji and English text should NOT be extracted as standalone items — they are context for the Japanese items they annotate.
+- For each kanji character that appears, extract it individually even if it also appears inside a vocabulary compound.
+
+Extract the following and return as valid JSON:
 
 1. **Kanji**: Individual kanji characters with:
-   - character: The kanji character itself
-   - meanings: Array of English meanings (e.g., ["study", "learning"])
-   - readingsOn: Array of on'yomi readings in katakana (e.g., ["ガク", "ガッ"])
-   - readingsKun: Array of kun'yomi readings in hiragana (e.g., ["まな.ぶ"])
-   - jlptLevel: JLPT level 1-5 if known (5=N5, 1=N1)
+   - character: The single kanji character
+   - meanings: Array of English meanings
+   - readingsOn: Array of on'yomi readings in katakana
+   - readingsKun: Array of kun'yomi readings in hiragana
+   - jlptLevel: JLPT level 1-5 if known (5=N5 easiest, 1=N1 hardest)
    - strokeCount: Number of strokes if known
 
-2. **Vocabulary**: Words/compounds with:
-   - word: The word in Japanese
-   - reading: Hiragana reading of the full word
-   - meanings: Array of English meanings (e.g., ["student", "pupil"])
-   - partOfSpeech: Part of speech (noun, verb, adjective, etc.)
+2. **Vocabulary**: Words or compounds (2+ characters, or kana-only words) with:
+   - word: The word in Japanese script
+   - reading: Full hiragana reading
+   - meanings: Array of English meanings
+   - partOfSpeech: Part of speech (noun, verb, adjective, adverb, etc.)
    - jlptLevel: JLPT level if known
 
-3. **Sentences**: Complete sentences with:
+3. **Sentences**: Any complete or near-complete Japanese sentences with:
    - japanese: The sentence in Japanese
-   - english: English translation (optional)
+   - english: English translation if visible or inferrable
 
 Return ONLY valid JSON in this exact format:
 {
   "kanji": [
     {
-      "character": "学",
-      "meanings": ["study", "learning"],
-      "readingsOn": ["ガク", "ガッ"],
-      "readingsKun": ["まな.ぶ"],
+      "character": "食",
+      "meanings": ["eat", "food"],
+      "readingsOn": ["ショク"],
+      "readingsKun": ["た.べる", "く.う"],
       "jlptLevel": 5,
-      "strokeCount": 8
+      "strokeCount": 9
     }
   ],
   "vocabulary": [
     {
-      "word": "学生",
-      "reading": "がくせい",
-      "meanings": ["student", "pupil"],
-      "partOfSpeech": "noun",
+      "word": "食べる",
+      "reading": "たべる",
+      "meanings": ["to eat"],
+      "partOfSpeech": "verb",
       "jlptLevel": 5
     }
   ],
   "sentences": [
     {
-      "japanese": "学生です。",
-      "english": "I am a student."
+      "japanese": "毎日ご飯を食べます。",
+      "english": "I eat rice every day."
     }
   ]
 }

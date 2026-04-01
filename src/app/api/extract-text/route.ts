@@ -54,7 +54,11 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    let extractedCounts = { kanji: 0, vocabulary: 0, sentences: 0 };
+    const counts = {
+      kanji: { total: 0, new: 0, existing: 0 },
+      vocabulary: { total: 0, new: 0, existing: 0 },
+      sentences: 0,
+    };
 
     try {
       const extraction = await extractFromText(text);
@@ -86,9 +90,11 @@ export async function POST(req: NextRequest) {
               sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${source.id}::uuid)`,
             },
           })
-          .returning({ id: kanji.id });
+          .returning({ id: kanji.id, timesSeen: kanji.timesSeen });
         await ensureReviewTracks(userId, row.id, "kanji");
-        extractedCounts.kanji++;
+        counts.kanji.total++;
+        if (row.timesSeen === 1) counts.kanji.new++;
+        else counts.kanji.existing++;
       }
 
       for (const v of extraction.vocabulary) {
@@ -112,9 +118,11 @@ export async function POST(req: NextRequest) {
               sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${source.id}::uuid)`,
             },
           })
-          .returning({ id: vocabulary.id });
+          .returning({ id: vocabulary.id, timesSeen: vocabulary.timesSeen });
         await ensureReviewTracks(userId, row.id, "vocab");
-        extractedCounts.vocabulary++;
+        counts.vocabulary.total++;
+        if (row.timesSeen === 1) counts.vocabulary.new++;
+        else counts.vocabulary.existing++;
       }
 
       if (extraction.sentences.length > 0) {
@@ -127,7 +135,7 @@ export async function POST(req: NextRequest) {
             sourceImageId: source.id,
           }))
         );
-        extractedCounts.sentences = extraction.sentences.length;
+        counts.sentences = extraction.sentences.length;
       }
 
       await db
@@ -138,7 +146,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         sourceId: source.id,
-        extracted: extractedCounts,
+        extracted: counts,
       });
     } catch (extractionError) {
       const errorMessage =

@@ -57,19 +57,20 @@ export async function POST(req: NextRequest) {
       .returning();
 
     let extraction;
-    let extractedCounts = { kanji: 0, vocabulary: 0, sentences: 0 };
+    const counts = {
+      kanji: { total: 0, new: 0, existing: 0 },
+      vocabulary: { total: 0, new: 0, existing: 0 },
+      sentences: 0,
+    };
 
     try {
-      // Extract content using AI
       extraction = await extractFromImage(imageUrl);
 
-      // Store raw extraction for debugging
       await db
         .update(sourceImages)
         .set({ extractionRaw: extraction })
         .where(eq(sourceImages.id, sourceImage.id));
 
-      // Process kanji with frequency tracking (upsert)
       for (const k of extraction.kanji) {
         const [row] = await db
           .insert(kanji)
@@ -92,12 +93,13 @@ export async function POST(req: NextRequest) {
               sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${sourceImage.id}::uuid)`,
             },
           })
-          .returning({ id: kanji.id });
+          .returning({ id: kanji.id, timesSeen: kanji.timesSeen });
         await ensureReviewTracks(userId, row.id, "kanji");
-        extractedCounts.kanji++;
+        counts.kanji.total++;
+        if (row.timesSeen === 1) counts.kanji.new++;
+        else counts.kanji.existing++;
       }
 
-      // Process vocabulary with frequency tracking (upsert)
       for (const v of extraction.vocabulary) {
         const [row] = await db
           .insert(vocabulary)
@@ -119,12 +121,13 @@ export async function POST(req: NextRequest) {
               sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${sourceImage.id}::uuid)`,
             },
           })
-          .returning({ id: vocabulary.id });
+          .returning({ id: vocabulary.id, timesSeen: vocabulary.timesSeen });
         await ensureReviewTracks(userId, row.id, "vocab");
-        extractedCounts.vocabulary++;
+        counts.vocabulary.total++;
+        if (row.timesSeen === 1) counts.vocabulary.new++;
+        else counts.vocabulary.existing++;
       }
 
-      // Process sentences (no deduplication for sentences)
       if (extraction.sentences.length > 0) {
         await db.insert(sentences).values(
           extraction.sentences.map((s) => ({
@@ -135,10 +138,9 @@ export async function POST(req: NextRequest) {
             sourceImageId: sourceImage.id,
           }))
         );
-        extractedCounts.sentences = extraction.sentences.length;
+        counts.sentences = extraction.sentences.length;
       }
 
-      // Mark source image as processed
       await db
         .update(sourceImages)
         .set({ processed: true })
@@ -147,7 +149,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         sourceImageId: sourceImage.id,
-        extracted: extractedCounts,
+        extracted: counts,
       });
     } catch (extractionError) {
       // Store error message in source image
