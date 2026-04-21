@@ -65,6 +65,13 @@ export const vocabulary = pgTable("vocabulary", {
   timesSeen: integer("times_seen").default(1).notNull(),
   sourceImageIds: uuid("source_image_ids").array().notNull().default([]),
   notes: text("notes"),
+  // Enrichment tracking — set when a row was added with incomplete data
+  // (e.g. quick-add from a reading where the AI didn't provide a meaning)
+  // and a background enrichment pass should fill in the missing fields.
+  needsEnrichment: boolean("needs_enrichment").default(false).notNull(),
+  enrichmentAttempts: integer("enrichment_attempts").default(0).notNull(),
+  lastEnrichmentAttemptAt: timestamp("last_enrichment_attempt_at"),
+  enrichmentSourceSentence: text("enrichment_source_sentence"),
   // SRS fields
   nextReviewAt: timestamp("next_review_at"),
   intervalDays: integer("interval_days").default(1).notNull(),
@@ -77,6 +84,24 @@ export const vocabulary = pgTable("vocabulary", {
   userWordReadingIdx: uniqueIndex("vocabulary_user_word_reading_idx").on(table.userId, table.word, table.reading),
   userIdIdx: index("vocabulary_user_id_idx").on(table.userId),
   nextReviewIdx: index("vocabulary_next_review_idx").on(table.userId, table.nextReviewAt),
+  needsEnrichmentIdx: index("vocabulary_needs_enrichment_idx").on(table.needsEnrichment, table.lastEnrichmentAttemptAt),
+}));
+
+// Global enrichment cache for vocabulary definitions — keyed by (word, reading)
+// and shared across users so a word is only ever enriched by the AI once.
+// No user_id: dictionary entries are not personal data.
+export const vocabularyEnrichmentCache = pgTable("vocabulary_enrichment_cache", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  word: text("word").notNull(),
+  reading: text("reading").notNull(),
+  meanings: text("meanings").array().notNull(),
+  partOfSpeech: text("part_of_speech"),
+  jlptLevel: integer("jlpt_level"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  wordReadingIdx: uniqueIndex("vocab_enrichment_cache_word_reading_idx").on(table.word, table.reading),
+  wordIdx: index("vocab_enrichment_cache_word_idx").on(table.word),
 }));
 
 // Sentences for reading practice
@@ -251,3 +276,6 @@ export type NewGeneratedSentenceTarget = typeof generatedSentenceTargets.$inferI
 
 export type ReviewTrack = typeof reviewTracks.$inferSelect;
 export type NewReviewTrack = typeof reviewTracks.$inferInsert;
+
+export type VocabularyEnrichmentCache = typeof vocabularyEnrichmentCache.$inferSelect;
+export type NewVocabularyEnrichmentCache = typeof vocabularyEnrichmentCache.$inferInsert;

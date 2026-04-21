@@ -193,23 +193,42 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
     setAddStatus("loading");
 
     try {
+      // We pass the sentence context so the server can look the word up with
+      // disambiguation rather than saving whatever partial data the wild
+      // generator happened to include. The server is responsible for
+      // producing a real reading + meanings; the client never sends a
+      // placeholder.
       const res = await fetch("/api/vocabulary/quick-add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           word: addingWord.text,
-          reading: addingWord.reading || addingWord.text,
-          meanings: addingWord.meaning ? [addingWord.meaning] : ["(added from reading)"],
+          reading: addingWord.reading ?? undefined,
+          hintMeaning: addingWord.meaning ?? undefined,
+          sentenceJapanese: sentence.japanese,
+          sentenceEnglish: sentence.english,
         }),
       });
 
       if (res.status === 409) {
         setAddStatus("success");
         setAddError("Already in your library!");
-      } else if (!res.ok) {
+        return;
+      }
+
+      if (!res.ok) {
         throw new Error("Failed to add");
-      } else {
-        setAddStatus("success");
+      }
+
+      const data: { enrichment?: { succeeded: boolean } } = await res
+        .json()
+        .catch(() => ({}));
+      setAddStatus("success");
+      if (data.enrichment && !data.enrichment.succeeded) {
+        // Option B: we saved the row, but enrichment failed. Tell the user
+        // the word is in their library and we'll fill in the definition
+        // automatically — no action required from them.
+        setAddError("Added! Definition will be filled in shortly.");
       }
     } catch {
       setAddStatus("error");
