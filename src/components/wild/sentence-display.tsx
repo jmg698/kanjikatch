@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp } from "lucide-react";
-import type { WildSentenceData, WildWord } from "./in-the-wild";
+import { Eye, Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp, Info } from "lucide-react";
+import type { WildSentenceData, WildWord, WordFamiliarity } from "./in-the-wild";
 
 export type DifficultyRating = "too_easy" | "just_right" | "too_hard";
 
@@ -11,8 +11,21 @@ interface SentenceDisplayProps {
   sentence: WildSentenceData;
   showAddWord?: boolean;
   compact?: boolean;
+  showLegend?: boolean;
   onRate?: (sentenceId: string, rating: DifficultyRating) => void;
   currentRating?: DifficultyRating | null;
+}
+
+/**
+ * Derive the authoritative familiarity for a word, with a fallback for
+ * older stored records that predate JAC-15 (these only have isTarget /
+ * containsTarget booleans).
+ */
+function resolveFamiliarity(word: WildWord): WordFamiliarity {
+  if (word.familiarity) return word.familiarity;
+  if (word.isTarget) return "studied";
+  if (word.containsTarget) return "partial";
+  return "unknown";
 }
 
 function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: WildWord) => void }) {
@@ -22,15 +35,8 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
     return <span className="wild-punctuation">{word.text}</span>;
   }
 
-  if (word.isTarget) {
-    return (
-      <span className="wild-target-word" role="mark">
-        {word.text}
-      </span>
-    );
-  }
-
-  const hasReading = word.reading && word.reading !== word.text;
+  const familiarity = resolveFamiliarity(word);
+  const hasReading = !!word.reading && word.reading !== word.text;
   const isKana = /^[\u3040-\u309F\u30A0-\u30FF]+$/.test(word.text);
 
   const content = hasReading ? (
@@ -44,21 +50,42 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
     word.text
   );
 
-  if (word.containsTarget) {
+  // Studied — the learner has reviewed this exact word/kanji. Full highlight,
+  // no furigana needed; keep as a non-interactive mark (tapping "Add to vocab"
+  // for something already studied would be confusing).
+  if (familiarity === "studied") {
+    return (
+      <span
+        className="wild-studied-word"
+        role="mark"
+        aria-label={`${word.text}: you've studied this`}
+        title="You've studied this word"
+      >
+        {word.text}
+      </span>
+    );
+  }
+
+  // Partial — contains a studied kanji but the word itself is new to the
+  // learner. Distinct visual + always tappable so they can explore or add it.
+  if (familiarity === "partial") {
+    const ariaLabel = `${word.text}: contains a kanji you've studied — this word itself is new`;
     if (onTapWord) {
       return (
         <button
           type="button"
           onClick={() => onTapWord(word)}
-          className="wild-contains-target wild-tappable-word"
+          className="wild-partial-word wild-tappable-word"
           role="mark"
+          aria-label={ariaLabel}
+          title="Contains a kanji you've studied — tap for details"
         >
           {content}
         </button>
       );
     }
     return (
-      <span className="wild-contains-target" role="mark">
+      <span className="wild-partial-word" role="mark" aria-label={ariaLabel}>
         {content}
       </span>
     );
@@ -77,6 +104,31 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
   }
 
   return <span>{content}</span>;
+}
+
+/**
+ * Small, muted legend explaining the two highlight styles. Rendered once
+ * per sentence viewer (not on every card in the library list). Keeps the
+ * UX discoverable without being noisy.
+ */
+export function WildLegend({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      className={`wild-legend ${compact ? "wild-legend-compact" : ""}`}
+      aria-label="Highlight legend"
+    >
+      <Info className="h-3 w-3 opacity-60 shrink-0" aria-hidden="true" />
+      <span className="wild-legend-item">
+        <span className="wild-studied-swatch" aria-hidden="true">漢</span>
+        <span className="wild-legend-text">Studied</span>
+      </span>
+      <span className="wild-legend-sep" aria-hidden="true">·</span>
+      <span className="wild-legend-item">
+        <span className="wild-partial-swatch" aria-hidden="true">漢</span>
+        <span className="wild-legend-text">Contains studied kanji</span>
+      </span>
+    </div>
+  );
 }
 
 const RATING_CONFIG: Record<DifficultyRating, {
@@ -119,7 +171,7 @@ const RATING_CONFIG: Record<DifficultyRating, {
 
 const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
 
-export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating }: SentenceDisplayProps) {
+export function SentenceDisplay({ sentence, showAddWord = false, compact = false, showLegend = false, onRate, currentRating }: SentenceDisplayProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
   const [addStatus, setAddStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -166,9 +218,18 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
   }
 
   const targetItems = sentence.targets?.map((t) => t.itemText) || [];
+  const hasPartialWord = words.some((w) => resolveFamiliarity(w) === "partial");
+  const hasStudiedWord = words.some((w) => resolveFamiliarity(w) === "studied");
+  const addingFamiliarity = addingWord ? resolveFamiliarity(addingWord) : "unknown";
 
   return (
     <div className={`space-y-6 ${compact ? "" : "py-4"}`}>
+      {/* Legend — shown on demand, and only when the sentence actually has
+          marks to explain, so we don't noise up the reading experience. */}
+      {showLegend && (hasStudiedWord || hasPartialWord) && (
+        <WildLegend compact={compact} />
+      )}
+
       {/* Target items badge row */}
       {!compact && targetItems.length > 0 && (
         <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -284,7 +345,12 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
           >
             <div className="bg-card border-2 rounded-2xl shadow-xl p-4 max-w-sm w-full space-y-3">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="min-w-0">
+                  {addingFamiliarity === "partial" && (
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-teal-700 dark:text-teal-300 mb-1">
+                      New compound · contains studied kanji
+                    </p>
+                  )}
                   <p className="font-bold text-lg">{addingWord.text}</p>
                   {addingWord.reading && (
                     <p className="text-sm text-muted-foreground">{addingWord.reading}</p>

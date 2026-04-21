@@ -4,6 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets, reviewHistory, kanji, vocabulary } from "@/db";
 import { eq, and, inArray, isNotNull, desc, gte } from "drizzle-orm";
 import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
+import { annotateWords } from "@/lib/wild-annotation";
+import { loadStudiedCorpus } from "@/lib/wild-annotation-server";
 import { z } from "zod";
 
 const MAX_SENTENCES_PER_SESSION = 5;
@@ -30,6 +32,11 @@ export async function POST(req: NextRequest) {
 
     const { sessionId } = parsed.data;
 
+    // Load the user's studied corpus once — we use it to (re-)annotate every
+    // word's familiarity (studied / partial / unknown) so the UI's highlights
+    // always match what the user has actually reviewed (JAC-15).
+    const corpus = await loadStudiedCorpus(userId);
+
     // Check if we already generated for this session
     const existing = await db
       .select()
@@ -45,6 +52,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         sentences: existing.map((s) => ({
           ...s,
+          words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
           targets: targets.filter((t) => t.sentenceId === s.id),
         })),
       });
@@ -219,6 +227,10 @@ export async function POST(req: NextRequest) {
         if (existingJapanese.has(sentence.japanese)) continue;
         existingJapanese.add(sentence.japanese);
 
+        // Authoritatively annotate AI-labelled words against the user's
+        // study history before persisting (JAC-15).
+        const annotatedWords = annotateWords(sentence.words, corpus);
+
         const [inserted] = await db
           .insert(generatedSentences)
           .values({
@@ -226,7 +238,7 @@ export async function POST(req: NextRequest) {
             sessionId,
             japanese: sentence.japanese,
             english: sentence.english,
-            words: sentence.words,
+            words: annotatedWords,
           })
           .returning();
 
@@ -272,6 +284,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       sentences: allSentences.map((s) => ({
         ...s,
+        // Always re-annotate on response — covers reused sentences that were
+        // generated before the user's library grew.
+        words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
         targets: allTargets.filter((t) => t.sentenceId === s.id),
       })),
     });

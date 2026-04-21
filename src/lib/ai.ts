@@ -280,10 +280,10 @@ You will be given a list of TARGET items (kanji or vocabulary) the learner just 
 
 5. WORD SEGMENTATION: Break the sentence into natural word boundaries. Each token in the "words" array is one word/particle/punctuation. Don't merge separate words, don't split single kanji compounds.
 
-6. TARGET MARKING — CRITICAL DISTINCTION:
-   - isTarget = true: ONLY for words that EXACTLY match a target item text. If the target is a single kanji like 友, only mark 友 as a target if it appears as a standalone word. Do NOT mark compound words like 友達 as targets just because they contain a target kanji.
-   - containsTarget = true: For compound words that CONTAIN a target kanji but are NOT themselves an exact target match. These words MUST still have a reading (furigana) and meaning provided, since the learner may not know the full compound.
-   - Both isTarget and containsTarget default to false for regular words.
+6. TARGET MARKING — CRITICAL DISTINCTION (NOTE: the server re-verifies these flags against the learner's actual study history, so be accurate but not anxious):
+   - isTarget = true: ONLY for words that EXACTLY match a target item text. If the target is a single kanji like 友, only mark 友 as a target if it appears as a standalone word. NEVER mark a compound (e.g. 友達) as a target just because it contains a target kanji — the learner may not know the full compound.
+   - containsTarget = true: For compound or multi-character words that CONTAIN a target kanji but are NOT themselves an exact target match. These MUST include a reading (furigana) and a concise meaning, because the learner may not recognize the whole compound.
+   - Both default to false for regular words, particles, and punctuation.
 
 7. targetItems array: List which target item texts appear in each sentence (both exact matches and as parts of compounds).
 

@@ -241,6 +241,7 @@ export function SentenceReviewSession({ onClose }: SentenceReviewSessionProps) {
                     <SentenceDisplay
                       sentence={sentence}
                       showAddWord
+                      showLegend
                       onRate={handleRate}
                       currentRating={ratings[sentence.id] || null}
                     />

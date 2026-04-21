@@ -4,6 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets } from "@/db";
 import { eq, desc, asc, sql, and, or, ilike, inArray, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { annotateWords } from "@/lib/wild-annotation";
+import { loadStudiedCorpus } from "@/lib/wild-annotation-server";
 
 export async function GET(req: NextRequest) {
   try {
@@ -83,16 +85,22 @@ export async function GET(req: NextRequest) {
     const pageSentences = sentences.slice(0, limit);
 
     const ids = pageSentences.map((s) => s.id);
-    const targets = ids.length > 0
-      ? await db
-          .select()
-          .from(generatedSentenceTargets)
-          .where(inArray(generatedSentenceTargets.sentenceId, ids))
-      : [];
+    const [targets, corpus] = await Promise.all([
+      ids.length > 0
+        ? db
+            .select()
+            .from(generatedSentenceTargets)
+            .where(inArray(generatedSentenceTargets.sentenceId, ids))
+        : Promise.resolve([] as Array<typeof generatedSentenceTargets.$inferSelect>),
+      loadStudiedCorpus(userId),
+    ]);
 
     return NextResponse.json({
       sentences: pageSentences.map((s) => ({
         ...s,
+        // Re-classify each word's familiarity on every read so highlights
+        // stay in sync with the user's current study history (JAC-15).
+        words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
         targets: targets.filter((t) => t.sentenceId === s.id),
       })),
       total,

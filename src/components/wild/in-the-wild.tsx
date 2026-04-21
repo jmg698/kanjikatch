@@ -6,12 +6,23 @@ import { ChevronLeft, ChevronRight, Home, BookOpen, X, Loader2 } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { SentenceDisplay, type DifficultyRating } from "./sentence-display";
 
+export type WordFamiliarity = "studied" | "partial" | "unknown";
+
 export interface WildWord {
   text: string;
   reading: string | null;
   isTarget: boolean;
   containsTarget?: boolean;
   meaning?: string | null;
+  /**
+   * Authoritative classification from the server (JAC-15):
+   *  - "studied" — the learner has reviewed this exact word/kanji.
+   *  - "partial" — contains a studied kanji but the word itself is new.
+   *  - "unknown" — neither studied nor overlaps with studied kanji.
+   *
+   * Older records may omit this; the UI falls back to isTarget/containsTarget.
+   */
+  familiarity?: WordFamiliarity;
 }
 
 export interface WildSentenceTarget {
@@ -297,6 +308,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
                   <SentenceDisplay
                     sentence={sentence}
                     showAddWord
+                    showLegend
                     onRate={handleRate}
                     currentRating={ratings[sentence.id] || null}
                   />
