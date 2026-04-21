@@ -368,6 +368,17 @@
     );
   }
 
+  .wild-contains-target {
+    border-bottom: 1.5px dashed hsl(45 80% 60% / 0.5);
+    border-radius: 2px;
+    padding: 0 1px;
+    transition: border-color 0.2s ease;
+  }
+
+  .dark .wild-contains-target {
+    border-bottom-color: hsl(45 70% 50% / 0.35);
+  }
+
   .wild-ruby {
     ruby-align: center;
   }
@@ -442,6 +453,10 @@
       hsl(45 100% 72% / 0.4) 90%,
       transparent 90%
     );
+  }
+
+  .wild-golden-panel .wild-contains-target {
+    border-bottom-color: hsl(45 100% 72% / 0.35);
   }
 
   .wild-golden-panel .wild-ruby rt {

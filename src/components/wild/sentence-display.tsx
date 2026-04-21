@@ -44,6 +44,26 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
     word.text
   );
 
+  if (word.containsTarget) {
+    if (onTapWord) {
+      return (
+        <button
+          type="button"
+          onClick={() => onTapWord(word)}
+          className="wild-contains-target wild-tappable-word"
+          role="mark"
+        >
+          {content}
+        </button>
+      );
+    }
+    return (
+      <span className="wild-contains-target" role="mark">
+        {content}
+      </span>
+    );
+  }
+
   if (onTapWord && !isKana) {
     return (
       <button

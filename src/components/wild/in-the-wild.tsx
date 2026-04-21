@@ -10,6 +10,7 @@ export interface WildWord {
   text: string;
   reading: string | null;
   isTarget: boolean;
+  containsTarget?: boolean;
   meaning?: string | null;
 }
 

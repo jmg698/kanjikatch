@@ -229,6 +229,7 @@ export interface WildSentenceWord {
   text: string;
   reading: string | null;
   isTarget: boolean;
+  containsTarget: boolean;
   meaning: string | null;
 }
 
@@ -243,6 +244,7 @@ const wildSentenceWordSchema = z.object({
   text: z.string(),
   reading: z.string().nullable(),
   isTarget: z.boolean(),
+  containsTarget: z.boolean().default(false),
   meaning: z.string().nullable(),
 });
 
@@ -278,26 +280,29 @@ You will be given a list of TARGET items (kanji or vocabulary) the learner just 
 
 5. WORD SEGMENTATION: Break the sentence into natural word boundaries. Each token in the "words" array is one word/particle/punctuation. Don't merge separate words, don't split single kanji compounds.
 
-6. TARGET MARKING: Set isTarget to true ONLY for words that match one of the target items. A target kanji character appearing inside a compound word counts — mark the whole compound as a target if it contains the target kanji.
+6. TARGET MARKING — CRITICAL DISTINCTION:
+   - isTarget = true: ONLY for words that EXACTLY match a target item text. If the target is a single kanji like 友, only mark 友 as a target if it appears as a standalone word. Do NOT mark compound words like 友達 as targets just because they contain a target kanji.
+   - containsTarget = true: For compound words that CONTAIN a target kanji but are NOT themselves an exact target match. These words MUST still have a reading (furigana) and meaning provided, since the learner may not know the full compound.
+   - Both isTarget and containsTarget default to false for regular words.
 
-7. targetItems array: List which target item texts appear in each sentence.
+7. targetItems array: List which target item texts appear in each sentence (both exact matches and as parts of compounds).
 
 Return ONLY valid JSON:
 {
   "sentences": [
     {
-      "japanese": "今日は図書館で勉強した。",
-      "english": "I studied at the library today.",
+      "japanese": "友達と図書館で勉強した。",
+      "english": "I studied at the library with a friend.",
       "words": [
-        {"text": "今日", "reading": "きょう", "isTarget": false, "meaning": "today"},
-        {"text": "は", "reading": null, "isTarget": false, "meaning": null},
-        {"text": "図書館", "reading": null, "isTarget": true, "meaning": "library"},
-        {"text": "で", "reading": null, "isTarget": false, "meaning": null},
-        {"text": "勉強", "reading": null, "isTarget": true, "meaning": "study"},
-        {"text": "した", "reading": null, "isTarget": false, "meaning": "to do"},
-        {"text": "。", "reading": null, "isTarget": false, "meaning": null}
+        {"text": "友達", "reading": "ともだち", "isTarget": false, "containsTarget": true, "meaning": "friend"},
+        {"text": "と", "reading": null, "isTarget": false, "containsTarget": false, "meaning": null},
+        {"text": "図書館", "reading": null, "isTarget": true, "containsTarget": false, "meaning": "library"},
+        {"text": "で", "reading": null, "isTarget": false, "containsTarget": false, "meaning": null},
+        {"text": "勉強", "reading": null, "isTarget": true, "containsTarget": false, "meaning": "study"},
+        {"text": "した", "reading": null, "isTarget": false, "containsTarget": false, "meaning": "to do"},
+        {"text": "。", "reading": null, "isTarget": false, "containsTarget": false, "meaning": null}
       ],
-      "targetItems": ["図書館", "勉強"]
+      "targetItems": ["友", "図書館", "勉強"]
     }
   ]
 }`;

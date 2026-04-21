@@ -152,7 +152,7 @@ export const generatedSentences = pgTable("generated_sentences", {
   sessionId: uuid("session_id").references(() => reviewSessions.id, { onDelete: "set null" }),
   japanese: text("japanese").notNull(),
   english: text("english").notNull(),
-  words: jsonb("words").notNull(), // Array of {text, reading?, isTarget}
+  words: jsonb("words").notNull(), // Array of {text, reading?, isTarget, containsTarget?}
   difficultyRating: text("difficulty_rating"), // 'too_easy' | 'just_right' | 'too_hard' | null
   ratedAt: timestamp("rated_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
