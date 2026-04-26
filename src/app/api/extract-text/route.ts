@@ -8,6 +8,7 @@ import { checkExtractionRateLimit } from "@/lib/rate-limit";
 import { ensureReviewTracks } from "@/lib/track-queries";
 import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { sqlTextArray } from "@/lib/pg-text-array";
 
 export async function POST(req: NextRequest) {
   try {
@@ -95,9 +96,9 @@ export async function POST(req: NextRequest) {
               lastSeenAt: new Date(),
               timesSeen: sql`${kanji.timesSeen} + 1`,
               sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${source.id}::uuid)`,
-              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${kanji.meanings}, ${newMeanings})) AS val)`,
-              readingsOn: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${kanji.readingsOn}, ${newOn})) AS val)`,
-              readingsKun: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${kanji.readingsKun}, ${newKun})) AS val)`,
+              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.meanings}::text[] || ${sqlTextArray(newMeanings)}) AS val)`,
+              readingsOn: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.readingsOn}::text[] || ${sqlTextArray(newOn)}) AS val)`,
+              readingsKun: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.readingsKun}::text[] || ${sqlTextArray(newKun)}) AS val)`,
               jlptLevel: sql`coalesce(${k.jlptLevel ?? null}::integer, ${kanji.jlptLevel})`,
               strokeCount: sql`coalesce(${k.strokeCount ?? null}::integer, ${kanji.strokeCount})`,
             },
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
               lastSeenAt: new Date(),
               timesSeen: sql`${vocabulary.timesSeen} + 1`,
               sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${source.id}::uuid)`,
-              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(array_cat(${vocabulary.meanings}, ${newMeanings})) AS val)`,
+              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${vocabulary.meanings}::text[] || ${sqlTextArray(newMeanings)}) AS val)`,
               partOfSpeech: sql`coalesce(${v.partOfSpeech ?? null}, ${vocabulary.partOfSpeech})`,
               jlptLevel: sql`coalesce(${v.jlptLevel ?? null}::integer, ${vocabulary.jlptLevel})`,
             },
