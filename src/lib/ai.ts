@@ -81,18 +81,62 @@ Return ONLY valid JSON in this exact format:
 
 If a category has no items, return an empty array for that category.`;
 
+const ANTHROPIC_IMAGE_MEDIA = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
+function sniffImageMediaType(bytes: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | "image/gif" {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
+  return "image/jpeg";
+}
+
+function guessMediaTypeFromUrl(urlString: string): string | undefined {
+  const path = urlString.split("?")[0].toLowerCase();
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".webp")) return "image/webp";
+  if (path.endsWith(".gif")) return "image/gif";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  return undefined;
+}
+
 async function fetchImageAsBase64(url: string): Promise<{ base64: string; mediaType: string }> {
   if (!isAllowedExtractionImageUrl(url)) {
     throw new Error("Refusing to fetch image: URL host is not allowed");
   }
 
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: HTTP ${response.status}`);
+  }
+
   const arrayBuffer = await response.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
   const base64 = Buffer.from(arrayBuffer).toString("base64");
-  
-  const contentType = response.headers.get("content-type") ?? "image/jpeg";
-  const mediaType = contentType.split(";")[0].trim();
-  
+
+  const headerType = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  let mediaType = headerType;
+  if (!ANTHROPIC_IMAGE_MEDIA.has(mediaType)) {
+    const fromUrl = guessMediaTypeFromUrl(url);
+    if (fromUrl && ANTHROPIC_IMAGE_MEDIA.has(fromUrl)) {
+      mediaType = fromUrl;
+    } else {
+      mediaType = sniffImageMediaType(bytes);
+    }
+  }
+
   return { base64, mediaType };
 }
 
@@ -212,7 +256,12 @@ function parseExtractionResponse(response: Anthropic.Message): ExtractionResult 
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
-  return extractionResultSchema.parse(parsed);
+  const parsedResult = extractionResultSchema.safeParse(parsed);
+  if (!parsedResult.success) {
+    const detail = parsedResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    throw new Error(`Invalid extraction JSON: ${detail}`);
+  }
+  return parsedResult.data;
 }
 
 // --- "See It In The Wild" sentence generation ---
@@ -241,22 +290,22 @@ export interface WildSentence {
 }
 
 const wildSentenceWordSchema = z.object({
-  text: z.string(),
-  reading: z.string().nullable(),
-  isTarget: z.boolean(),
-  containsTarget: z.boolean().default(false),
-  meaning: z.string().nullable(),
+  text: z.string().min(1),
+  reading: z.preprocess((v) => (v === undefined ? null : v), z.union([z.string(), z.null()])),
+  isTarget: z.preprocess((v) => v === true || v === 1 || v === "true", z.boolean()),
+  containsTarget: z.preprocess((v) => v === true || v === 1 || v === "true", z.boolean()),
+  meaning: z.preprocess((v) => (v === undefined ? null : v), z.union([z.string(), z.null()])),
 });
 
 const wildSentenceSchema = z.object({
-  japanese: z.string(),
-  english: z.string(),
-  words: z.array(wildSentenceWordSchema),
-  targetItems: z.array(z.string()),
+  japanese: z.string().min(1),
+  english: z.preprocess((v) => (typeof v === "string" ? v : ""), z.string()),
+  words: z.preprocess((v) => (Array.isArray(v) ? v : []), z.array(wildSentenceWordSchema)),
+  targetItems: z.preprocess((v) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []), z.array(z.string())),
 });
 
 const wildResponseSchema = z.object({
-  sentences: z.array(wildSentenceSchema),
+  sentences: z.preprocess((v) => (Array.isArray(v) ? v : []), z.array(wildSentenceSchema)),
 });
 
 const WILD_SENTENCE_PROMPT = `You are a Japanese language tutor creating natural, contextual sentences for a learner. Your goal: show how specific kanji and vocabulary appear in real Japanese — daily life, simple news, conversations, social media, signs, announcements.
@@ -394,6 +443,10 @@ export async function generateWildSentences(targets: WildTargetItem[], difficult
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
-  const result = wildResponseSchema.parse(parsed);
-  return result.sentences;
+  const result = wildResponseSchema.safeParse(parsed);
+  if (!result.success) {
+    const detail = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    throw new Error(`Invalid sentence JSON from model: ${detail}`);
+  }
+  return result.data.sentences;
 }

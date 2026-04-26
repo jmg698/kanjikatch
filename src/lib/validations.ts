@@ -1,11 +1,8 @@
 import { z } from "zod";
 
-/** Hostnames we allow the server to fetch for image extraction (SSRF protection). */
-export const ALLOWED_EXTRACTION_IMAGE_HOSTNAMES = ["utfs.io"] as const;
-
 /**
- * Returns true if the URL is HTTPS and its host is an allowed CDN (Uploadthing).
- * Used by upload validation and server-side fetch before calling external APIs.
+ * Hostnames we allow the server to fetch for image extraction (SSRF protection).
+ * UploadThing serves files from utfs.io (legacy) and `{appId}.ufs.sh` (current).
  */
 export function isAllowedExtractionImageUrl(urlString: string): boolean {
   try {
@@ -14,35 +11,87 @@ export function isAllowedExtractionImageUrl(urlString: string): boolean {
       return false;
     }
     const host = parsed.hostname.toLowerCase();
-    return (ALLOWED_EXTRACTION_IMAGE_HOSTNAMES as readonly string[]).includes(host);
+    if (host === "utfs.io") return true;
+    if (host.endsWith(".ufs.sh")) return true;
+    if (host === "utf-staging.com") return true;
+    return false;
   } catch {
     return false;
   }
 }
 
-// Kanji validation - now with arrays
+/** Coerce model output like "N5", 5, null into JLPT 1–5 or null/undefined. */
+const jlptLevelField = z.preprocess((v) => {
+  if (v === null || v === undefined || v === "") return undefined;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const n = Math.round(v);
+    return n >= 1 && n <= 5 ? n : undefined;
+  }
+  if (typeof v === "string") {
+    const m = v.trim().match(/^N?([1-5])$/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return undefined;
+}, z.number().int().min(1).max(5).nullable().optional());
+
+function readingsArraySchema() {
+  return z.preprocess((v) => {
+    if (!Array.isArray(v)) return [];
+    return v.filter((x): x is string => typeof x === "string");
+  }, z.array(z.string()));
+}
+
+// Kanji validation — tolerant of common model JSON quirks (null arrays, multi-char "character", etc.)
 export const kanjiSchema = z.object({
-  character: z.string().min(1).max(1),
-  meanings: z.array(z.string()).min(1), // Array of meanings
-  readingsOn: z.array(z.string()).default([]), // Array of on'yomi readings
-  readingsKun: z.array(z.string()).default([]), // Array of kun'yomi readings
-  jlptLevel: z.number().int().min(1).max(5).nullable().optional(),
-  strokeCount: z.number().int().positive().nullable().optional(),
+  character: z
+    .string()
+    .min(1)
+    .max(20)
+    .transform((s) => Array.from(s.trim())[0] ?? s.trim())
+    .refine((c) => c.length >= 1, "character required"),
+  meanings: z.preprocess((v) => {
+    const arr = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    return arr.length > 0 ? arr : ["(unspecified)"];
+  }, z.array(z.string()).min(1)),
+  readingsOn: readingsArraySchema(),
+  readingsKun: readingsArraySchema(),
+  jlptLevel: jlptLevelField,
+  strokeCount: z.preprocess((v) => {
+    if (v === null || v === undefined || v === "") return undefined;
+    const n = typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
+    if (!Number.isFinite(n) || n < 1) return undefined;
+    return Math.round(n);
+  }, z.number().int().positive().nullable().optional()),
 });
 
-// Vocabulary validation - now with arrays
+// Vocabulary validation — tolerant of empty readings / odd JLPT values
 export const vocabularySchema = z.object({
-  word: z.string().min(1).max(100),
-  reading: z.string().min(1).max(100),
-  meanings: z.array(z.string()).min(1), // Array of meanings
-  partOfSpeech: z.string().max(50).nullable().optional(),
-  jlptLevel: z.number().int().min(1).max(5).nullable().optional(),
+  word: z.string().min(1).max(100).transform((s) => s.trim()),
+  reading: z.preprocess((v) => {
+    if (typeof v !== "string") return "—";
+    const t = v.trim();
+    return t.length > 0 ? t : "—";
+  }, z.string().min(1).max(100)),
+  meanings: z.preprocess((v) => {
+    const arr = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    return arr.length > 0 ? arr : ["(unspecified)"];
+  }, z.array(z.string()).min(1)),
+  partOfSpeech: z.preprocess((v) => {
+    if (v === null || v === undefined || v === "") return undefined;
+    return typeof v === "string" ? v.slice(0, 50) : undefined;
+  }, z.string().max(50).nullable().optional()),
+  jlptLevel: jlptLevelField,
 });
 
 // Sentence validation - simplified
 export const sentenceSchema = z.object({
-  japanese: z.string().min(1).max(1000),
-  english: z.string().max(1000).nullable().optional(),
+  japanese: z.string().min(1).max(1000).transform((s) => s.trim()),
+  english: z.preprocess((v) => {
+    if (v === null || v === undefined || v === "") return undefined;
+    if (typeof v !== "string") return undefined;
+    const t = v.trim();
+    return t.length > 0 ? t.slice(0, 1000) : undefined;
+  }, z.string().max(1000).nullable().optional()),
 });
 
 // Source image upload validation
@@ -51,7 +100,7 @@ export const uploadSchema = z.object({
     .string()
     .url()
     .refine(isAllowedExtractionImageUrl, {
-      message: "Image URL must be a valid Uploadthing URL (https://utfs.io/...)",
+      message: "Image URL must be a valid UploadThing file URL (https://utfs.io/... or https://*.ufs.sh/...)",
     }),
   fileName: z.string().min(1).max(255),
 });

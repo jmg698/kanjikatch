@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useUploadThing } from "@/lib/uploadthing";
+import { useUploadThing, getUploadThingPublicUrl } from "@/lib/uploadthing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -178,7 +178,7 @@ export function CaptureInput() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageUrl: res[0].url,
+          imageUrl: getUploadThingPublicUrl(res[0]),
           fileName: res[0].name,
         }),
       });

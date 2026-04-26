@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UploadDropzone } from "@/lib/uploadthing";
+import { UploadDropzone, getUploadThingPublicUrl } from "@/lib/uploadthing";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
@@ -16,7 +16,7 @@ export function CaptureUploader() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleUploadComplete = async (res: { url: string; name: string }[]) => {
+  const handleUploadComplete = async (res: { url: string; ufsUrl?: string | null; name: string }[]) => {
     if (!res || res.length === 0) return;
 
     setState("processing");
@@ -27,7 +27,7 @@ export function CaptureUploader() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageUrl: file.url,
+          imageUrl: getUploadThingPublicUrl(file),
           fileName: file.name,
         }),
       });
