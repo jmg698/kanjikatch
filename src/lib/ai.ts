@@ -5,6 +5,7 @@ import {
   type ExtractionResult,
 } from "./validations";
 import { z } from "zod";
+import { agentDebugLog } from "@/lib/debug-ingest";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -137,35 +138,72 @@ async function fetchImageAsBase64(url: string): Promise<{ base64: string; mediaT
     }
   }
 
+  // #region agent log
+  agentDebugLog("H2", "ai.ts:fetchImageAsBase64", "image_ready", {
+    mediaType,
+    byteLength: bytes.length,
+    base64Len: base64.length,
+  });
+  // #endregion
+
   return { base64, mediaType };
 }
 
 export async function extractFromImage(imageUrl: string): Promise<ExtractionResult> {
-  const { base64, mediaType } = await fetchImageAsBase64(imageUrl);
-  
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
-              data: base64,
-            },
-          },
-          {
-            type: "text",
-            text: EXTRACTION_PROMPT,
-          },
-        ],
-      },
-    ],
+  let host = "invalid";
+  try {
+    host = new URL(imageUrl).hostname;
+  } catch {
+    host = "invalid-url";
+  }
+  // #region agent log
+  agentDebugLog("H2", "ai.ts:extractFromImage", "start", {
+    host,
+    hasAnthropicKey: Boolean(process.env.ANTHROPIC_API_KEY?.length),
   });
+  // #endregion
+
+  const { base64, mediaType } = await fetchImageAsBase64(imageUrl);
+
+  let response: Anthropic.Message;
+  try {
+    response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+                data: base64,
+              },
+            },
+            {
+              type: "text",
+              text: EXTRACTION_PROMPT,
+            },
+          ],
+        },
+      ],
+    });
+  } catch (e) {
+    // #region agent log
+    agentDebugLog("H3", "ai.ts:extractFromImage", "anthropic_messages_create_failed", {
+      name: e instanceof Error ? e.name : "unknown",
+      msgPrefix: e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300),
+    });
+    // #endregion
+    throw e;
+  }
+
+  // #region agent log
+  const blockTypes = response.content.map((b) => b.type);
+  agentDebugLog("H3", "ai.ts:extractFromImage", "anthropic_ok", { blockTypes });
+  // #endregion
 
   return parseExtractionResponse(response);
 }
@@ -252,13 +290,42 @@ function parseExtractionResponse(response: Anthropic.Message): ExtractionResult 
 
   const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    // #region agent log
+    agentDebugLog("H4", "ai.ts:parseExtractionResponse", "no_json_match", {
+      textLen: textContent.text.length,
+      textPrefix: textContent.text.slice(0, 120),
+    });
+    // #endregion
     throw new Error("No valid JSON in AI response");
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    // #region agent log
+    agentDebugLog("H4", "ai.ts:parseExtractionResponse", "json_parse_threw", {
+      msgPrefix: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200),
+    });
+    // #endregion
+    throw e;
+  }
+
+  // #region agent log
+  agentDebugLog("H4", "ai.ts:parseExtractionResponse", "json_parsed", {
+    topKeys: typeof parsed === "object" && parsed !== null ? Object.keys(parsed as object) : [],
+  });
+  // #endregion
+
   const parsedResult = extractionResultSchema.safeParse(parsed);
   if (!parsedResult.success) {
     const detail = parsedResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    // #region agent log
+    agentDebugLog("H4", "ai.ts:parseExtractionResponse", "schema_safeParse_failed", {
+      issueCount: parsedResult.error.issues.length,
+      detailPrefix: detail.slice(0, 400),
+    });
+    // #endregion
     throw new Error(`Invalid extraction JSON: ${detail}`);
   }
   return parsedResult.data;

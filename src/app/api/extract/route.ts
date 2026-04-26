@@ -8,6 +8,7 @@ import { checkExtractionRateLimit } from "@/lib/rate-limit";
 import { ensureReviewTracks } from "@/lib/track-queries";
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import { agentDebugLog } from "@/lib/debug-ingest";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
     }
 
     const { allowed, remaining } = await checkExtractionRateLimit(userId);
+    // #region agent log
+    agentDebugLog("H0", "api/extract/route.ts:POST", "after_auth_rate", {
+      allowed,
+      remaining,
+    });
+    // #endregion
     if (!allowed) {
       return NextResponse.json(
         { error: "Weekly extraction limit reached (200 per week). Please try again later." },
@@ -29,6 +36,12 @@ export async function POST(req: NextRequest) {
     const parsed = uploadSchema.safeParse(body);
 
     if (!parsed.success) {
+      // #region agent log
+      agentDebugLog("H1", "api/extract/route.ts:POST", "upload_schema_failed", {
+        issueCount: parsed.error.issues.length,
+        codes: parsed.error.issues.slice(0, 5).map((i) => i.code),
+      });
+      // #endregion
       return NextResponse.json(
         { error: "Invalid request", details: parsed.error.issues },
         { status: 400 }
@@ -36,6 +49,18 @@ export async function POST(req: NextRequest) {
     }
 
     const { imageUrl, fileName } = parsed.data;
+    // #region agent log
+    let imageHost = "parse-failed";
+    try {
+      imageHost = new URL(imageUrl).hostname;
+    } catch {
+      imageHost = "invalid-url";
+    }
+    agentDebugLog("H1", "api/extract/route.ts:POST", "upload_schema_ok", {
+      imageHost,
+      fileNameLen: fileName?.length ?? 0,
+    });
+    // #endregion
 
     // Ensure user exists in our database
     const existingUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -56,6 +81,12 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    // #region agent log
+    agentDebugLog("H5", "api/extract/route.ts:POST", "source_image_inserted", {
+      sourceImageId: sourceImage.id,
+    });
+    // #endregion
+
     let extraction;
     const counts = {
       kanji: { total: 0, new: 0, existing: 0 },
@@ -68,7 +99,17 @@ export async function POST(req: NextRequest) {
     } = { kanji: [], vocabulary: [] };
 
     try {
+      // #region agent log
+      agentDebugLog("H3", "api/extract/route.ts:POST", "before_extractFromImage", {});
+      // #endregion
       extraction = await extractFromImage(imageUrl);
+      // #region agent log
+      agentDebugLog("H4", "api/extract/route.ts:POST", "extractFromImage_ok", {
+        kanji: extraction.kanji.length,
+        vocabulary: extraction.vocabulary.length,
+        sentences: extraction.sentences.length,
+      });
+      // #endregion
 
       await db
         .update(sourceImages)
@@ -179,6 +220,13 @@ export async function POST(req: NextRequest) {
           ? extractionError.message
           : "Unknown extraction error";
 
+      // #region agent log
+      agentDebugLog("H3", "api/extract/route.ts:POST", "inner_extract_catch", {
+        msgPrefix: errorMessage.slice(0, 280),
+        name: extractionError instanceof Error ? extractionError.name : "non-Error",
+      });
+      // #endregion
+
       await db
         .update(sourceImages)
         .set({
@@ -193,6 +241,12 @@ export async function POST(req: NextRequest) {
     Sentry.captureException(error);
     console.error("Extraction error:", error);
     const rawMessage = error instanceof Error ? error.message : String(error);
+    // #region agent log
+    agentDebugLog("H5", "api/extract/route.ts:POST", "outer_catch", {
+      msgPrefix: rawMessage.slice(0, 280),
+      name: error instanceof Error ? error.name : "non-Error",
+    });
+    // #endregion
     const isOverloaded =
       typeof rawMessage === "string" &&
       (rawMessage.includes("overloaded_error") || rawMessage.includes("Overloaded") || rawMessage.startsWith("529 "));
