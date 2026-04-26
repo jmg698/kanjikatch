@@ -1,26 +1,29 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db, vocabularyEnrichmentCache } from "@/db";
 
 /**
  * Vocabulary enrichment service.
  *
- * Given a Japanese word (and optionally the sentence it appeared in), this
+ * Given a Japanese word and (optionally) the sentence it appeared in, this
  * returns a complete dictionary entry: canonical hiragana reading, a small
- * set of English meanings, part of speech, and JLPT level.
+ * set of English meanings ranked by relevance to the sentence context, part
+ * of speech, and JLPT level.
  *
  * Design notes:
  *  - We use Haiku because enrichment is a narrow, single-word task. Switching
  *    off Sonnet keeps the per-call cost well under a cent so we can enrich
  *    every quick-add without worrying about budget.
- *  - Results are cached globally by (word, reading). A dictionary entry is not
- *    per-user data, so the first user to look up 定年 pays the AI cost and
- *    every subsequent user gets an instant DB read.
+ *  - No cross-user caching. Each user's knowledge base is their own, and the
+ *    *order* of meanings should be ranked against the specific sentence they
+ *    encountered the word in. Sharing a cached ranking across users would
+ *    silently undermine that personalization, and at current volume the cost
+ *    savings aren't worth it. If volume ever grows enough to matter, we can
+ *    reintroduce a split cache (universal dictionary facts vs. per-user
+ *    ranking) without changing this function's contract.
  *  - The response is validated against a strict Zod schema that explicitly
  *    rejects placeholder-looking strings ("added from reading", bare
- *    parenthetical notes, transliterations). If validation fails, we throw so
- *    the caller can record that enrichment is still needed.
+ *    parenthetical notes, transliterations). If validation fails, we throw
+ *    so the caller can record that enrichment is still needed.
  */
 
 const anthropic = new Anthropic({
@@ -130,74 +133,14 @@ function buildUserMessage(input: EnrichmentInput): string {
 }
 
 /**
- * Look up an existing cache entry. Matches on (word, reading) when a reading
- * is provided, otherwise returns the most recent entry for `word`.
- */
-async function readCache(
-  word: string,
-  reading: string | null | undefined
-): Promise<EnrichmentResult | null> {
-  const rows = reading
-    ? await db
-        .select()
-        .from(vocabularyEnrichmentCache)
-        .where(
-          and(
-            eq(vocabularyEnrichmentCache.word, word),
-            eq(vocabularyEnrichmentCache.reading, reading)
-          )
-        )
-        .limit(1)
-    : await db
-        .select()
-        .from(vocabularyEnrichmentCache)
-        .where(eq(vocabularyEnrichmentCache.word, word))
-        .orderBy(sql`${vocabularyEnrichmentCache.updatedAt} DESC`)
-        .limit(1);
-
-  if (rows.length === 0) return null;
-  const row = rows[0];
-  return {
-    reading: row.reading,
-    meanings: row.meanings,
-    partOfSpeech: row.partOfSpeech,
-    jlptLevel: row.jlptLevel,
-  };
-}
-
-async function writeCache(word: string, result: EnrichmentResult): Promise<void> {
-  await db
-    .insert(vocabularyEnrichmentCache)
-    .values({
-      word,
-      reading: result.reading,
-      meanings: result.meanings,
-      partOfSpeech: result.partOfSpeech,
-      jlptLevel: result.jlptLevel,
-    })
-    .onConflictDoUpdate({
-      target: [vocabularyEnrichmentCache.word, vocabularyEnrichmentCache.reading],
-      set: {
-        meanings: result.meanings,
-        partOfSpeech: result.partOfSpeech,
-        jlptLevel: result.jlptLevel,
-        updatedAt: new Date(),
-      },
-    });
-}
-
-/**
- * Fetch a full dictionary entry for a word. Checks the global cache first,
- * then falls back to a Haiku call. Throws on any failure (AI error, malformed
- * JSON, schema validation failure, or empty meanings). Callers should catch
- * and either show an error or queue the row for later enrichment.
+ * Fetch a full dictionary entry for a word, ranked against the supplied
+ * sentence context. Throws on any failure (AI error, malformed JSON, schema
+ * validation failure, or empty meanings). Callers should catch and either
+ * show an error or queue the row for later enrichment.
  */
 export async function enrichVocabulary(
   input: EnrichmentInput
 ): Promise<EnrichmentResult> {
-  const cached = await readCache(input.word, input.reading ?? null);
-  if (cached) return cached;
-
   const userMessage = buildUserMessage(input);
 
   const response = await anthropic.messages.create({
@@ -222,8 +165,5 @@ export async function enrichVocabulary(
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
-  const result = enrichmentResultSchema.parse(parsed);
-
-  await writeCache(input.word, result);
-  return result;
+  return enrichmentResultSchema.parse(parsed);
 }

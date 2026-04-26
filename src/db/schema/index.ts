@@ -87,23 +87,6 @@ export const vocabulary = pgTable("vocabulary", {
   needsEnrichmentIdx: index("vocabulary_needs_enrichment_idx").on(table.needsEnrichment, table.lastEnrichmentAttemptAt),
 }));
 
-// Global enrichment cache for vocabulary definitions — keyed by (word, reading)
-// and shared across users so a word is only ever enriched by the AI once.
-// No user_id: dictionary entries are not personal data.
-export const vocabularyEnrichmentCache = pgTable("vocabulary_enrichment_cache", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  word: text("word").notNull(),
-  reading: text("reading").notNull(),
-  meanings: text("meanings").array().notNull(),
-  partOfSpeech: text("part_of_speech"),
-  jlptLevel: integer("jlpt_level"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-  wordReadingIdx: uniqueIndex("vocab_enrichment_cache_word_reading_idx").on(table.word, table.reading),
-  wordIdx: index("vocab_enrichment_cache_word_idx").on(table.word),
-}));
-
 // Sentences for reading practice
 export const sentences = pgTable("sentences", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -276,6 +259,3 @@ export type NewGeneratedSentenceTarget = typeof generatedSentenceTargets.$inferI
 
 export type ReviewTrack = typeof reviewTracks.$inferSelect;
 export type NewReviewTrack = typeof reviewTracks.$inferInsert;
-
-export type VocabularyEnrichmentCache = typeof vocabularyEnrichmentCache.$inferSelect;
-export type NewVocabularyEnrichmentCache = typeof vocabularyEnrichmentCache.$inferInsert;
