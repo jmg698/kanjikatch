@@ -238,10 +238,6 @@ export function CaptureInput() {
           ? `Found ${totalFound} items (${totalNew} new)`
           : `Found ${totalFound} items you've already captured`,
       });
-      setTimeout(() => {
-        router.push("/library");
-        router.refresh();
-      }, 3000);
     }
   };
 
@@ -389,9 +385,6 @@ export function CaptureInput() {
               View Library
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-3 text-center">
-            Redirecting to library...
-          </p>
         </CardContent>
       </Card>
     );
