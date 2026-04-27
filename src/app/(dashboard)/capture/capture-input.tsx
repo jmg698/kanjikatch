@@ -381,6 +381,9 @@ export function CaptureInput() {
             <Button variant="outline" onClick={clearAll}>
               Capture More
             </Button>
+            <Button variant="outline" onClick={() => router.push("/review")}>
+              Review
+            </Button>
             <Button onClick={() => { router.push("/library"); router.refresh(); }}>
               View Library
             </Button>
