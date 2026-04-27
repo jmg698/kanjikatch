@@ -238,10 +238,6 @@ export function CaptureInput() {
           ? `Found ${totalFound} items (${totalNew} new)`
           : `Found ${totalFound} items you've already captured`,
       });
-      setTimeout(() => {
-        router.push("/library");
-        router.refresh();
-      }, 3000);
     }
   };
 
@@ -385,13 +381,13 @@ export function CaptureInput() {
             <Button variant="outline" onClick={clearAll}>
               Capture More
             </Button>
+            <Button variant="outline" onClick={() => router.push("/review")}>
+              Review
+            </Button>
             <Button onClick={() => { router.push("/library"); router.refresh(); }}>
               View Library
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-3 text-center">
-            Redirecting to library...
-          </p>
         </CardContent>
       </Card>
     );

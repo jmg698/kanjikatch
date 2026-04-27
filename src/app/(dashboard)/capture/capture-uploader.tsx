@@ -42,12 +42,6 @@ export function CaptureUploader() {
         title: "Success!",
         description: "Your image has been processed and content extracted.",
       });
-
-      // Redirect to library after short delay
-      setTimeout(() => {
-        router.push("/library");
-        router.refresh();
-      }, 1500);
     } catch (err) {
       setState("error");
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -83,8 +77,19 @@ export function CaptureUploader() {
             <CheckCircle className="h-12 w-12 mx-auto mb-4 text-primary" />
             <h3 className="text-lg font-semibold">Success!</h3>
             <p className="text-muted-foreground mt-2">
-              Redirecting to your library...
+              Your image has been processed and content extracted.
             </p>
+            <div className="mt-6 flex gap-3 justify-center">
+              <Button variant="outline" onClick={() => setState("idle")}>
+                Capture More
+              </Button>
+              <Button variant="outline" onClick={() => router.push("/review")}>
+                Review
+              </Button>
+              <Button onClick={() => { router.push("/library"); router.refresh(); }}>
+                View Library
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
