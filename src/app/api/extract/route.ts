@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, sourceImages, kanji, vocabulary, sentences, users } from "@/db";
+import { db, sourceImages, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
 import { checkExtractionRateLimit } from "@/lib/rate-limit";
-import { ensureReviewTracks } from "@/lib/track-queries";
-import { eq, and } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { agentDebugLog } from "@/lib/debug-ingest";
-import { sqlTextArray } from "@/lib/pg-text-array";
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,7 +69,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create source image record
+    // Create source image record. Stays processed=false until the user
+    // confirms and the /api/extract/save endpoint commits items.
     const [sourceImage] = await db
       .insert(sourceImages)
       .values({
@@ -88,22 +86,11 @@ export async function POST(req: NextRequest) {
     });
     // #endregion
 
-    let extraction;
-    const counts = {
-      kanji: { total: 0, new: 0, existing: 0 },
-      vocabulary: { total: 0, new: 0, existing: 0 },
-      sentences: 0,
-    };
-    const items: {
-      kanji: { text: string; isNew: boolean }[];
-      vocabulary: { text: string; reading: string; isNew: boolean }[];
-    } = { kanji: [], vocabulary: [] };
-
     try {
       // #region agent log
       agentDebugLog("H3", "api/extract/route.ts:POST", "before_extractFromImage", {});
       // #endregion
-      extraction = await extractFromImage(imageUrl);
+      const extraction = await extractFromImage(imageUrl);
       // #region agent log
       agentDebugLog("H4", "api/extract/route.ts:POST", "extractFromImage_ok", {
         kanji: extraction.kanji.length,
@@ -117,105 +104,14 @@ export async function POST(req: NextRequest) {
         .set({ extractionRaw: extraction })
         .where(eq(sourceImages.id, sourceImage.id));
 
-      for (const k of extraction.kanji) {
-        const newMeanings = k.meanings;
-        const newOn = k.readingsOn ?? [];
-        const newKun = k.readingsKun ?? [];
-        const [row] = await db
-          .insert(kanji)
-          .values({
-            userId,
-            character: k.character,
-            meanings: newMeanings,
-            readingsOn: newOn,
-            readingsKun: newKun,
-            jlptLevel: k.jlptLevel ?? null,
-            strokeCount: k.strokeCount ?? null,
-            sourceImageIds: [sourceImage.id],
-            timesSeen: 1,
-          })
-          .onConflictDoUpdate({
-            target: [kanji.userId, kanji.character],
-            set: {
-              lastSeenAt: new Date(),
-              timesSeen: sql`${kanji.timesSeen} + 1`,
-              sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${sourceImage.id}::uuid)`,
-              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.meanings}::text[] || ${sqlTextArray(newMeanings)}) AS val)`,
-              readingsOn: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.readingsOn}::text[] || ${sqlTextArray(newOn)}) AS val)`,
-              readingsKun: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.readingsKun}::text[] || ${sqlTextArray(newKun)}) AS val)`,
-              jlptLevel: sql`coalesce(${k.jlptLevel ?? null}::integer, ${kanji.jlptLevel})`,
-              strokeCount: sql`coalesce(${k.strokeCount ?? null}::integer, ${kanji.strokeCount})`,
-            },
-          })
-          .returning({ id: kanji.id, timesSeen: kanji.timesSeen });
-        await ensureReviewTracks(userId, row.id, "kanji");
-        const isNew = row.timesSeen === 1;
-        counts.kanji.total++;
-        if (isNew) counts.kanji.new++;
-        else counts.kanji.existing++;
-        items.kanji.push({ text: k.character, isNew });
-      }
-
-      for (const v of extraction.vocabulary) {
-        const newMeanings = v.meanings;
-        const [row] = await db
-          .insert(vocabulary)
-          .values({
-            userId,
-            word: v.word,
-            reading: v.reading,
-            meanings: newMeanings,
-            partOfSpeech: v.partOfSpeech ?? null,
-            jlptLevel: v.jlptLevel ?? null,
-            sourceImageIds: [sourceImage.id],
-            timesSeen: 1,
-          })
-          .onConflictDoUpdate({
-            target: [vocabulary.userId, vocabulary.word, vocabulary.reading],
-            set: {
-              lastSeenAt: new Date(),
-              timesSeen: sql`${vocabulary.timesSeen} + 1`,
-              sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${sourceImage.id}::uuid)`,
-              meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${vocabulary.meanings}::text[] || ${sqlTextArray(newMeanings)}) AS val)`,
-              partOfSpeech: sql`coalesce(${v.partOfSpeech ?? null}, ${vocabulary.partOfSpeech})`,
-              jlptLevel: sql`coalesce(${v.jlptLevel ?? null}::integer, ${vocabulary.jlptLevel})`,
-            },
-          })
-          .returning({ id: vocabulary.id, timesSeen: vocabulary.timesSeen });
-        await ensureReviewTracks(userId, row.id, "vocab");
-        const isNew = row.timesSeen === 1;
-        counts.vocabulary.total++;
-        if (isNew) counts.vocabulary.new++;
-        else counts.vocabulary.existing++;
-        items.vocabulary.push({ text: v.word, reading: v.reading, isNew });
-      }
-
-      if (extraction.sentences.length > 0) {
-        await db.insert(sentences).values(
-          extraction.sentences.map((s) => ({
-            userId,
-            japanese: s.japanese,
-            english: s.english ?? null,
-            source: "extracted" as const,
-            sourceImageId: sourceImage.id,
-          }))
-        );
-        counts.sentences = extraction.sentences.length;
-      }
-
-      await db
-        .update(sourceImages)
-        .set({ processed: true })
-        .where(eq(sourceImages.id, sourceImage.id));
-
       return NextResponse.json({
         success: true,
         sourceImageId: sourceImage.id,
-        extracted: counts,
-        items,
+        extraction,
       });
     } catch (extractionError) {
-      // Store error message in source image
+      // Store error message on the source image and mark it processed so it
+      // does not linger as a pending draft.
       const errorMessage =
         extractionError instanceof Error
           ? extractionError.message
@@ -232,7 +128,7 @@ export async function POST(req: NextRequest) {
         .update(sourceImages)
         .set({
           errorMessage,
-          processed: true, // Mark as processed even with error
+          processed: true,
         })
         .where(eq(sourceImages.id, sourceImage.id));
 

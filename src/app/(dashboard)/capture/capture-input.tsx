@@ -10,6 +10,8 @@ import {
   Image as ImageIcon, Camera, Type, ChevronLeft, SearchX,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { ExtractionResult } from "@/lib/validations";
+import { ExtractionConfirmation, type SaveResponse } from "./extraction-confirmation";
 import { cn } from "@/lib/utils";
 
 const CAPTURE_STAGES_IMAGE: readonly { title: string; subtitle: string }[] = [
@@ -26,7 +28,14 @@ const CAPTURE_STAGES_TEXT: readonly { title: string; subtitle: string }[] = [
 ];
 
 type InputMode = "empty" | "text" | "image";
-type ProcessState = "idle" | "uploading" | "processing" | "success" | "error";
+type ProcessState =
+  | "idle"
+  | "uploading"
+  | "processing"
+  | "confirming"
+  | "empty"
+  | "success"
+  | "error";
 
 interface ExtractionCounts {
   kanji: { total: number; new: number; existing: number };
@@ -44,6 +53,11 @@ interface ExtractionResponse {
   items: ExtractedItems;
 }
 
+interface ExtractDraft {
+  sourceImageId: string;
+  extraction: ExtractionResult;
+}
+
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export function CaptureInput() {
@@ -55,6 +69,7 @@ export function CaptureInput() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractionResult, setExtractionResult] = useState<ExtractionResponse | null>(null);
+  const [draft, setDraft] = useState<ExtractDraft | null>(null);
   const [mobileTextMode, setMobileTextMode] = useState(false);
   const [submissionKind, setSubmissionKind] = useState<"image" | "text">("text");
   const [captureStageIndex, setCaptureStageIndex] = useState(0);
@@ -195,6 +210,7 @@ export function CaptureInput() {
     setState("idle");
     setError(null);
     setExtractionResult(null);
+    setDraft(null);
     setMobileTextMode(false);
   };
 
@@ -242,7 +258,7 @@ export function CaptureInput() {
         throw new Error(errorMessage);
       }
       const data = await response.json();
-      onSuccess(data);
+      onExtracted(data);
     } catch (err) {
       onError(err);
     }
@@ -264,26 +280,42 @@ export function CaptureInput() {
         throw new Error(data.error || "Failed to process text");
       }
       const data = await response.json();
-      onSuccess(data);
+      onExtracted(data);
     } catch (err) {
       onError(err);
     }
   };
 
-  const onSuccess = (data: ExtractionResponse) => {
-    setExtractionResult(data);
+  const onExtracted = (data: { sourceImageId: string; extraction: ExtractionResult }) => {
+    const totalFound =
+      data.extraction.kanji.length +
+      data.extraction.vocabulary.length +
+      data.extraction.sentences.length;
+
+    if (totalFound === 0) {
+      setState("empty");
+      return;
+    }
+
+    setDraft({ sourceImageId: data.sourceImageId, extraction: data.extraction });
+    setState("confirming");
+  };
+
+  const onSaved = (data: SaveResponse) => {
+    setExtractionResult({ extracted: data.extracted, items: data.items });
+    setDraft(null);
     setState("success");
 
     const counts = data.extracted;
-    const totalFound = counts.kanji.total + counts.vocabulary.total + counts.sentences;
+    const totalSaved = counts.kanji.total + counts.vocabulary.total + counts.sentences;
     const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
 
-    if (totalFound > 0) {
+    if (totalSaved > 0) {
       toast({
-        title: totalNew > 0 ? "New content added!" : "All items already in library",
+        title: totalNew > 0 ? "Saved to your library" : "Already in your library",
         description: totalNew > 0
-          ? `Found ${totalFound} items (${totalNew} new)`
-          : `Found ${totalFound} items you've already captured`,
+          ? `${totalSaved} item${totalSaved === 1 ? "" : "s"} added (${totalNew} new)`
+          : `${totalSaved} item${totalSaved === 1 ? "" : "s"} merged`,
       });
     }
   };
@@ -294,6 +326,14 @@ export function CaptureInput() {
     toast({
       title: "Error",
       description: "Failed to process your content. Please try again.",
+      variant: "destructive",
+    });
+  };
+
+  const onSaveError = (message: string) => {
+    toast({
+      title: "Couldn't save",
+      description: message,
       variant: "destructive",
     });
   };
@@ -398,12 +438,42 @@ export function CaptureInput() {
     );
   }
 
+  if (state === "confirming" && draft) {
+    return (
+      <ExtractionConfirmation
+        sourceImageId={draft.sourceImageId}
+        extraction={draft.extraction}
+        onSaved={onSaved}
+        onDiscard={clearAll}
+        onError={onSaveError}
+      />
+    );
+  }
+
+  if (state === "empty") {
+    return (
+      <Card className="jr-panel">
+        <CardContent className="py-16">
+          <div className="text-center">
+            <SearchX className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">No Japanese content found</h3>
+            <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+              The AI couldn&apos;t detect any kanji, vocabulary, or sentences.
+              Try a clearer photo, better lighting, or crop closer to your notes.
+            </p>
+            <Button className="mt-6" onClick={clearAll}>
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (state === "success" && extractionResult) {
     const counts = extractionResult.extracted;
     const { items: extractedItems } = extractionResult;
-    const totalFound = counts.kanji.total + counts.vocabulary.total + counts.sentences;
     const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
-    const nothingFound = totalFound === 0;
 
     const newKanji = extractedItems.kanji.filter(i => i.isNew);
     const existingKanji = extractedItems.kanji.filter(i => !i.isNew);
