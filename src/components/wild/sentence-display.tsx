@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp, Info } from "lucide-react";
+import { Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp } from "lucide-react";
 import type { WildSentenceData, WildWord, WordFamiliarity } from "./in-the-wild";
 
 export type DifficultyRating = "too_easy" | "just_right" | "too_hard";
@@ -11,7 +11,6 @@ interface SentenceDisplayProps {
   sentence: WildSentenceData;
   showAddWord?: boolean;
   compact?: boolean;
-  showLegend?: boolean;
   onRate?: (sentenceId: string, rating: DifficultyRating) => void;
   currentRating?: DifficultyRating | null;
 }
@@ -106,31 +105,6 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
   return <span>{content}</span>;
 }
 
-/**
- * Small, muted legend explaining the two highlight styles. Rendered once
- * per sentence viewer (not on every card in the library list). Keeps the
- * UX discoverable without being noisy.
- */
-export function WildLegend({ compact = false }: { compact?: boolean }) {
-  return (
-    <div
-      className={`wild-legend ${compact ? "wild-legend-compact" : ""}`}
-      aria-label="Highlight legend"
-    >
-      <Info className="h-3 w-3 opacity-60 shrink-0" aria-hidden="true" />
-      <span className="wild-legend-item">
-        <span className="wild-studied-swatch" aria-hidden="true">漢</span>
-        <span className="wild-legend-text">Studied</span>
-      </span>
-      <span className="wild-legend-sep" aria-hidden="true">·</span>
-      <span className="wild-legend-item">
-        <span className="wild-partial-swatch" aria-hidden="true">漢</span>
-        <span className="wild-legend-text">Contains studied kanji</span>
-      </span>
-    </div>
-  );
-}
-
 const RATING_CONFIG: Record<DifficultyRating, {
   label: string;
   icon: typeof Zap;
@@ -171,8 +145,8 @@ const RATING_CONFIG: Record<DifficultyRating, {
 
 const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
 
-export function SentenceDisplay({ sentence, showAddWord = false, compact = false, showLegend = false, onRate, currentRating }: SentenceDisplayProps) {
-  const [showTranslation, setShowTranslation] = useState(false);
+export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating }: SentenceDisplayProps) {
+  const [showTranslation, setShowTranslation] = useState(true);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
   const [addStatus, setAddStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [addError, setAddError] = useState<string | null>(null);
@@ -236,33 +210,10 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
     }
   }
 
-  const targetItems = sentence.targets?.map((t) => t.itemText) || [];
-  const hasPartialWord = words.some((w) => resolveFamiliarity(w) === "partial");
-  const hasStudiedWord = words.some((w) => resolveFamiliarity(w) === "studied");
   const addingFamiliarity = addingWord ? resolveFamiliarity(addingWord) : "unknown";
 
   return (
     <div className={`space-y-6 ${compact ? "" : "py-4"}`}>
-      {/* Legend — shown on demand, and only when the sentence actually has
-          marks to explain, so we don't noise up the reading experience. */}
-      {showLegend && (hasStudiedWord || hasPartialWord) && (
-        <WildLegend compact={compact} />
-      )}
-
-      {/* Target items badge row */}
-      {!compact && targetItems.length > 0 && (
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          {targetItems.map((item) => (
-            <span
-              key={item}
-              className="wild-kanji-pill inline-flex items-center px-3 py-1 rounded-full bg-amber-100/80 text-amber-800 text-sm font-medium dark:bg-amber-900/30 dark:text-amber-200"
-            >
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
-
       {/* Japanese sentence */}
       <div className={`wild-sentence-text ${compact ? "text-xl" : "text-3xl sm:text-4xl"} leading-relaxed text-center`}>
         {words.map((word, i) => (
@@ -274,69 +225,19 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
         ))}
       </div>
 
-      {/* Translation reveal */}
-      <div className="text-center">
+      {/* Translation + rating */}
+      <div className="text-center space-y-4">
         <AnimatePresence mode="wait">
           {showTranslation ? (
-            <motion.div
+            <motion.p
               key="translation"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-4"
+              className={`wild-translation-text text-muted-foreground ${compact ? "text-sm" : "text-lg sm:text-xl"}`}
             >
-              <p className={`wild-translation-text text-muted-foreground ${compact ? "text-sm" : "text-lg sm:text-xl"}`}>
-                {sentence.english}
-              </p>
-
-              {/* Difficulty rating buttons */}
-              {onRate && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15, duration: 0.25 }}
-                  className="space-y-2"
-                >
-                  <p className="wild-rating-label text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
-                    How was this sentence?
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    {RATINGS.map((rating) => {
-                      const config = RATING_CONFIG[rating];
-                      const Icon = config.icon;
-                      const isSelected = currentRating === rating;
-
-                      return (
-                        <button
-                          key={rating}
-                          onClick={() => onRate(sentence.id, rating)}
-                          className={`
-                            flex items-center gap-1.5 rounded-xl border-2 transition-all
-                            active:scale-95
-                            ${isSelected
-                              ? `${config.activeBg} ${config.border} ${config.text}`
-                              : `${config.bg} ${config.border} ${config.text} ${config.hoverBg}`
-                            }
-                            ${compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}
-                          `}
-                        >
-                          <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
-                          <span className="font-medium">{config.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-
-              <button
-                onClick={() => setShowTranslation(false)}
-                className="wild-hide-translation text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-              >
-                hide translation
-              </button>
-            </motion.div>
+              {sentence.english}
+            </motion.p>
           ) : (
             <motion.button
               key="reveal-btn"
@@ -344,13 +245,55 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowTranslation(true)}
-              className="wild-hint-text inline-flex items-center gap-2 text-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors py-2 px-4 rounded-full hover:bg-white/[0.06]"
+              className="wild-hint-text text-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors py-1"
             >
-              <Eye className="h-4 w-4" />
-              Tap to see translation
+              show translation
             </motion.button>
           )}
         </AnimatePresence>
+
+        {showTranslation && (
+          <button
+            onClick={() => setShowTranslation(false)}
+            className="wild-hide-translation text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+          >
+            hide
+          </button>
+        )}
+
+        {onRate && (
+          <div className="space-y-2">
+            <p className="wild-rating-label text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
+              How was this sentence?
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              {RATINGS.map((rating) => {
+                const config = RATING_CONFIG[rating];
+                const Icon = config.icon;
+                const isSelected = currentRating === rating;
+
+                return (
+                  <button
+                    key={rating}
+                    onClick={() => onRate(sentence.id, rating)}
+                    className={`
+                      flex items-center gap-1.5 rounded-xl border-2 transition-all
+                      active:scale-95
+                      ${isSelected
+                        ? `${config.activeBg} ${config.border} ${config.text}`
+                        : `${config.bg} ${config.border} ${config.text} ${config.hoverBg}`
+                      }
+                      ${compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}
+                    `}
+                  >
+                    <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+                    <span className="font-medium">{config.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add word dialog */}

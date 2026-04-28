@@ -3,6 +3,7 @@ export type SessionType = "kanji" | "vocab" | "mixed";
 export interface QueueEntry {
   item: ReviewQueueItem;
   isRetry: boolean;
+  retryReason?: "missed" | "hard";
   entryId: number;
 }
 

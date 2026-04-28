@@ -137,6 +137,11 @@ export function ReviewCard({
     questionType === "meaning"
       ? (fullScreen ? "Meaning" : "What does this mean?")
       : (fullScreen ? "Reading" : "How do you read this?");
+  const retryTitle = retryReason === "hard" ? "Quick recheck: you marked this hard earlier." : "Quick recheck: you missed this earlier.";
+  const retryExplanation =
+    retryReason === "hard"
+      ? "Cards marked hard come back once in this session so the reading sticks before you move on."
+      : "Missed cards return later in the same session to reinforce memory and improve retention.";
 
   return (
     <div className={fullScreen ? "w-full space-y-4 md:space-y-6" : "max-w-lg mx-auto space-y-4"}>
@@ -192,6 +197,52 @@ export function ReviewCard({
             className={`jr-panel overflow-hidden cursor-pointer select-none ${fullScreen ? "rounded-3xl bg-white shadow-xl" : "rounded-2xl"}`}
             onClick={handleReveal}
           >
+            <AnimatePresence initial={false}>
+              {isRetry && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="border-b border-orange-200/70 bg-orange-50/80"
+                >
+                  <div className={fullScreen ? "px-8 py-3" : "px-6 py-2.5"}>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="inline-flex items-center gap-2 text-sm font-medium text-orange-800">
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {retryTitle}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowRetryExplanation((prev) => !prev);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs text-orange-700/90 hover:text-orange-900 transition-colors whitespace-nowrap"
+                        aria-expanded={showRetryExplanation}
+                      >
+                        Why am I seeing this?
+                        <ChevronDown className={`h-3 w-3 transition-transform ${showRetryExplanation ? "rotate-180" : ""}`} />
+                      </button>
+                    </div>
+                    <AnimatePresence initial={false}>
+                      {showRetryExplanation && (
+                        <motion.p
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
+                          className="pt-2 text-xs leading-relaxed text-orange-900/80 pr-6"
+                        >
+                          {retryExplanation}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Question Type / Prompt label — minimal in full-screen */}
             <div className={fullScreen ? "px-8 pt-6 flex items-center justify-between gap-2" : "px-6 pt-5 flex items-center justify-between"}>
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
