@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Eye, EyeOff, Undo2 } from "lucide-react";
 import type { ReviewQueueItem } from "./review-types";
 import type { Grade } from "@/lib/srs";
 import { getGradeOptions, type SrsState } from "@/lib/srs";
@@ -19,6 +19,16 @@ interface ReviewCardProps {
   fullScreen?: boolean;
   /** Whether this card is a re-queued retry within the current session */
   isRetry?: boolean;
+  /** Show one-line beginner explanations under each grade button (first few sessions only). */
+  showInlineHints?: boolean;
+  /** Called when the user dismisses the inline beginner hints. */
+  onDismissHints?: () => void;
+  /** Whether the previous submission can be undone. */
+  canUndo?: boolean;
+  /** Trigger undo of the previous submission. */
+  onUndo?: () => void;
+  /** Whether undo is in progress (disable controls). */
+  undoing?: boolean;
 }
 
 const GRADE_STYLES: Record<Grade, { bg: string; border: string; text: string; hoverBg: string }> = {
@@ -26,6 +36,13 @@ const GRADE_STYLES: Record<Grade, { bg: string; border: string; text: string; ho
   hard: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", hoverBg: "hover:bg-amber-100" },
   good: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", hoverBg: "hover:bg-emerald-100" },
   easy: { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", hoverBg: "hover:bg-indigo-100" },
+};
+
+const GRADE_HINT: Record<Grade, string> = {
+  again: "Forgot completely",
+  hard: "Barely remembered",
+  good: "Knew it",
+  easy: "Knew instantly",
 };
 
 const GRADE_KEYS: Record<string, Grade> = {
@@ -50,13 +67,29 @@ export function ReviewCard({
   disabled,
   fullScreen = false,
   isRetry = false,
+  showInlineHints = false,
+  onDismissHints,
+  canUndo = false,
+  onUndo,
+  undoing = false,
 }: ReviewCardProps) {
   const [revealed, setRevealed] = useState(false);
+  const [showFurigana, setShowFurigana] = useState(false);
 
   // Reset on new item (index included so retries of the same item re-trigger)
   useEffect(() => {
     setRevealed(false);
+    setShowFurigana(false);
   }, [item.id, questionType, index]);
+
+  // Furigana hint is only useful on the meaning prompt for vocab that contains kanji.
+  // For kanji items the prompt IS the kanji (so the reading is the answer); for vocab
+  // reading questions, exposing the reading would defeat the question.
+  const canShowFurigana =
+    item.type === "vocab" &&
+    questionType === "meaning" &&
+    item.readings.length > 0 &&
+    item.prompt !== item.readings[0];
 
   const srsState: SrsState = {
     intervalDays: item.intervalDays,
@@ -81,6 +114,7 @@ export function ReviewCard({
 
   // Keyboard shortcuts
   useEffect(() => {
+    if (disabled) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -97,7 +131,7 @@ export function ReviewCard({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [revealed, handleReveal, handleGrade]);
+  }, [revealed, disabled, handleReveal, handleGrade]);
 
   const questionText =
     questionType === "meaning"
@@ -105,7 +139,7 @@ export function ReviewCard({
       : (fullScreen ? "Reading" : "How do you read this?");
 
   return (
-    <div className={fullScreen ? "w-full space-y-6 md:space-y-8" : "max-w-lg mx-auto space-y-4"}>
+    <div className={fullScreen ? "w-full space-y-4 md:space-y-6" : "max-w-lg mx-auto space-y-4"}>
       {/* Progress bar — hidden in full-screen (shown in session header) */}
       {!fullScreen && (
         <div className="flex items-center gap-3">
@@ -123,6 +157,28 @@ export function ReviewCard({
         </div>
       )}
 
+      {/* Retry banner — visible explanation when an item reappears in-session.
+          Replaces the previous tiny "retry" badge that users mistook for a glitch. */}
+      <AnimatePresence>
+        {isRetry && (
+          <motion.div
+            key={`retry-banner-${item.id}-${index}`}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-center justify-center gap-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 px-4 py-2.5"
+            role="status"
+            aria-live="polite"
+          >
+            <RotateCcw className="h-4 w-4 flex-shrink-0" aria-hidden />
+            <span className="text-sm font-medium">
+              You missed this earlier — quick recheck
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Card */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -137,15 +193,28 @@ export function ReviewCard({
             onClick={handleReveal}
           >
             {/* Question Type / Prompt label — minimal in full-screen */}
-            <div className={fullScreen ? "px-8 pt-6 flex items-center justify-center gap-2" : "px-6 pt-5 flex items-center justify-between"}>
+            <div className={fullScreen ? "px-8 pt-6 flex items-center justify-between gap-2" : "px-6 pt-5 flex items-center justify-between"}>
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {item.type === "kanji" ? "Kanji" : "Vocabulary"}
               </span>
-              {isRetry && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-orange-500 bg-orange-50 border border-orange-200/60">
-                  <RotateCcw className="h-2.5 w-2.5" />
-                  retry
-                </span>
+              {canShowFurigana && !revealed && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFurigana((v) => !v);
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground rounded-md px-2 py-1 -my-1 hover:bg-secondary transition-colors"
+                  aria-pressed={showFurigana}
+                  aria-label={showFurigana ? "Hide reading hint" : "Show reading hint"}
+                >
+                  {showFurigana ? (
+                    <EyeOff className="h-3 w-3" />
+                  ) : (
+                    <Eye className="h-3 w-3" />
+                  )}
+                  <span>{showFurigana ? "Hide reading" : "Show reading"}</span>
+                </button>
               )}
               {revealed && !fullScreen && (
                 <span className="text-xs text-muted-foreground">
@@ -155,7 +224,18 @@ export function ReviewCard({
             </div>
 
             {/* Prompt — larger in full-screen, WaniKani-style */}
-            <div className={fullScreen ? "px-8 py-12 md:py-16 text-center" : "px-6 py-8 text-center"}>
+            <div className={fullScreen ? "px-8 py-10 md:py-14 text-center" : "px-6 py-8 text-center"}>
+              {/* Furigana hint above prompt for vocab meaning questions */}
+              {canShowFurigana && showFurigana && !revealed && (
+                <motion.p
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className={`text-muted-foreground mb-3 ${fullScreen ? "text-xl md:text-2xl" : "text-base md:text-lg"}`}
+                >
+                  {item.readings[0]}
+                </motion.p>
+              )}
               <motion.div
                 className={`font-bold leading-none ${fullScreen ? (item.type === "kanji" ? "text-9xl md:text-[12rem]" : "text-6xl md:text-8xl") : (item.type === "kanji" ? "text-8xl md:text-9xl" : "text-5xl md:text-6xl")}`}
                 layoutId={`prompt-${item.id}`}
@@ -286,31 +366,86 @@ export function ReviewCard({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.25 }}
-            className={fullScreen ? "grid grid-cols-4 gap-3 max-w-xl mx-auto" : "grid grid-cols-4 gap-2"}
+            className={fullScreen ? "max-w-xl mx-auto space-y-3" : "space-y-2"}
           >
-            {gradeOptions.map((option, i) => {
-              const style = GRADE_STYLES[option.grade];
-              return (
+            <div className={fullScreen ? "grid grid-cols-4 gap-3" : "grid grid-cols-4 gap-2"}>
+              {gradeOptions.map((option, i) => {
+                const style = GRADE_STYLES[option.grade];
+                return (
+                  <button
+                    key={option.grade}
+                    onClick={() => handleGrade(option.grade)}
+                    disabled={disabled}
+                    className={`
+                      flex flex-col items-center gap-1 rounded-xl border-2 transition-all
+                      ${style.bg} ${style.border} ${style.text} ${style.hoverBg}
+                      active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                      ${fullScreen ? "p-4 min-h-[80px] md:min-h-[88px]" : "p-3 min-h-[72px] md:min-h-[80px]"}
+                    `}
+                  >
+                    <span className={fullScreen ? "text-base font-semibold capitalize" : "text-sm font-semibold capitalize"}>{option.grade}</span>
+                    <span className="text-xs opacity-70">{option.label}</span>
+                    {showInlineHints ? (
+                      <span className="text-[10px] opacity-70 leading-tight text-center px-0.5">
+                        {GRADE_HINT[option.grade]}
+                      </span>
+                    ) : (
+                      <kbd className="text-[10px] opacity-40 font-mono">{i + 1}</kbd>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Inline hints affordance: dismiss link once the user gets it */}
+            {showInlineHints && onDismissHints && (
+              <div className="flex justify-center">
                 <button
-                  key={option.grade}
-                  onClick={() => handleGrade(option.grade)}
-                  disabled={disabled}
-                  className={`
-                    flex flex-col items-center gap-1 rounded-xl border-2 transition-all
-                    ${style.bg} ${style.border} ${style.text} ${style.hoverBg}
-                    active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                    ${fullScreen ? "p-4 min-h-[80px] md:min-h-[88px]" : "p-3 min-h-[72px] md:min-h-[80px]"}
-                  `}
+                  type="button"
+                  onClick={onDismissHints}
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
                 >
-                  <span className={fullScreen ? "text-base font-semibold capitalize" : "text-sm font-semibold capitalize"}>{option.grade}</span>
-                  <span className="text-xs opacity-70">{option.label}</span>
-                  <kbd className="text-[10px] opacity-40 font-mono">{i + 1}</kbd>
+                  Got it — hide hints
                 </button>
-              );
-            })}
+              </div>
+            )}
+
+            {/* Undo affordance: small, unobtrusive, only when there is something to undo */}
+            {canUndo && onUndo && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  disabled={undoing || disabled}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 disabled:opacity-50"
+                  aria-label="Undo last grade"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  <span>{undoing ? "Undoing…" : "Undo last grade"}</span>
+                  <kbd className="px-1 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono">U</kbd>
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Persistent undo affordance even before reveal — shown small below the prompt */}
+      {!revealed && canUndo && onUndo && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={undoing || disabled}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 disabled:opacity-50"
+            aria-label="Undo last grade"
+          >
+            <Undo2 className="h-3 w-3" />
+            <span>{undoing ? "Undoing…" : "Undo last grade"}</span>
+            <kbd className="px-1 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono">U</kbd>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

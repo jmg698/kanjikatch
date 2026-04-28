@@ -6,6 +6,16 @@ import { eq, and, sql } from "drizzle-orm";
 import { processReview, calculateXp, calculateLevel, updateStreak, getTodayDateString, type Grade, type SrsState } from "@/lib/srs";
 import { z } from "zod";
 
+export interface PriorTrackState {
+  intervalDays: number;
+  easeFactor: string;
+  reviewCount: number;
+  timesCorrect: number;
+  confidenceLevel: string;
+  nextReviewAt: string | null;
+  lastReviewedAt: string | null;
+}
+
 const submitSchema = z.object({
   sessionId: z.string().uuid(),
   itemId: z.string().uuid(),
@@ -62,6 +72,17 @@ export async function POST(req: NextRequest) {
       confidenceLevel: track.confidenceLevel as SrsState["confidenceLevel"],
     };
 
+    // Snapshot prior state for undo
+    const priorTrackState: PriorTrackState = {
+      intervalDays: track.intervalDays,
+      easeFactor: track.easeFactor,
+      reviewCount: track.reviewCount,
+      timesCorrect: track.timesCorrect,
+      confidenceLevel: track.confidenceLevel,
+      nextReviewAt: track.nextReviewAt ? track.nextReviewAt.toISOString() : null,
+      lastReviewedAt: track.lastReviewedAt ? track.lastReviewedAt.toISOString() : null,
+    };
+
     // 2. Calculate SRS update
     const srsUpdate = processReview(grade as Grade, currentState, now);
 
@@ -80,17 +101,20 @@ export async function POST(req: NextRequest) {
       .where(eq(reviewTracks.id, track.id));
 
     // 4. Record in review history
-    await db.insert(reviewHistory).values({
-      userId,
-      sessionId,
-      itemType,
-      itemId,
-      questionType,
-      wasCorrect,
-      quality: { again: 1, hard: 3, good: 4, easy: 5 }[grade],
-      responseTimeMs: responseTimeMs ?? null,
-      reviewedAt: now,
-    });
+    const [historyRow] = await db
+      .insert(reviewHistory)
+      .values({
+        userId,
+        sessionId,
+        itemType,
+        itemId,
+        questionType,
+        wasCorrect,
+        quality: { again: 1, hard: 3, good: 4, easy: 5 }[grade],
+        responseTimeMs: responseTimeMs ?? null,
+        reviewedAt: now,
+      })
+      .returning({ id: reviewHistory.id });
 
     // 5. Update session counters
     await db
@@ -159,6 +183,9 @@ export async function POST(req: NextRequest) {
       success: true,
       xpEarned,
       wasCorrect,
+      historyId: historyRow.id,
+      trackId: track.id,
+      priorTrackState,
       srsUpdate: {
         intervalDays: srsUpdate.intervalDays,
         confidenceLevel: srsUpdate.confidenceLevel,

@@ -68,3 +68,29 @@ export interface ReviewStats {
   dailyGoal: number;
   dailyReviewsToday: number;
 }
+
+export interface PriorTrackState {
+  intervalDays: number;
+  easeFactor: string;
+  reviewCount: number;
+  timesCorrect: number;
+  confidenceLevel: string;
+  nextReviewAt: string | null;
+  lastReviewedAt: string | null;
+}
+
+export interface UndoSnapshot {
+  // Queue/state to restore
+  prevQueue: QueueEntry[];
+  prevCurrentIndex: number;
+  prevConsecutiveCorrect: number;
+  prevTotalXpEarned: number;
+  prevRequeueState: RequeueState | null;
+  // Server-side reversal info (only present for first-appearance grades)
+  isRetry: boolean;
+  trackId: string;
+  historyId?: string;
+  serverTrackId?: string;
+  priorTrackState?: PriorTrackState;
+  xpEarned: number;
+}
