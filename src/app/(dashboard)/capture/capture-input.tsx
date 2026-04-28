@@ -1,17 +1,31 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUploadThing, getUploadThingPublicUrl } from "@/lib/uploadthing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Loader2, CheckCircle, AlertCircle, Upload, X,
+  Loader2, Check, CheckCircle, AlertCircle, Upload, X,
   Image as ImageIcon, Camera, Type, ChevronLeft, SearchX,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ExtractionResult } from "@/lib/validations";
 import { ExtractionConfirmation, type SaveResponse } from "./extraction-confirmation";
+import { cn } from "@/lib/utils";
+
+const CAPTURE_STAGES_IMAGE: readonly { title: string; subtitle: string }[] = [
+  { title: "Sending your image", subtitle: "Kanji Katch is uploading it securely." },
+  { title: "Reading your image", subtitle: "Kanji Katch is pulling every line of Japanese from your photo." },
+  { title: "Finding kanji and vocabulary", subtitle: "Kanji Katch is spotting characters and compound words." },
+  { title: "Looking up readings", subtitle: "Kanji Katch is matching readings and your library." },
+];
+
+const CAPTURE_STAGES_TEXT: readonly { title: string; subtitle: string }[] = [
+  { title: "Reading your text", subtitle: "Kanji Katch is scanning what you pasted." },
+  { title: "Finding kanji and vocabulary", subtitle: "Kanji Katch is spotting characters and compound words." },
+  { title: "Looking up readings", subtitle: "Kanji Katch is matching readings and your library." },
+];
 
 type InputMode = "empty" | "text" | "image";
 type ProcessState =
@@ -57,12 +71,43 @@ export function CaptureInput() {
   const [extractionResult, setExtractionResult] = useState<ExtractionResponse | null>(null);
   const [draft, setDraft] = useState<ExtractDraft | null>(null);
   const [mobileTextMode, setMobileTextMode] = useState(false);
+  const [submissionKind, setSubmissionKind] = useState<"image" | "text">("text");
+  const [captureStageIndex, setCaptureStageIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const router = useRouter();
   const { toast } = useToast();
+
+  const stages =
+    submissionKind === "image" ? CAPTURE_STAGES_IMAGE : CAPTURE_STAGES_TEXT;
+
+  useEffect(() => {
+    if (state === "uploading") {
+      setCaptureStageIndex(0);
+      return;
+    }
+    if (state !== "processing") return;
+
+    if (submissionKind === "image") {
+      setCaptureStageIndex(1);
+      const t1 = setTimeout(() => setCaptureStageIndex(2), 4800);
+      const t2 = setTimeout(() => setCaptureStageIndex(3), 9600);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+
+    setCaptureStageIndex(0);
+    const t1 = setTimeout(() => setCaptureStageIndex(1), 4200);
+    const t2 = setTimeout(() => setCaptureStageIndex(2), 8400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [state, submissionKind]);
 
   const { startUpload } = useUploadThing("imageUploader", {
     onUploadError: (err) => {
@@ -183,6 +228,7 @@ export function CaptureInput() {
 
   const handleImageSubmit = async () => {
     if (!imageFile) return;
+    setSubmissionKind("image");
     setState("uploading");
 
     try {
@@ -219,6 +265,7 @@ export function CaptureInput() {
   };
 
   const handleTextSubmit = async () => {
+    setSubmissionKind("text");
     setState("processing");
 
     try {
@@ -299,17 +346,92 @@ export function CaptureInput() {
   };
 
   if (state === "uploading" || state === "processing") {
+    const progressPct =
+      state === "uploading"
+        ? Math.min(28, (1 / stages.length) * 100)
+        : Math.min(
+            92,
+            ((captureStageIndex + 1) / stages.length) * 100,
+          );
+    const headline =
+      stages[captureStageIndex]?.title ?? "Working on your capture";
+    const subline =
+      stages[captureStageIndex]?.subtitle ??
+      "Kanji Katch is finishing up.";
+
     return (
       <Card className="jr-panel">
-        <CardContent className="py-16">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-            <h3 className="text-lg font-semibold">
-              {state === "uploading" ? "Uploading image..." : "Extracting content..."}
-            </h3>
-            <p className="text-muted-foreground mt-2">
-              AI is extracting kanji, vocabulary, and sentences.
+        <CardContent className="py-10 px-4 sm:px-8">
+          <div className="max-w-md mx-auto">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground text-center mb-2">
+              Kanji Katch
             </p>
+            <h3 className="text-lg font-semibold text-center mb-1">
+              {headline}
+            </h3>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              {subline}
+            </p>
+
+            <div
+              className="h-1.5 w-full rounded-full bg-muted overflow-hidden mb-8"
+              role="progressbar"
+              aria-valuenow={Math.round(progressPct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+
+            <ol className="space-y-0">
+              {stages.map((stage, i) => {
+                const uploadComplete =
+                  state === "processing" && submissionKind === "image";
+                const done =
+                  i < captureStageIndex ||
+                  (uploadComplete && i === 0);
+                const current = i === captureStageIndex;
+                const pending = !done && !current;
+
+                return (
+                  <li
+                    key={stage.title}
+                    className={cn(
+                      "flex gap-3 py-3 border-b border-border/60 last:border-0",
+                      pending && "opacity-45",
+                    )}
+                  >
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border bg-background">
+                      {done ? (
+                        <Check className="h-4 w-4 text-primary" aria-hidden />
+                      ) : current ? (
+                        <Loader2
+                          className="h-4 w-4 animate-spin text-primary"
+                          aria-hidden
+                        />
+                      ) : (
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/35" aria-hidden />
+                      )}
+                    </span>
+                    <div className="min-w-0 pt-0.5">
+                      <p
+                        className={cn(
+                          "text-sm font-medium leading-tight",
+                          current && "text-foreground",
+                          pending && "text-muted-foreground",
+                          done && "text-muted-foreground",
+                        )}
+                      >
+                        {stage.title}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         </CardContent>
       </Card>
@@ -357,6 +479,26 @@ export function CaptureInput() {
     const existingKanji = extractedItems.kanji.filter(i => !i.isNew);
     const newVocab = extractedItems.vocabulary.filter(i => i.isNew);
     const existingVocab = extractedItems.vocabulary.filter(i => !i.isNew);
+
+    if (nothingFound) {
+      return (
+        <Card className="jr-panel">
+          <CardContent className="py-16">
+            <div className="text-center">
+              <SearchX className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">No Japanese content found</h3>
+              <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+                Kanji Katch didn&apos;t find any kanji, vocabulary, or sentences in this capture.
+                Try a clearer photo, better lighting, or crop closer to your notes.
+              </p>
+              <Button className="mt-6" onClick={clearAll}>
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
 
     return (
       <Card className="jr-panel">
@@ -431,10 +573,10 @@ export function CaptureInput() {
             <Button variant="outline" onClick={clearAll}>
               Capture More
             </Button>
-            <Button variant="outline" onClick={() => router.push("/review")}>
+            <Button onClick={() => router.push("/review")}>
               Review
             </Button>
-            <Button onClick={() => { router.push("/library"); router.refresh(); }}>
+            <Button variant="outline" onClick={() => { router.push("/library"); router.refresh(); }}>
               View Library
             </Button>
           </div>

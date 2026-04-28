@@ -83,10 +83,10 @@ export function CaptureUploader() {
               <Button variant="outline" onClick={() => setState("idle")}>
                 Capture More
               </Button>
-              <Button variant="outline" onClick={() => router.push("/review")}>
+              <Button onClick={() => router.push("/review")}>
                 Review
               </Button>
-              <Button onClick={() => { router.push("/library"); router.refresh(); }}>
+              <Button variant="outline" onClick={() => { router.push("/library"); router.refresh(); }}>
                 View Library
               </Button>
             </div>
