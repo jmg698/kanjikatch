@@ -1,7 +1,7 @@
 import { db, sourceImages } from "@/db";
 import { eq, and, gte, sql } from "drizzle-orm";
 
-const WEEKLY_EXTRACTION_LIMIT = 200;
+export const WEEKLY_EXTRACTION_LIMIT = 200;
 
 export async function checkExtractionRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
   const oneWeekAgo = new Date();

@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { db, sourceImages, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
-import { checkExtractionRateLimit } from "@/lib/rate-limit";
+import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
 import { agentDebugLog } from "@/lib/debug-ingest";
 
@@ -25,7 +25,11 @@ export async function POST(req: NextRequest) {
     // #endregion
     if (!allowed) {
       return NextResponse.json(
-        { error: "Weekly extraction limit reached (200 per week). Please try again later." },
+        {
+          error: `Weekly extraction limit reached (${WEEKLY_EXTRACTION_LIMIT} per week). Please try again later.`,
+          remaining: 0,
+          limit: WEEKLY_EXTRACTION_LIMIT,
+        },
         { status: 429 }
       );
     }
@@ -108,6 +112,8 @@ export async function POST(req: NextRequest) {
         success: true,
         sourceImageId: sourceImage.id,
         extraction,
+        remaining: Math.max(0, remaining - 1),
+        limit: WEEKLY_EXTRACTION_LIMIT,
       });
     } catch (extractionError) {
       // Store error message on the source image and mark it processed so it
