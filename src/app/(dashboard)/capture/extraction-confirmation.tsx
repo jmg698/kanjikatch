@@ -368,10 +368,10 @@ function CheckToggle({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className={`mt-1 h-5 w-5 flex-shrink-0 rounded border transition-colors flex items-center justify-center disabled:opacity-50 ${
+      className={`mt-1 h-5 w-5 flex-shrink-0 rounded flex items-center justify-center transition-colors disabled:opacity-50 ${
         checked
-          ? "bg-primary border-primary text-primary-foreground"
-          : "bg-background border-border hover:border-primary/50"
+          ? "border-2 border-primary bg-primary text-primary-foreground"
+          : "border-2 border-muted-foreground/45 bg-muted/30 shadow-sm hover:border-primary/55 hover:bg-muted/45"
       }`}
     >
       {checked && (
@@ -393,22 +393,31 @@ function CheckToggle({
 
 function RowShell({
   selected,
+  checkbox,
   children,
   onRemove,
   disabled,
 }: {
   selected: boolean;
+  checkbox: React.ReactNode;
   children: React.ReactNode;
   onRemove: () => void;
   disabled?: boolean;
 }) {
   return (
     <div
-      className={`group flex items-start gap-3 px-3 py-2.5 rounded-lg border bg-background transition-opacity ${
-        selected ? "border-border" : "border-border/60 opacity-50"
+      className={`group flex items-start gap-3 px-3 py-2.5 rounded-lg border bg-background ${
+        selected ? "border-border" : "border-border/60"
       }`}
     >
-      {children}
+      {checkbox}
+      <div
+        className={`flex flex-1 min-w-0 items-start gap-3 transition-opacity ${
+          selected ? "" : "opacity-50"
+        }`}
+      >
+        {children}
+      </div>
       <button
         type="button"
         onClick={onRemove}
@@ -480,13 +489,19 @@ function KanjiRow({
   onRemove: () => void;
 }) {
   return (
-    <RowShell selected={item._selected} onRemove={onRemove} disabled={disabled}>
-      <CheckToggle
-        checked={item._selected}
-        onClick={onToggle}
-        disabled={disabled}
-        label={`Include ${item.character}`}
-      />
+    <RowShell
+      selected={item._selected}
+      onRemove={onRemove}
+      disabled={disabled}
+      checkbox={
+        <CheckToggle
+          checked={item._selected}
+          onClick={onToggle}
+          disabled={disabled}
+          label={`Include ${item.character}`}
+        />
+      }
+    >
       <div className="flex items-center justify-center h-12 w-12 flex-shrink-0 rounded-md bg-primary/10 text-primary text-3xl font-medium">
         {item.character}
       </div>
@@ -544,13 +559,19 @@ function VocabRow({
   onRemove: () => void;
 }) {
   return (
-    <RowShell selected={item._selected} onRemove={onRemove} disabled={disabled}>
-      <CheckToggle
-        checked={item._selected}
-        onClick={onToggle}
-        disabled={disabled}
-        label={`Include ${item.word}`}
-      />
+    <RowShell
+      selected={item._selected}
+      onRemove={onRemove}
+      disabled={disabled}
+      checkbox={
+        <CheckToggle
+          checked={item._selected}
+          onClick={onToggle}
+          disabled={disabled}
+          label={`Include ${item.word}`}
+        />
+      }
+    >
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <span className="text-lg font-semibold">{item.word}</span>
@@ -594,13 +615,19 @@ function SentenceRow({
   onRemove: () => void;
 }) {
   return (
-    <RowShell selected={item._selected} onRemove={onRemove} disabled={disabled}>
-      <CheckToggle
-        checked={item._selected}
-        onClick={onToggle}
-        disabled={disabled}
-        label="Include sentence"
-      />
+    <RowShell
+      selected={item._selected}
+      onRemove={onRemove}
+      disabled={disabled}
+      checkbox={
+        <CheckToggle
+          checked={item._selected}
+          onClick={onToggle}
+          disabled={disabled}
+          label="Include sentence"
+        />
+      }
+    >
       <div className="flex-1 min-w-0 space-y-1">
         <textarea
           value={item.japanese}
