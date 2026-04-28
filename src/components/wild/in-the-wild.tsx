@@ -308,7 +308,6 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
                   <SentenceDisplay
                     sentence={sentence}
                     showAddWord
-                    showLegend
                     onRate={handleRate}
                     currentRating={ratings[sentence.id] || null}
                   />
