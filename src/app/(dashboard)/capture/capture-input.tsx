@@ -480,6 +480,11 @@ export function CaptureInput() {
     const newVocab = extractedItems.vocabulary.filter(i => i.isNew);
     const existingVocab = extractedItems.vocabulary.filter(i => !i.isNew);
 
+    const nothingFound =
+      extractedItems.kanji.length === 0 &&
+      extractedItems.vocabulary.length === 0 &&
+      counts.sentences === 0;
+
     if (nothingFound) {
       return (
         <Card className="jr-panel">
