@@ -6,7 +6,7 @@ import { useUploadThing, getUploadThingPublicUrl } from "@/lib/uploadthing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Loader2, Check, CheckCircle, AlertCircle, Upload, X,
+  Loader2, Check, CheckCircle, AlertCircle, AlertTriangle, Upload, X,
   Image as ImageIcon, Camera, Type, ChevronLeft, SearchX,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +60,32 @@ interface ExtractDraft {
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+const TEXT_STORAGE_KEY = "kanjikatch:capture:text";
+const IMAGE_STORAGE_KEY = "kanjikatch:capture:image";
+// Cap persisted images so we don't blow past localStorage quotas (typically 5MB).
+const MAX_PERSISTED_IMAGE_SIZE = 3 * 1024 * 1024;
+const QUOTA_WARNING_THRESHOLD = 0.25;
+
+interface QuotaInfo {
+  remaining: number;
+  limit: number;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function dataUrlToFile(dataUrl: string, name: string, type: string): Promise<File> {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], name, { type });
+}
+
 export function CaptureInput() {
   const [mode, setMode] = useState<InputMode>("empty");
   const [state, setState] = useState<ProcessState>("idle");
@@ -73,10 +99,12 @@ export function CaptureInput() {
   const [mobileTextMode, setMobileTextMode] = useState(false);
   const [submissionKind, setSubmissionKind] = useState<"image" | "text">("text");
   const [captureStageIndex, setCaptureStageIndex] = useState(0);
+  const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
+  const hydratedRef = useRef(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -108,6 +136,70 @@ export function CaptureInput() {
       clearTimeout(t2);
     };
   }, [state, submissionKind]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const savedImage = localStorage.getItem(IMAGE_STORAGE_KEY);
+        if (savedImage) {
+          try {
+            const parsed = JSON.parse(savedImage) as { name: string; type: string; dataUrl: string };
+            const file = await dataUrlToFile(parsed.dataUrl, parsed.name, parsed.type);
+            if (!cancelled) {
+              setImageFile(file);
+              setImagePreview(parsed.dataUrl);
+              setMode("image");
+            }
+          } catch {
+            localStorage.removeItem(IMAGE_STORAGE_KEY);
+          }
+        } else {
+          const savedText = localStorage.getItem(TEXT_STORAGE_KEY);
+          if (savedText && !cancelled) {
+            setText(savedText);
+            setMode("text");
+            setMobileTextMode(true);
+          }
+        }
+      } catch {
+        // localStorage may be unavailable (private mode, etc.) — ignore.
+      } finally {
+        hydratedRef.current = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      if (text.length > 0) {
+        localStorage.setItem(TEXT_STORAGE_KEY, text);
+      } else {
+        localStorage.removeItem(TEXT_STORAGE_KEY);
+      }
+    } catch {
+      // Quota or unavailable — fail silently.
+    }
+  }, [text]);
+
+  const fetchQuota = useCallback(async () => {
+    try {
+      const res = await fetch("/api/extract/quota");
+      if (!res.ok) return;
+      const data = (await res.json()) as QuotaInfo;
+      setQuota(data);
+    } catch {
+      // Non-critical — quota banner just won't render.
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchQuota();
+  }, [fetchQuota]);
 
   const { startUpload } = useUploadThing("imageUploader", {
     onUploadError: (err) => {
@@ -142,6 +234,33 @@ export function CaptureInput() {
     setImagePreview(URL.createObjectURL(file));
     setMode("image");
     setText("");
+    try {
+      localStorage.removeItem(TEXT_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    if (file.size <= MAX_PERSISTED_IMAGE_SIZE) {
+      readFileAsDataUrl(file)
+        .then((dataUrl) => {
+          try {
+            localStorage.setItem(
+              IMAGE_STORAGE_KEY,
+              JSON.stringify({ name: file.name, type: file.type, dataUrl }),
+            );
+          } catch {
+            // localStorage quota — best-effort only.
+          }
+        })
+        .catch(() => {
+          // Could not read file — skip persistence.
+        });
+    } else {
+      try {
+        localStorage.removeItem(IMAGE_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
   }, [toast]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -197,10 +316,15 @@ export function CaptureInput() {
   };
 
   const clearImage = () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    if (imagePreview && imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview(null);
     setMode(text.length > 0 ? "text" : "empty");
+    try {
+      localStorage.removeItem(IMAGE_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   };
 
   const clearAll = () => {
@@ -212,6 +336,11 @@ export function CaptureInput() {
     setExtractionResult(null);
     setDraft(null);
     setMobileTextMode(false);
+    try {
+      localStorage.removeItem(TEXT_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   };
 
   const handleMobileBack = () => {
@@ -252,12 +381,18 @@ export function CaptureInput() {
           if (data && typeof data.error === "string") {
             errorMessage = data.error;
           }
+          if (data && typeof data.remaining === "number" && typeof data.limit === "number") {
+            setQuota({ remaining: data.remaining, limit: data.limit });
+          }
         } catch {
           // keep default
         }
         throw new Error(errorMessage);
       }
       const data = await response.json();
+      if (typeof data.remaining === "number" && typeof data.limit === "number") {
+        setQuota({ remaining: data.remaining, limit: data.limit });
+      }
       onExtracted(data);
     } catch (err) {
       onError(err);
@@ -277,9 +412,15 @@ export function CaptureInput() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
+        if (typeof data.remaining === "number" && typeof data.limit === "number") {
+          setQuota({ remaining: data.remaining, limit: data.limit });
+        }
         throw new Error(data.error || "Failed to process text");
       }
       const data = await response.json();
+      if (typeof data.remaining === "number" && typeof data.limit === "number") {
+        setQuota({ remaining: data.remaining, limit: data.limit });
+      }
       onExtracted(data);
     } catch (err) {
       onError(err);
@@ -305,6 +446,12 @@ export function CaptureInput() {
     setExtractionResult({ extracted: data.extracted, items: data.items });
     setDraft(null);
     setState("success");
+    try {
+      localStorage.removeItem(TEXT_STORAGE_KEY);
+      localStorage.removeItem(IMAGE_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
 
     const counts = data.extracted;
     const totalSaved = counts.kanji.total + counts.vocabulary.total + counts.sentences;
@@ -607,6 +754,33 @@ export function CaptureInput() {
     );
   }
 
+  const quotaBanner =
+    quota && quota.limit > 0 && quota.remaining / quota.limit <= QUOTA_WARNING_THRESHOLD ? (
+      <div
+        className={cn(
+          "flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm mb-4",
+          quota.remaining === 0
+            ? "border-jr-red/30 bg-jr-red/5 text-jr-red"
+            : "border-amber-300/60 bg-amber-50 text-amber-900",
+        )}
+        role="status"
+      >
+        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden />
+        <div className="leading-snug">
+          <p className="font-medium">
+            {quota.remaining === 0
+              ? `Weekly extraction limit reached (${quota.limit}/wk)`
+              : `${quota.remaining} of ${quota.limit} weekly extractions left`}
+          </p>
+          <p className="text-xs opacity-80 mt-0.5">
+            {quota.remaining === 0
+              ? "Older extractions roll off after seven days, freeing up new captures."
+              : "Quota resets on a rolling 7-day window."}
+          </p>
+        </div>
+      </div>
+    ) : null;
+
   return (
     <>
       <input
@@ -624,6 +798,8 @@ export function CaptureInput() {
         onChange={handleFileSelect}
         className="hidden"
       />
+
+      {quotaBanner}
 
       {/* ── Mobile Layout ── */}
       <div className="md:hidden">

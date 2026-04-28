@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { db, sourceImages, users } from "@/db";
 import { textInputSchema } from "@/lib/validations";
 import { extractFromText } from "@/lib/ai";
-import { checkExtractionRateLimit } from "@/lib/rate-limit";
+import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -15,10 +15,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { allowed } = await checkExtractionRateLimit(userId);
+    const { allowed, remaining } = await checkExtractionRateLimit(userId);
     if (!allowed) {
       return NextResponse.json(
-        { error: "Weekly extraction limit reached (200 per week). Please try again later." },
+        {
+          error: `Weekly extraction limit reached (${WEEKLY_EXTRACTION_LIMIT} per week). Please try again later.`,
+          remaining: 0,
+          limit: WEEKLY_EXTRACTION_LIMIT,
+        },
         { status: 429 }
       );
     }
@@ -64,6 +68,8 @@ export async function POST(req: NextRequest) {
         success: true,
         sourceImageId: source.id,
         extraction,
+        remaining: Math.max(0, remaining - 1),
+        limit: WEEKLY_EXTRACTION_LIMIT,
       });
     } catch (extractionError) {
       const errorMessage =
