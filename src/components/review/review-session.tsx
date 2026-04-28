@@ -2,15 +2,27 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, CheckCircle2 } from "lucide-react";
+import { Home, CheckCircle2, Keyboard } from "lucide-react";
 import { PreReview } from "./pre-review";
 import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
 import { StaticShinkansenBackground } from "./static-shinkansen-background";
+import { ShortcutsOverlay } from "./shortcuts-overlay";
 import { InTheWild } from "@/components/wild/in-the-wild";
 import { StaticGoldenHourBackground } from "@/components/wild/static-golden-hour-background";
-import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState } from "./review-types";
+import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState, UndoSnapshot } from "./review-types";
 import type { Grade } from "@/lib/srs";
+
+const SESSION_COUNT_KEY = "kk_review_sessions_started";
+const HINTS_DISMISSED_KEY = "kk_review_hints_dismissed";
+const SHORTCUTS_SEEN_KEY = "kk_review_shortcuts_seen";
+
+function readSessionCount(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(SESSION_COUNT_KEY);
+  const n = raw ? parseInt(raw, 10) : 0;
+  return Number.isFinite(n) ? n : 0;
+}
 
 type Phase = "setup" | "reviewing" | "summary" | "wild";
 
@@ -46,6 +58,15 @@ export function ReviewSession() {
   // Correct/wrong flash
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
+  // Undo state — tracks the most recent submission so the user can reverse it
+  const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
+  const [undoing, setUndoing] = useState(false);
+
+  // First-time hint state (read from localStorage so it persists across sessions)
+  const [sessionCount, setSessionCount] = useState(0);
+  const [hintsDismissed, setHintsDismissed] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
   // Derived progress: original cards completed vs retries remaining
   const { completedOriginal, retriesRemaining } = useMemo(() => {
     let completed = 0;
@@ -73,6 +94,12 @@ export function ReviewSession() {
   useEffect(() => {
     fetchStats().finally(() => setLoading(false));
   }, [fetchStats]);
+
+  // Hydrate hint state from localStorage
+  useEffect(() => {
+    setSessionCount(readSessionCount());
+    setHintsDismissed(window.localStorage.getItem(HINTS_DISMISSED_KEY) === "1");
+  }, []);
 
   const prefetchWildSentences = useCallback((sid: string) => {
     setWildPrefetchStatus("loading");
@@ -130,6 +157,18 @@ export function ReviewSession() {
 
       requeueMapRef.current = new Map();
       originalQueueSizeRef.current = entries.length;
+      setUndoSnapshot(null);
+
+      // Bump session counter (used to fade out beginner hints) and auto-show
+      // the keyboard shortcuts overlay on the very first session.
+      const nextCount = readSessionCount() + 1;
+      window.localStorage.setItem(SESSION_COUNT_KEY, String(nextCount));
+      setSessionCount(nextCount);
+      const hasSeenShortcuts = window.localStorage.getItem(SHORTCUTS_SEEN_KEY) === "1";
+      if (!hasSeenShortcuts) {
+        setShortcutsOpen(true);
+        window.localStorage.setItem(SHORTCUTS_SEEN_KEY, "1");
+      }
 
       setPhase("reviewing");
     } catch (e) {
@@ -140,7 +179,7 @@ export function ReviewSession() {
   };
 
   const handleGrade = async (grade: Grade) => {
-    if (submitting || !sessionId) return;
+    if (submitting || undoing || !sessionId) return;
     setSubmitting(true);
 
     const entry = queue[currentIndex];
@@ -150,7 +189,22 @@ export function ReviewSession() {
     setFlashColor(wasCorrect ? "emerald" : "orange");
     setTimeout(() => setFlashColor(null), 400);
 
+    // Snapshot pre-grade state so the user can undo this submission
+    const queueSnapshot = queue.map((e) => ({ ...e }));
+    const requeueSnapshot = requeueMapRef.current.get(item.trackId) ?? null;
+    const baseSnapshot = {
+      prevQueue: queueSnapshot,
+      prevCurrentIndex: currentIndex,
+      prevConsecutiveCorrect: consecutiveCorrect,
+      prevTotalXpEarned: totalXpEarned,
+      prevRequeueState: requeueSnapshot ? { ...requeueSnapshot } : null,
+      isRetry,
+      trackId: item.trackId,
+      xpEarned: 0,
+    };
+
     let shouldRequeue = false;
+    let pendingSnapshot: UndoSnapshot = baseSnapshot;
 
     try {
       if (!isRetry) {
@@ -171,6 +225,14 @@ export function ReviewSession() {
         if (!res.ok) throw new Error("Failed to submit");
         const data = await res.json();
         setTotalXpEarned((prev) => prev + (data.xpEarned || 0));
+
+        pendingSnapshot = {
+          ...baseSnapshot,
+          historyId: data.historyId,
+          serverTrackId: data.trackId,
+          priorTrackState: data.priorTrackState,
+          xpEarned: data.xpEarned ?? 0,
+        };
 
         if (grade === "again") {
           requeueMapRef.current.set(item.trackId, {
@@ -234,10 +296,13 @@ export function ReviewSession() {
 
       const nextIndex = currentIndex + 1;
       if (nextIndex >= updatedQueue.length) {
+        // No undo available across session completion
+        setUndoSnapshot(null);
         prefetchWildSentences(sessionId);
         await completeSession();
       } else {
         setCurrentIndex(nextIndex);
+        setUndoSnapshot(pendingSnapshot);
       }
     } catch (e) {
       console.error("Failed to submit grade:", e);
@@ -245,6 +310,59 @@ export function ReviewSession() {
       setSubmitting(false);
     }
   };
+
+  const handleUndo = useCallback(async () => {
+    if (!undoSnapshot || undoing || submitting || !sessionId) return;
+    setUndoing(true);
+    try {
+      // For first-appearance grades, reverse the server-side mutation.
+      if (
+        !undoSnapshot.isRetry &&
+        undoSnapshot.historyId &&
+        undoSnapshot.serverTrackId &&
+        undoSnapshot.priorTrackState
+      ) {
+        const res = await fetch("/api/review/undo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            historyId: undoSnapshot.historyId,
+            trackId: undoSnapshot.serverTrackId,
+            xpEarned: undoSnapshot.xpEarned,
+            priorTrackState: undoSnapshot.priorTrackState,
+          }),
+        });
+        if (!res.ok) throw new Error("Undo failed");
+      }
+
+      // Restore client state
+      setQueue(undoSnapshot.prevQueue);
+      setCurrentIndex(undoSnapshot.prevCurrentIndex);
+      setConsecutiveCorrect(undoSnapshot.prevConsecutiveCorrect);
+      setTotalXpEarned(undoSnapshot.prevTotalXpEarned);
+
+      // Restore the in-session requeue tracker for this trackId
+      if (undoSnapshot.prevRequeueState) {
+        requeueMapRef.current.set(undoSnapshot.trackId, { ...undoSnapshot.prevRequeueState });
+      } else {
+        requeueMapRef.current.delete(undoSnapshot.trackId);
+      }
+
+      setUndoSnapshot(null);
+    } catch (e) {
+      console.error("Failed to undo grade:", e);
+    } finally {
+      setUndoing(false);
+    }
+  }, [undoSnapshot, undoing, submitting, sessionId]);
+
+  const handleDismissHints = useCallback(() => {
+    setHintsDismissed(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(HINTS_DISMISSED_KEY, "1");
+    }
+  }, []);
 
   const completeSession = async () => {
     if (!sessionId) return;
@@ -300,6 +418,42 @@ export function ReviewSession() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, queue.length, prefetchWildSentences]);
+
+  // Session-level shortcuts: U / Backspace / ArrowLeft to undo, ? to open shortcuts.
+  // Card-level shortcuts (Space, 1–4) live inside ReviewCard.
+  useEffect(() => {
+    if (phase !== "reviewing") return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      if (shortcutsOpen && e.key === "Escape") {
+        e.preventDefault();
+        setShortcutsOpen(false);
+        return;
+      }
+
+      if (
+        (e.key === "u" || e.key === "U" || e.key === "Backspace" || e.key === "ArrowLeft") &&
+        undoSnapshot &&
+        !submitting &&
+        !undoing
+      ) {
+        e.preventDefault();
+        handleUndo();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [phase, undoSnapshot, submitting, undoing, shortcutsOpen, handleUndo]);
+
+  const showInlineHints = sessionCount <= 3 && !hintsDismissed;
 
   const isFullScreen = phase === "reviewing" || phase === "summary" || phase === "wild";
 
@@ -396,6 +550,15 @@ export function ReviewSession() {
                         transition={{ duration: 0.25, ease: "easeOut" }}
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShortcutsOpen(true)}
+                      className="text-muted-foreground hover:text-foreground transition-colors rounded-lg p-1.5 -mr-1"
+                      aria-label="Keyboard shortcuts"
+                      title="Keyboard shortcuts (?)"
+                    >
+                      <Keyboard className="h-4 w-4" />
+                    </button>
                   </div>
                 </header>
 
@@ -417,10 +580,14 @@ export function ReviewSession() {
                           questionType={queue[currentIndex].item.questionType}
                           consecutiveCorrect={consecutiveCorrect}
                           onGrade={handleGrade}
-                          disabled={submitting}
+                          disabled={submitting || undoing || shortcutsOpen}
                           fullScreen
                           isRetry={queue[currentIndex].isRetry}
-                          retryReason={queue[currentIndex].retryReason}
+                          showInlineHints={showInlineHints}
+                          onDismissHints={handleDismissHints}
+                          canUndo={!!undoSnapshot}
+                          onUndo={handleUndo}
+                          undoing={undoing}
                         />
                       </motion.div>
                     </AnimatePresence>
@@ -470,6 +637,14 @@ export function ReviewSession() {
                   />
                 </div>
               </motion.div>
+            )}
+
+            {phase === "reviewing" && (
+              <ShortcutsOverlay
+                open={shortcutsOpen}
+                onClose={() => setShortcutsOpen(false)}
+                canUndo={!!undoSnapshot}
+              />
             )}
           </motion.div>
         )}
