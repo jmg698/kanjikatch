@@ -117,6 +117,7 @@ export function ReviewSession() {
       const entries: QueueEntry[] = queueData.items.map((item: ReviewQueueItem) => ({
         item,
         isRetry: false,
+        retryReason: undefined,
         entryId: entryIdCounterRef.current++,
       }));
 
@@ -217,6 +218,7 @@ export function ReviewSession() {
         const retryEntry: QueueEntry = {
           item,
           isRetry: true,
+          retryReason: requeueMapRef.current.get(item.trackId)?.tier === "again" ? "missed" : "hard",
           entryId: entryIdCounterRef.current++,
         };
         updatedQueue = [...queue];
@@ -418,6 +420,7 @@ export function ReviewSession() {
                           disabled={submitting}
                           fullScreen
                           isRetry={queue[currentIndex].isRetry}
+                          retryReason={queue[currentIndex].retryReason}
                         />
                       </motion.div>
                     </AnimatePresence>
