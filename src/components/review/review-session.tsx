@@ -13,17 +13,6 @@ import { StaticGoldenHourBackground } from "@/components/wild/static-golden-hour
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState, UndoSnapshot } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
-const SESSION_COUNT_KEY = "kk_review_sessions_started";
-const HINTS_DISMISSED_KEY = "kk_review_hints_dismissed";
-const SHORTCUTS_SEEN_KEY = "kk_review_shortcuts_seen";
-
-function readSessionCount(): number {
-  if (typeof window === "undefined") return 0;
-  const raw = window.localStorage.getItem(SESSION_COUNT_KEY);
-  const n = raw ? parseInt(raw, 10) : 0;
-  return Number.isFinite(n) ? n : 0;
-}
-
 type Phase = "setup" | "reviewing" | "summary" | "wild";
 
 export function ReviewSession() {
@@ -62,9 +51,6 @@ export function ReviewSession() {
   const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null);
   const [undoing, setUndoing] = useState(false);
 
-  // First-time hint state (read from localStorage so it persists across sessions)
-  const [sessionCount, setSessionCount] = useState(0);
-  const [hintsDismissed, setHintsDismissed] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Derived progress: original cards completed vs retries remaining
@@ -94,12 +80,6 @@ export function ReviewSession() {
   useEffect(() => {
     fetchStats().finally(() => setLoading(false));
   }, [fetchStats]);
-
-  // Hydrate hint state from localStorage
-  useEffect(() => {
-    setSessionCount(readSessionCount());
-    setHintsDismissed(window.localStorage.getItem(HINTS_DISMISSED_KEY) === "1");
-  }, []);
 
   const prefetchWildSentences = useCallback((sid: string) => {
     setWildPrefetchStatus("loading");
@@ -158,17 +138,6 @@ export function ReviewSession() {
       requeueMapRef.current = new Map();
       originalQueueSizeRef.current = entries.length;
       setUndoSnapshot(null);
-
-      // Bump session counter (used to fade out beginner hints) and auto-show
-      // the keyboard shortcuts overlay on the very first session.
-      const nextCount = readSessionCount() + 1;
-      window.localStorage.setItem(SESSION_COUNT_KEY, String(nextCount));
-      setSessionCount(nextCount);
-      const hasSeenShortcuts = window.localStorage.getItem(SHORTCUTS_SEEN_KEY) === "1";
-      if (!hasSeenShortcuts) {
-        setShortcutsOpen(true);
-        window.localStorage.setItem(SHORTCUTS_SEEN_KEY, "1");
-      }
 
       setPhase("reviewing");
     } catch (e) {
@@ -357,13 +326,6 @@ export function ReviewSession() {
     }
   }, [undoSnapshot, undoing, submitting, sessionId]);
 
-  const handleDismissHints = useCallback(() => {
-    setHintsDismissed(true);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(HINTS_DISMISSED_KEY, "1");
-    }
-  }, []);
-
   const completeSession = async () => {
     if (!sessionId) return;
 
@@ -452,8 +414,6 @@ export function ReviewSession() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [phase, undoSnapshot, submitting, undoing, shortcutsOpen, handleUndo]);
-
-  const showInlineHints = sessionCount <= 3 && !hintsDismissed;
 
   const isFullScreen = phase === "reviewing" || phase === "summary" || phase === "wild";
 
@@ -583,8 +543,6 @@ export function ReviewSession() {
                           disabled={submitting || undoing || shortcutsOpen}
                           fullScreen
                           isRetry={queue[currentIndex].isRetry}
-                          showInlineHints={showInlineHints}
-                          onDismissHints={handleDismissHints}
                           canUndo={!!undoSnapshot}
                           onUndo={handleUndo}
                           undoing={undoing}

@@ -19,10 +19,6 @@ interface ReviewCardProps {
   fullScreen?: boolean;
   /** Whether this card is a re-queued retry within the current session */
   isRetry?: boolean;
-  /** Show one-line beginner explanations under each grade button (first few sessions only). */
-  showInlineHints?: boolean;
-  /** Called when the user dismisses the inline beginner hints. */
-  onDismissHints?: () => void;
   /** Whether the previous submission can be undone. */
   canUndo?: boolean;
   /** Trigger undo of the previous submission. */
@@ -67,8 +63,6 @@ export function ReviewCard({
   disabled,
   fullScreen = false,
   isRetry = false,
-  showInlineHints = false,
-  onDismissHints,
   canUndo = false,
   onUndo,
   undoing = false,
@@ -420,7 +414,7 @@ export function ReviewCard({
             className={fullScreen ? "max-w-xl mx-auto space-y-3" : "space-y-2"}
           >
             <div className={fullScreen ? "grid grid-cols-4 gap-3" : "grid grid-cols-4 gap-2"}>
-              {gradeOptions.map((option, i) => {
+              {gradeOptions.map((option) => {
                 const style = GRADE_STYLES[option.grade];
                 return (
                   <button
@@ -435,14 +429,9 @@ export function ReviewCard({
                     `}
                   >
                     <span className={fullScreen ? "text-base font-semibold capitalize" : "text-sm font-semibold capitalize"}>{option.grade}</span>
-                    <span className="text-xs opacity-70">{option.label}</span>
-                    {showInlineHints ? (
-                      <span className="text-[10px] opacity-70 leading-tight text-center px-0.5">
-                        {GRADE_HINT[option.grade]}
-                      </span>
-                    ) : (
-                      <kbd className="text-[10px] opacity-40 font-mono">{i + 1}</kbd>
-                    )}
+                    <span className="text-xs opacity-70 leading-tight text-center px-0.5">
+                      {GRADE_HINT[option.grade]}
+                    </span>
                   </button>
                 );
               })}
