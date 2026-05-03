@@ -437,7 +437,20 @@ export function ReviewCard({
               })}
             </div>
 
-            {/* Undo affordance: small, unobtrusive, only when there is something to undo */}
+            {/* Inline hints affordance: dismiss link once the user gets it */}
+            {showInlineHints && onDismissHints && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={onDismissHints}
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
+                >
+                  Got it — hide hints
+                </button>
+              </div>
+            )}
+
+            {/* Redo last card affordance: small, unobtrusive, only when available */}
             {canUndo && onUndo && (
               <div className="flex justify-center">
                 <button
@@ -445,10 +458,10 @@ export function ReviewCard({
                   onClick={onUndo}
                   disabled={undoing || disabled}
                   className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 disabled:opacity-50"
-                  aria-label="Undo last grade"
+                  aria-label="Redo last card"
                 >
                   <Undo2 className="h-3 w-3" />
-                  <span>{undoing ? "Undoing…" : "Undo last grade"}</span>
+                  <span>{undoing ? "Redoing…" : "Redo last card"}</span>
                   <kbd className="px-1 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono">U</kbd>
                 </button>
               </div>
@@ -457,7 +470,7 @@ export function ReviewCard({
         )}
       </AnimatePresence>
 
-      {/* Persistent undo affordance even before reveal — shown small below the prompt */}
+      {/* Persistent redo-last-card affordance even before reveal — shown small below the prompt */}
       {!revealed && canUndo && onUndo && (
         <div className="flex justify-center">
           <button
@@ -465,10 +478,10 @@ export function ReviewCard({
             onClick={onUndo}
             disabled={undoing || disabled}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 disabled:opacity-50"
-            aria-label="Undo last grade"
+            aria-label="Redo last card"
           >
             <Undo2 className="h-3 w-3" />
-            <span>{undoing ? "Undoing…" : "Undo last grade"}</span>
+            <span>{undoing ? "Redoing…" : "Redo last card"}</span>
             <kbd className="px-1 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono">U</kbd>
           </button>
         </div>

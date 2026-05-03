@@ -22,7 +22,7 @@ export function ShortcutsOverlay({ open, onClose, canUndo }: ShortcutsOverlayPro
     { keys: ["2"], description: "Hard — barely remembered" },
     { keys: ["3"], description: "Good — knew it" },
     { keys: ["4"], description: "Easy — knew instantly" },
-    { keys: ["U", "←"], description: "Undo last grade", disabled: !canUndo },
+    { keys: ["U", "←"], description: "Redo last card", disabled: !canUndo },
     { keys: ["?"], description: "Toggle this overlay" },
   ];
 
