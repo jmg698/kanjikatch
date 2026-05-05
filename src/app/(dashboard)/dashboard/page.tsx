@@ -4,6 +4,7 @@ import { db, kanji, vocabulary, userStats, reviewTracks } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
+import { StaticCityscapeBackground } from "@/components/dashboard/static-cityscape-background";
 
 async function getDashboardData(userId: string) {
   const now = new Date();
@@ -145,7 +146,9 @@ export default async function DashboardPage() {
   const isNewUser = data.counts.kanji === 0 && data.counts.vocab === 0;
 
   return (
-    <div className="max-w-xl mx-auto space-y-8 py-2 md:py-6">
+    <>
+      <StaticCityscapeBackground />
+      <div className="relative z-10 max-w-xl mx-auto space-y-8 py-2 md:py-6">
 
       {/* ── Top Row: status + counts ── */}
       <section className="stagger-0">
@@ -350,6 +353,7 @@ export default async function DashboardPage() {
           </div>
         </section>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -129,6 +129,11 @@
   50% { box-shadow: 0 2px 16px rgba(180, 80, 50, 0.28), 0 0 0 4px rgba(180, 80, 50, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
 }
 
+@keyframes city-window-breathe {
+  0%, 100% { opacity: 0; }
+  35%, 65% { opacity: 0.78; }
+}
+
 /* ── Component Classes ─────────────────────────────────── */
 
 @layer components {
@@ -223,6 +228,22 @@
 
   .dark .dash-bg {
     background: linear-gradient(to top, hsl(220 20% 10%), hsl(220 25% 12%));
+  }
+
+  /* The single lit window in the dashboard cityscape — slow, organic
+     pulse with a soft sodium-lamp glow. */
+  .city-amber-window {
+    opacity: 0;
+    animation: city-window-breathe 8s ease-in-out infinite;
+    filter: drop-shadow(0 0 5px rgba(244, 184, 96, 0.55));
+    will-change: opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .city-amber-window {
+      animation: none;
+      opacity: 0.45;
+    }
   }
 
   /* Dashboard section card — clean, subtle border like review card */
