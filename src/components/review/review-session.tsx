@@ -543,6 +543,7 @@ export function ReviewSession() {
                           disabled={submitting || undoing || shortcutsOpen}
                           fullScreen
                           isRetry={queue[currentIndex].isRetry}
+                          retryReason={queue[currentIndex].retryReason}
                           canUndo={!!undoSnapshot}
                           onUndo={handleUndo}
                           undoing={undoing}

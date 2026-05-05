@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Eye, EyeOff, Undo2 } from "lucide-react";
+import { RotateCcw, Eye, EyeOff, Undo2, ChevronDown } from "lucide-react";
 import type { ReviewQueueItem } from "./review-types";
 import type { Grade } from "@/lib/srs";
 import { getGradeOptions, type SrsState } from "@/lib/srs";
@@ -19,6 +19,8 @@ interface ReviewCardProps {
   fullScreen?: boolean;
   /** Whether this card is a re-queued retry within the current session */
   isRetry?: boolean;
+  /** Why this card was re-queued (drives retry banner copy). */
+  retryReason?: "missed" | "hard";
   /** Whether the previous submission can be undone. */
   canUndo?: boolean;
   /** Trigger undo of the previous submission. */
@@ -63,17 +65,20 @@ export function ReviewCard({
   disabled,
   fullScreen = false,
   isRetry = false,
+  retryReason,
   canUndo = false,
   onUndo,
   undoing = false,
 }: ReviewCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [showFurigana, setShowFurigana] = useState(false);
+  const [showRetryExplanation, setShowRetryExplanation] = useState(false);
 
   // Reset on new item (index included so retries of the same item re-trigger)
   useEffect(() => {
     setRevealed(false);
     setShowFurigana(false);
+    setShowRetryExplanation(false);
   }, [item.id, questionType, index]);
 
   // Furigana hint is only useful on the meaning prompt for vocab that contains kanji.
@@ -436,19 +441,6 @@ export function ReviewCard({
                 );
               })}
             </div>
-
-            {/* Inline hints affordance: dismiss link once the user gets it */}
-            {showInlineHints && onDismissHints && (
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={onDismissHints}
-                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
-                >
-                  Got it — hide hints
-                </button>
-              </div>
-            )}
 
             {/* Redo last card affordance: small, unobtrusive, only when available */}
             {canUndo && onUndo && (
