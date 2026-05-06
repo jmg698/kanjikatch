@@ -148,211 +148,218 @@ export default async function DashboardPage() {
   return (
     <>
       <StaticCityscapeBackground />
-      <div className="relative z-10 max-w-xl mx-auto space-y-8 py-2 md:py-6">
 
-      {/* ── Top Row: status + counts ── */}
-      <section className="stagger-0">
-        {isNewUser ? (
-          <div className="bg-white border border-border rounded-2xl px-6 py-10 text-center">
-            <h2 className="text-4xl sm:text-5xl font-serif font-bold text-foreground leading-tight">
-              はじめましょう
-            </h2>
-            <p className="text-sm text-muted-foreground mt-4 max-w-sm mx-auto leading-relaxed">
-              Photograph your handwritten notes and AI will extract kanji
-              and vocabulary for spaced repetition review.
-            </p>
-            <div className="mt-8">
-              <Link
-                href="/capture"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
-              >
-                <Camera className="h-4 w-4" />
-                Capture Your Notes
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {/* Left: Review status */}
-            <div className="bg-white border border-border rounded-2xl p-5 flex flex-col">
-              {data.due.total > 0 ? (
-                <>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-medium">
-                    Ready for Review
-                  </p>
-                  <span className="text-4xl sm:text-5xl font-display font-bold text-foreground leading-none mt-3">
-                    {data.due.total}
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    {data.due.kanji > 0 && <span>{data.due.kanji} kanji</span>}
-                    {data.due.kanji > 0 && data.due.vocab > 0 && <span className="mx-1 opacity-40">·</span>}
-                    {data.due.vocab > 0 && <span>{data.due.vocab} vocab</span>}
-                  </p>
-                  {data.streak > 1 && (
-                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 rounded-full px-2.5 py-1 text-xs font-medium mt-2">
-                      <Flame className="h-3.5 w-3.5" />
-                      {data.streak} day streak
-                    </span>
-                  )}
-                  <div className="mt-auto pt-4">
-                    <Link
-                      href="/review"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
-                    >
-                      Start Review
-                    </Link>
+      {/* Negative top margin pulls the facade up under the nav so its slate
+          cap visually meets the nav border. Negative bottom keeps the
+          sidewalk flush with the page. */}
+      <div className="relative z-10 max-w-xl mx-auto -mt-6 pb-10">
+        <div className="dash-facade px-5 pt-7 pb-6 sm:px-7 sm:pt-8 sm:pb-7">
+          {isNewUser ? (
+            <section className="stagger-0">
+              <div className="window-pane px-6 py-10 text-center">
+                <h2 className="text-4xl sm:text-5xl font-serif font-bold text-foreground leading-tight">
+                  はじめましょう
+                </h2>
+                <p className="text-sm text-muted-foreground mt-4 max-w-sm mx-auto leading-relaxed">
+                  Photograph your handwritten notes and AI will extract kanji
+                  and vocabulary for spaced repetition review.
+                </p>
+                <div className="mt-7">
+                  <Link
+                    href="/capture"
+                    className="lit-window inline-flex items-center gap-2 px-7 py-3.5 font-semibold"
+                  >
+                    <Camera className="h-4 w-4 relative z-10" />
+                    <span className="relative z-10">Capture Your Notes</span>
+                  </Link>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <>
+              {/* ── Floor 1: Review hero + the lit Capture window ── */}
+              <section className="stagger-0">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Left pane: Review status — the largest white window */}
+                  <div className="window-pane p-5 flex flex-col">
+                    {data.due.total > 0 ? (
+                      <>
+                        <p className="floor-label">Ready for Review</p>
+                        <span className="text-4xl sm:text-5xl font-display font-bold text-foreground leading-none mt-3">
+                          {data.due.total}
+                        </span>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {data.due.kanji > 0 && <span>{data.due.kanji} kanji</span>}
+                          {data.due.kanji > 0 && data.due.vocab > 0 && <span className="mx-1 opacity-40">·</span>}
+                          {data.due.vocab > 0 && <span>{data.due.vocab} vocab</span>}
+                        </p>
+                        {data.streak > 1 && (
+                          <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 rounded-full px-2.5 py-1 text-xs font-medium mt-2 self-start">
+                            <Flame className="h-3.5 w-3.5" />
+                            {data.streak} day streak
+                          </span>
+                        )}
+                        <div className="mt-auto pt-4">
+                          <Link
+                            href="/review"
+                            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
+                          >
+                            Start Review
+                          </Link>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="floor-label">All Caught Up</p>
+                        <h2 className="text-2xl sm:text-3xl font-serif font-bold text-foreground mt-3 leading-tight">
+                          完璧です！
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          No reviews due right now
+                        </p>
+                        {data.streak > 1 && (
+                          <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 rounded-full px-2.5 py-1 text-xs font-medium mt-2 self-start">
+                            <Flame className="h-3.5 w-3.5" />
+                            {data.streak} day streak
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-medium">
-                    All Caught Up
-                  </p>
-                  <h2 className="text-2xl sm:text-3xl font-serif font-bold text-foreground mt-3 leading-tight">
-                    完璧です！
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    No reviews due right now
-                  </p>
-                  {data.streak > 1 && (
-                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 rounded-full px-2.5 py-1 text-xs font-medium mt-2">
-                      <Flame className="h-3.5 w-3.5" />
-                      {data.streak} day streak
-                    </span>
-                  )}
-                  <div className="mt-auto pt-4">
+
+                  {/* Right column: lit Capture window + counts pane */}
+                  <div className="flex flex-col gap-3">
                     <Link
                       href="/capture"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
+                      aria-label="Capture new notes"
+                      className="lit-window flex flex-col items-center justify-center gap-1 py-5 font-semibold"
                     >
-                      <Camera className="h-3.5 w-3.5" />
-                      Capture Notes
+                      <Camera className="h-5 w-5 relative z-10" />
+                      <span className="text-base relative z-10">Capture</span>
+                      <span className="text-[11px] font-normal opacity-90 relative z-10">
+                        add to your knowledge
+                      </span>
                     </Link>
+                    <div className="window-pane p-5 flex-1 flex flex-col justify-center">
+                      <div className="flex items-baseline gap-3">
+                        <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
+                          {data.counts.kanji}
+                        </p>
+                        <p className="floor-label">Kanji</p>
+                      </div>
+                      <div className="border-t border-border my-3" />
+                      <div className="flex items-baseline gap-3">
+                        <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
+                          {data.counts.vocab}
+                        </p>
+                        <p className="floor-label">Vocab</p>
+                      </div>
+                    </div>
                   </div>
+                </div>
+              </section>
+
+              {/* ── Floor 2: Needs Attention ── */}
+              {data.needsAttention.length > 0 && (
+                <>
+                  <div className="floor-divider mt-6 -mx-5 sm:-mx-7" />
+                  <section className="stagger-1 pt-6">
+                    <h2 className="floor-label floor-label-warning mb-3">
+                      Needs Attention
+                    </h2>
+                    <div
+                      className="flex gap-2.5 overflow-x-auto pb-1"
+                      style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory' }}
+                    >
+                      {data.needsAttention.map((k) => {
+                        const accuracy = k.reviewCount > 0
+                          ? Math.round((k.timesCorrect / k.reviewCount) * 100)
+                          : 0;
+                        return (
+                          <Link
+                            key={k.character}
+                            href="/library"
+                            className="window-pane flex-shrink-0 flex flex-col items-center gap-1.5 p-3 w-[78px] hover:-translate-y-0.5 transition-transform duration-200"
+                            style={{
+                              scrollSnapAlign: 'start',
+                              borderColor: 'rgba(196, 112, 126, 0.4)',
+                            }}
+                            title={k.meanings[0] ?? ''}
+                          >
+                            <span className="text-[2rem] font-serif leading-none text-foreground">
+                              {k.character}
+                            </span>
+                            <span className="text-[10px] font-mono text-orange-500/80">
+                              {accuracy}%
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </section>
                 </>
               )}
-            </div>
 
-            {/* Right: Capture button + combined counts */}
-            <div className="flex flex-col gap-3">
-              <Link
-                href="/capture"
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-primary text-primary-foreground py-5 font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
-              >
-                <Camera className="h-5 w-5" />
-                <span className="text-base">Capture</span>
-                <span className="text-xs font-normal opacity-90">add to your knowledge</span>
-              </Link>
-              <div className="bg-white border border-border rounded-2xl p-5 flex-1 flex flex-col justify-center">
-                <div className="flex items-baseline gap-3">
-                  <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
-                    {data.counts.kanji}
-                  </p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
-                    Kanji
-                  </p>
-                </div>
-                <div className="border-t border-border my-3" />
-                <div className="flex items-baseline gap-3">
-                  <p className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-none">
-                    {data.counts.vocab}
-                  </p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
-                    Vocab
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
+              {/* ── Floor 3: Recently Learned ── */}
+              {data.recentKanji.length > 0 && (
+                <>
+                  <div className="floor-divider mt-6 -mx-5 sm:-mx-7" />
+                  <section className="stagger-2 pt-6">
+                    <div className="flex items-baseline justify-between mb-3">
+                      <h2 className="floor-label floor-label-primary">
+                        Recently Learned
+                      </h2>
+                      <Link
+                        href="/library"
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        View all →
+                      </Link>
+                    </div>
 
-      {/* ── "Needs Attention" ── */}
-      {data.needsAttention.length > 0 && (
-        <section className="stagger-1">
-          <h2 className="text-[10px] uppercase tracking-[0.2em] text-[#C4707E] font-semibold mb-3">
-            Needs Attention
-          </h2>
-          <div
-            className="flex gap-2.5 overflow-x-auto pb-2"
-            style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory' }}
-          >
-            {data.needsAttention.map((k) => {
-              const accuracy = k.reviewCount > 0
-                ? Math.round((k.timesCorrect / k.reviewCount) * 100)
-                : 0;
-              return (
-                <Link
-                  key={k.character}
-                  href="/library"
-                  className="flex-shrink-0 flex flex-col items-center gap-1.5 bg-white border border-[#F9A1B1]/40 rounded-xl p-3 w-[78px] hover:-translate-y-0.5 hover:shadow-md hover:border-[#F9A1B1]/70 transition-all duration-200"
-                  style={{ scrollSnapAlign: 'start' }}
-                  title={k.meanings[0] ?? ''}
-                >
-                  <span className="text-[2rem] font-serif leading-none text-foreground">
-                    {k.character}
-                  </span>
-                  <span className="text-[10px] font-mono text-orange-500/80">
-                    {accuracy}%
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                    <div
+                      className="flex gap-2.5 overflow-x-auto pb-1"
+                      style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory' }}
+                    >
+                      {data.recentKanji.map((k) => {
+                        const dotClass = SRS_DOT[k.confidenceLevel] ?? 'srs-apprentice';
+                        return (
+                          <Link
+                            key={k.character}
+                            href="/library"
+                            className="window-pane flex-shrink-0 flex flex-col items-center gap-2 p-3 w-[68px] hover:-translate-y-0.5 transition-transform duration-200"
+                            style={{ scrollSnapAlign: 'start' }}
+                            title={k.meanings[0] ?? ''}
+                          >
+                            <span className="text-[2rem] font-serif leading-none text-foreground">
+                              {k.character}
+                            </span>
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${dotClass}`}
+                              title={SRS_LABEL[k.confidenceLevel]}
+                            />
+                          </Link>
+                        );
+                      })}
+                    </div>
 
-      {/* ── "What have I been learning?" ── */}
-      {data.recentKanji.length > 0 && (
-        <section className="stagger-2">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
-              Recently Learned
-            </h2>
-            <Link
-              href="/library"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              View all →
-            </Link>
-          </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
+                      {Object.entries(SRS_LABEL).map(([key, label]) => (
+                        <div key={key} className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${SRS_DOT[key]}`} />
+                          <span className="text-[10px] text-muted-foreground">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </>
+              )}
+            </>
+          )}
+        </div>
 
-          <div
-            className="flex gap-2.5 overflow-x-auto pb-2"
-            style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory' }}
-          >
-            {data.recentKanji.map((k) => {
-              const dotClass = SRS_DOT[k.confidenceLevel] ?? 'srs-apprentice';
-              return (
-                <Link
-                  key={k.character}
-                  href="/library"
-                  className="flex-shrink-0 flex flex-col items-center gap-2 bg-white border border-border rounded-xl p-3 w-[68px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
-                  style={{ scrollSnapAlign: 'start' }}
-                  title={k.meanings[0] ?? ''}
-                >
-                  <span className="text-[2rem] font-serif leading-none text-foreground">
-                    {k.character}
-                  </span>
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${dotClass}`}
-                    title={SRS_LABEL[k.confidenceLevel]}
-                  />
-                </Link>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center gap-4 mt-2">
-            {Object.entries(SRS_LABEL).map(([key, label]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${SRS_DOT[key]}`} />
-                <span className="text-[10px] text-muted-foreground">{label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+        {/* Sidewalk strip — sits flush below the facade. */}
+        <div className="dash-sidewalk" />
       </div>
     </>
   );
