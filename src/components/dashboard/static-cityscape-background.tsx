@@ -274,7 +274,7 @@ export function StaticCityscapeBackground() {
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "#FBF1C2",
+            "#D0D4DB",
         }}
         aria-hidden
       />
