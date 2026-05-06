@@ -134,6 +134,22 @@
   35%, 65% { opacity: 0.78; }
 }
 
+@keyframes lit-window-breathe {
+  0%, 100% {
+    box-shadow:
+      0 4px 18px -2px rgba(15, 95, 50, 0.32),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+      0 1px 0 rgba(255, 255, 255, 0.18) inset;
+  }
+  50% {
+    box-shadow:
+      0 6px 28px -2px rgba(15, 95, 50, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.14) inset,
+      0 1px 0 rgba(255, 255, 255, 0.22) inset,
+      0 0 32px rgba(56, 178, 110, 0.28);
+  }
+}
+
 /* ── Component Classes ─────────────────────────────────── */
 
 @layer components {
@@ -221,13 +237,203 @@
     transform: translateY(0) scale(0.98);
   }
 
-  /* Dashboard page background — warm-to-cool gradient */
+  /* Dashboard page background — warm-to-cool gradient.
+     Note: the dashboard page itself paints over this with a peach dawn
+     gradient via <StaticCityscapeBackground />. This neutral fallback
+     applies to the rest of the dashboard area (library, capture, etc.). */
   .dash-bg {
     background: linear-gradient(to top, hsl(35 28% 97%), hsl(210 40% 97%));
   }
 
   .dark .dash-bg {
     background: linear-gradient(to top, hsl(220 20% 10%), hsl(220 25% 12%));
+  }
+
+  /* ── Dashboard facade — "the dashboard IS the building" ─── */
+
+  /* The central column rendered as a warm-beige building facade with a
+     slate cap, hairline side walls, floor-divider strokes between sections,
+     and a sidewalk strip at the base. The widget cards inside read as
+     recessed windows. */
+  .dash-facade {
+    --facade-beige: #EBE2D2;
+    --facade-cap: #4F5B66;
+    --facade-wall: rgba(79, 91, 102, 0.22);
+    --facade-divider: rgba(79, 91, 102, 0.16);
+    --facade-sidewalk: #DDD0BD;
+    --facade-sidewalk-edge: rgba(79, 91, 102, 0.32);
+
+    position: relative;
+    background: var(--facade-beige);
+    border-left: 1px solid var(--facade-wall);
+    border-right: 1px solid var(--facade-wall);
+    /* Slate roof cap */
+    border-top: 8px solid var(--facade-cap);
+    /* Sidewalk seam */
+    border-bottom: 1px solid var(--facade-sidewalk-edge);
+    box-shadow:
+      0 1px 0 rgba(79, 91, 102, 0.08) inset,
+      0 24px 60px -28px rgba(60, 50, 40, 0.28);
+  }
+
+  /* Tiny architectural detail: a rooftop water tank centered on the cap,
+     same vocabulary as the focal building in the review scene. */
+  .dash-facade::before {
+    content: "";
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    width: 56px;
+    height: 8px;
+    background: var(--facade-cap);
+    transform: translateX(-50%);
+    border-radius: 1px;
+  }
+
+  /* A second, slightly smaller cap edge below the slate band — sells the
+     "this is a building" read by giving the roof a two-tone trim. */
+  .dash-facade::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.35),
+      rgba(255, 255, 255, 0)
+    );
+    pointer-events: none;
+  }
+
+  /* Sidewalk strip rendered just below the facade. Narrow band of warm
+     concrete to ground the building and echo the platform in the review
+     scene, then a thin shadow line. */
+  .dash-sidewalk {
+    height: 18px;
+    background: linear-gradient(
+      to bottom,
+      #E2D4BE 0%,
+      #D6C5AB 65%,
+      #C9B596 100%
+    );
+    border-bottom: 1px solid rgba(79, 91, 102, 0.18);
+    box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.4) inset;
+  }
+
+  /* Hairline floor divider between widget rows inside the facade.
+     The double-line gives a subtle "story-band" feel like architectural
+     trim between floors of a building. The horizontal margin is set by
+     the calling element so the divider can reach the facade's interior
+     edge at every breakpoint. */
+  .floor-divider {
+    height: 0;
+    border-top: 1px solid rgba(79, 91, 102, 0.18);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  /* Section label inside the facade — small caps, warm slate, sits just
+     above each "floor" of windows. */
+  .floor-label {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: rgba(79, 91, 102, 0.78);
+  }
+
+  .floor-label-warning {
+    color: #C4707E;
+  }
+
+  .floor-label-primary {
+    color: hsl(152 50% 28%);
+  }
+
+  /* A widget card framed as a recessed window — white pane, cool
+     window-grid mullion (2px slate inset on the sides), faint inner shadow
+     for depth. Used wherever a card sits inside the facade. */
+  .window-pane {
+    position: relative;
+    background: #FFFFFF;
+    border-radius: 6px;
+    border: 1px solid rgba(79, 91, 102, 0.18);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.85) inset,
+      0 -1px 0 rgba(79, 91, 102, 0.06) inset,
+      0 2px 6px -2px rgba(60, 50, 40, 0.12);
+  }
+
+  /* The single illuminated window — the Capture moment.
+     Saturated brand green that reads as warm interior light spilling out
+     of one window in the facade. The only colored window on the building. */
+  .lit-window {
+    position: relative;
+    color: #FFFFFF;
+    background:
+      radial-gradient(
+        circle at 50% 35%,
+        hsl(152 70% 38%) 0%,
+        hsl(152 90% 22%) 55%,
+        hsl(152 100% 16%) 100%
+      );
+    border-radius: 6px;
+    border: 1px solid hsl(152 100% 14%);
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    animation: lit-window-breathe 4.5s ease-in-out infinite;
+  }
+
+  /* Mullion cross — two faint white lines that turn the window into a
+     four-pane glass frame. */
+  .lit-window::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        to right,
+        transparent calc(50% - 0.5px),
+        rgba(255, 255, 255, 0.18) calc(50% - 0.5px),
+        rgba(255, 255, 255, 0.18) calc(50% + 0.5px),
+        transparent calc(50% + 0.5px)
+      ),
+      linear-gradient(
+        to bottom,
+        transparent calc(50% - 0.5px),
+        rgba(255, 255, 255, 0.18) calc(50% - 0.5px),
+        rgba(255, 255, 255, 0.18) calc(50% + 0.5px),
+        transparent calc(50% + 0.5px)
+      );
+    pointer-events: none;
+  }
+
+  /* Soft inner highlight at the top, like sun catching the upper sash. */
+  .lit-window::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0) 45%
+    );
+    pointer-events: none;
+  }
+
+  .lit-window:hover {
+    transform: translateY(-1px);
+  }
+
+  .lit-window:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lit-window {
+      animation: none;
+    }
   }
 
   /* The single lit window in the dashboard cityscape — slow, organic
