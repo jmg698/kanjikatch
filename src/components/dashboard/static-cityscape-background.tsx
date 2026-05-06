@@ -208,9 +208,9 @@ function SideCityscape({ side }: { side: "left" | "right" }) {
             x2={side === "left" ? "0" : "1"}
             y2="0"
           >
-            <stop offset="0%" stopColor="#FDF1E8" stopOpacity="0" />
-            <stop offset="65%" stopColor="#FDF1E8" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#FDF1E8" stopOpacity="0.85" />
+            <stop offset="0%" stopColor="#FEFCF0" stopOpacity="0" />
+            <stop offset="65%" stopColor="#FEFCF0" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#FEFCF0" stopOpacity="0.85" />
           </linearGradient>
         </defs>
 
@@ -297,7 +297,7 @@ export function StaticCityscapeBackground() {
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "linear-gradient(to bottom, #FDF1E8 0%, #FBE6D3 38%, #F7D5B5 72%, #EFC39C 100%)",
+            "linear-gradient(to bottom, #FEFCF0 0%, #FBF5D5 38%, #F8EFC8 72%, #F3E5B0 100%)",
         }}
         aria-hidden
       />
