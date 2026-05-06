@@ -149,11 +149,8 @@ export default async function DashboardPage() {
     <>
       <StaticCityscapeBackground />
 
-      {/* Negative top margin pulls the facade up under the nav so its slate
-          cap visually meets the nav border. Negative bottom keeps the
-          sidewalk flush with the page. */}
-      <div className="relative z-10 max-w-xl mx-auto -mt-6 pb-10">
-        <div className="dash-facade px-5 pt-7 pb-6 sm:px-7 sm:pt-8 sm:pb-7">
+      <div className="relative z-10 max-w-xl mx-auto mt-6 pb-12">
+        <div className="dash-facade px-5 pt-7 pb-7 sm:px-7 sm:pt-8 sm:pb-8">
           {isNewUser ? (
             <section className="stagger-0">
               <div className="window-pane px-6 py-10 text-center">
@@ -357,9 +354,6 @@ export default async function DashboardPage() {
             </>
           )}
         </div>
-
-        {/* Sidewalk strip — sits flush below the facade. */}
-        <div className="dash-sidewalk" />
       </div>
     </>
   );
