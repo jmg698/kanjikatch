@@ -2,19 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets, reviewHistory, kanji, vocabulary } from "@/db";
-import { eq, and, inArray, isNotNull, desc, gte } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, isNull, desc, gte, asc } from "drizzle-orm";
 import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
 import { annotateWords } from "@/lib/wild-annotation";
 import { loadStudiedCorpus } from "@/lib/wild-annotation-server";
 import { z } from "zod";
 
-const MAX_SENTENCES_PER_SESSION = 5;
+const DEFAULT_END_COUNT = 5;
+const REDUCED_END_COUNT = 3; // when interludes already happened this session
+const SEGMENT_SIZE = 25; // matches ReviewSession interlude cadence
 const MAX_GENERATION_CALLS_PER_DAY = 20;
 type WildCoverageScope = "all_time" | "session" | "window_7d";
 const WILD_COVERAGE_SCOPE: WildCoverageScope = "window_7d";
 
 const requestSchema = z.object({
   sessionId: z.string().uuid(),
+  // When provided, generate (or fetch cached) sentences for a specific
+  // mid-session interlude segment. Items targeted are drawn from the
+  // [segmentIndex*25, segmentIndex*25 + 25) slice of review history for
+  // this session, in original-completion order.
+  segmentIndex: z.number().int().min(0).optional(),
+  // Number of sentences to return. Interludes pass 2; end-of-session passes 3
+  // (when interludes already happened) or 5 (default, no interludes).
+  count: z.number().int().min(1).max(10).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -31,23 +41,63 @@ export async function POST(req: NextRequest) {
     }
 
     const { sessionId } = parsed.data;
+    const segmentIndex = parsed.data.segmentIndex ?? null;
 
-    // Load the user's studied corpus once — we use it to (re-)annotate every
-    // word's familiarity (studied / partial / unknown) so the UI's highlights
-    // always match what the user has actually reviewed (JAC-15).
     const corpus = await loadStudiedCorpus(userId);
 
-    // Check if we already generated for this session
-    const existing = await db
-      .select()
-      .from(generatedSentences)
-      .where(and(eq(generatedSentences.userId, userId), eq(generatedSentences.sessionId, sessionId)));
+    // For the end-of-session closer, gather any prior interlude segments so
+    // the user can revisit them as a "continue reading" tail. We fetch this
+    // up-front because both the cache-hit and cache-miss branches need it.
+    let priorSegmentRows: typeof generatedSentences.$inferSelect[] = [];
+    if (segmentIndex === null) {
+      priorSegmentRows = await db
+        .select()
+        .from(generatedSentences)
+        .where(
+          and(
+            eq(generatedSentences.userId, userId),
+            eq(generatedSentences.sessionId, sessionId),
+            isNotNull(generatedSentences.segmentIndex),
+          ),
+        )
+        .orderBy(asc(generatedSentences.segmentIndex), asc(generatedSentences.createdAt));
+    }
+
+    // Default count: 3 when interludes already happened (so the closer is a
+    // tight wrap-up), 5 otherwise (the historical full reading).
+    const fallbackCount = segmentIndex === null && priorSegmentRows.length > 0
+      ? REDUCED_END_COUNT
+      : DEFAULT_END_COUNT;
+    const count = parsed.data.count ?? fallbackCount;
+
+    // Cache check: rows are scoped to (sessionId, segmentIndex). Note that
+    // `segmentIndex IS NULL` represents the end-of-session closer; numbered
+    // segments are interludes.
+    const cacheCondition = segmentIndex === null
+      ? and(
+          eq(generatedSentences.userId, userId),
+          eq(generatedSentences.sessionId, sessionId),
+          isNull(generatedSentences.segmentIndex),
+        )
+      : and(
+          eq(generatedSentences.userId, userId),
+          eq(generatedSentences.sessionId, sessionId),
+          eq(generatedSentences.segmentIndex, segmentIndex),
+        );
+
+    const existing = await db.select().from(generatedSentences).where(cacheCondition);
 
     if (existing.length > 0) {
-      const targets = await db
-        .select()
-        .from(generatedSentenceTargets)
-        .where(inArray(generatedSentenceTargets.sentenceId, existing.map((s) => s.id)));
+      const idsForTargets = [
+        ...existing.map((s) => s.id),
+        ...priorSegmentRows.map((s) => s.id),
+      ];
+      const targets = idsForTargets.length > 0
+        ? await db
+            .select()
+            .from(generatedSentenceTargets)
+            .where(inArray(generatedSentenceTargets.sentenceId, idsForTargets))
+        : [];
 
       return NextResponse.json({
         sentences: existing.map((s) => ({
@@ -55,48 +105,97 @@ export async function POST(req: NextRequest) {
           words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
           targets: targets.filter((t) => t.sentenceId === s.id),
         })),
+        priorSegmentSentences: priorSegmentRows.map((s) => ({
+          ...s,
+          words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
+          targets: targets.filter((t) => t.sentenceId === s.id),
+        })),
       });
     }
 
-    // Rate limiting: count today's generations
+    // Daily rate limit (per user, per calendar day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayGenerations = await db
       .select()
       .from(generatedSentences)
-      .where(and(eq(generatedSentences.userId, userId)));
+      .where(eq(generatedSentences.userId, userId));
     const todayCount = todayGenerations.filter((s) => s.createdAt >= today).length;
-    if (todayCount >= MAX_GENERATION_CALLS_PER_DAY * MAX_SENTENCES_PER_SESSION) {
+    if (todayCount >= MAX_GENERATION_CALLS_PER_DAY * DEFAULT_END_COUNT) {
       return NextResponse.json({ error: "Daily generation limit reached" }, { status: 429 });
     }
 
-    // Get review history for this session to find which items were reviewed
+    // Pull review history for this session in original-completion order.
+    // Retries are session-local and never write to reviewHistory, so this is
+    // a faithful timeline of first-appearance grades.
     const history = await db
       .select()
       .from(reviewHistory)
-      .where(and(eq(reviewHistory.sessionId, sessionId), eq(reviewHistory.userId, userId)));
+      .where(and(eq(reviewHistory.sessionId, sessionId), eq(reviewHistory.userId, userId)))
+      .orderBy(asc(reviewHistory.reviewedAt));
 
     if (history.length === 0) {
       return NextResponse.json({ sentences: [] });
     }
 
-    // Prioritize items the user got wrong or has lower quality scores
-    const sortedHistory = [...history].sort((a, b) => {
-      if (a.wasCorrect !== b.wasCorrect) return a.wasCorrect ? 1 : -1;
-      return a.quality - b.quality;
-    });
-
-    // Deduplicate by item (same item may appear with different question types)
+    // Dedupe by item (the same item can appear with both meaning and reading
+    // question types). First occurrence wins to preserve the timeline.
     const seen = new Set<string>();
-    const uniqueItems = sortedHistory.filter((h) => {
+    const orderedItems = history.filter((h) => {
       const key = `${h.itemType}:${h.itemId}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
-    // Take up to 8 items to focus on
-    const targetHistoryItems = uniqueItems.slice(0, 8);
+    // Slice into the requested segment. For segmentIndex === null we operate
+    // on the closer pool: all items not yet featured in prior segments.
+    let candidatePool = orderedItems;
+    if (segmentIndex !== null) {
+      const start = segmentIndex * SEGMENT_SIZE;
+      const end = start + SEGMENT_SIZE;
+      candidatePool = orderedItems.slice(start, end);
+    } else {
+      // End-of-session closer: exclude items already targeted in prior
+      // interlude segments so the closer feels like fresh material.
+      const priorSegmentSentences = await db
+        .select({ id: generatedSentences.id })
+        .from(generatedSentences)
+        .where(
+          and(
+            eq(generatedSentences.userId, userId),
+            eq(generatedSentences.sessionId, sessionId),
+            isNotNull(generatedSentences.segmentIndex),
+          ),
+        );
+
+      if (priorSegmentSentences.length > 0) {
+        const priorTargetRows = await db
+          .select({ itemId: generatedSentenceTargets.itemId })
+          .from(generatedSentenceTargets)
+          .where(inArray(generatedSentenceTargets.sentenceId, priorSegmentSentences.map((s) => s.id)));
+        const priorItemIds = new Set(priorTargetRows.map((r) => r.itemId));
+        const filtered = orderedItems.filter((h) => !priorItemIds.has(h.itemId));
+        // Fall back to the full pool if filtering would leave us empty.
+        candidatePool = filtered.length > 0 ? filtered : orderedItems;
+      }
+    }
+
+    if (candidatePool.length === 0) {
+      return NextResponse.json({ sentences: [] });
+    }
+
+    // Prioritize misses / lower quality first.
+    const sortedPool = [...candidatePool].sort((a, b) => {
+      if (a.wasCorrect !== b.wasCorrect) return a.wasCorrect ? 1 : -1;
+      return a.quality - b.quality;
+    });
+
+    // Cap how many distinct items we hand to the LLM. End-of-session keeps
+    // the historical 8; interludes feel tighter at 5 since they only need
+    // 2 sentences.
+    const targetCap = segmentIndex === null ? 8 : 5;
+    const targetHistoryItems = sortedPool.slice(0, targetCap);
 
     const kanjiIds = targetHistoryItems.filter((h) => h.itemType === "kanji").map((h) => h.itemId);
     const vocabIds = targetHistoryItems.filter((h) => h.itemType === "vocab").map((h) => h.itemId);
@@ -130,8 +229,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sentences: [] });
     }
 
-    // Check for existing sentence coverage for these items.
-    // Important: coverage must be scoped to the current user (multi-tenant correctness).
+    // Coverage check: reuse already-generated sentences for these items
+    // (subject to the configured scope). For interludes we still allow reuse,
+    // since the user benefits from contextual repetition.
     const targetTexts = targets.map((t) => t.text);
     const coverageQuery = db
       .select({
@@ -164,7 +264,6 @@ export async function POST(req: NextRequest) {
             ),
           );
 
-    // Find which items already have sentence coverage for this user
     const coveredSentenceIds = [...new Set(existingTargets.map((t) => t.sentenceId))];
     let reusedSentences: typeof existing = [];
 
@@ -180,18 +279,14 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // Figure out which items still need new sentences
     const coveredTexts = new Set(existingTargets.map((t) => t.itemText));
     const uncoveredTargets = targets.filter((t) => !coveredTexts.has(t.text));
 
-    let newSentences: typeof existing = [];
+    const newSentences: typeof existing = [];
 
     if (uncoveredTargets.length > 0) {
-      // Compute difficulty profile from recent rated sentences
       const recentRated = await db
-        .select({
-          difficultyRating: generatedSentences.difficultyRating,
-        })
+        .select({ difficultyRating: generatedSentences.difficultyRating })
         .from(generatedSentences)
         .where(
           and(
@@ -218,7 +313,6 @@ export async function POST(req: NextRequest) {
 
       const generated = await generateWildSentences(uncoveredTargets, difficultyProfile);
 
-      // Deduplicate: don't store same Japanese text twice for this user
       const existingJapanese = new Set(
         [...reusedSentences, ...todayGenerations].map((s) => s.japanese),
       );
@@ -227,8 +321,6 @@ export async function POST(req: NextRequest) {
         if (existingJapanese.has(sentence.japanese)) continue;
         existingJapanese.add(sentence.japanese);
 
-        // Authoritatively annotate AI-labelled words against the user's
-        // study history before persisting (JAC-15).
         const annotatedWords = annotateWords(sentence.words, corpus);
 
         const [inserted] = await db
@@ -236,13 +328,13 @@ export async function POST(req: NextRequest) {
           .values({
             userId,
             sessionId,
+            segmentIndex,
             japanese: sentence.japanese,
             english: sentence.english,
             words: annotatedWords,
           })
           .returning();
 
-        // Create target links
         const matchedTargets = targets.filter((t) =>
           sentence.targetItems.includes(t.text),
         );
@@ -262,18 +354,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Link reused sentences to this session too
-    for (const s of reusedSentences) {
-      if (!s.sessionId || s.sessionId !== sessionId) {
-        // Don't update existing sessions; the reused sentences keep their original session link.
-        // They'll still appear via the target relationship.
-      }
-    }
+    // Compose the response: prefer fresh sentences first, fill with reused.
+    const reuseSlots = Math.max(0, count - newSentences.length);
+    const allSentences = [
+      ...newSentences,
+      ...reusedSentences.slice(0, reuseSlots),
+    ].slice(0, count);
 
-    const allSentences = [...reusedSentences.slice(0, 2), ...newSentences].slice(0, MAX_SENTENCES_PER_SESSION);
-
-    // Fetch all targets for returned sentences
-    const allSentenceIds = allSentences.map((s) => s.id);
+    const allSentenceIds = [
+      ...allSentences.map((s) => s.id),
+      ...priorSegmentRows.map((s) => s.id),
+    ];
     const allTargets = allSentenceIds.length > 0
       ? await db
           .select()
@@ -284,8 +375,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       sentences: allSentences.map((s) => ({
         ...s,
-        // Always re-annotate on response — covers reused sentences that were
-        // generated before the user's library grew.
+        words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
+        targets: allTargets.filter((t) => t.sentenceId === s.id),
+      })),
+      priorSegmentSentences: priorSegmentRows.map((s) => ({
+        ...s,
         words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
         targets: allTargets.filter((t) => t.sentenceId === s.id),
       })),

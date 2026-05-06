@@ -3,18 +3,27 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, CheckCircle2, Keyboard } from "lucide-react";
+import { Home, CheckCircle2, Keyboard, BookOpen } from "lucide-react";
 import { PreReview } from "./pre-review";
 import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
 import { StaticShinkansenBackground } from "./static-shinkansen-background";
 import { ShortcutsOverlay } from "./shortcuts-overlay";
+import { InterludeBackground } from "./interlude-background";
+import { InterludeReading } from "./interlude-reading";
 import { InTheWild } from "@/components/wild/in-the-wild";
 import { StaticGoldenHourBackground } from "@/components/wild/static-golden-hour-background";
+import type { WildSentenceData } from "@/components/wild/in-the-wild";
+import type { DifficultyRating } from "@/components/wild/sentence-display";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState, UndoSnapshot } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
-type Phase = "setup" | "reviewing" | "summary" | "wild";
+type Phase = "setup" | "reviewing" | "interlude" | "summary" | "wild";
+
+// Mid-session reading interlude config — kept tight on purpose.
+const INTERLUDE_SEGMENT_SIZE = 25;
+const INTERLUDE_MIN_TAIL = 10;
+const INTERLUDE_SENTENCE_COUNT = 2;
 
 export function ReviewSession() {
   const searchParams = useSearchParams();
@@ -60,6 +69,14 @@ export function ReviewSession() {
 
   // Wild sentences prefetch (fire early so it runs in parallel with session completion)
   const [wildPrefetchStatus, setWildPrefetchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
+  // Mid-session reading interlude. Triggered every INTERLUDE_SEGMENT_SIZE
+  // originally-completed cards when there are still enough cards remaining
+  // (INTERLUDE_MIN_TAIL) to make the resumption feel meaningful.
+  const [interludeSentences, setInterludeSentences] = useState<WildSentenceData[]>([]);
+  const [interludeLoading, setInterludeLoading] = useState(false);
+  const [interludeRatings, setInterludeRatings] = useState<Record<string, DifficultyRating>>({});
+  const interludeSeenSegmentsRef = useRef<Set<number>>(new Set());
 
   // Correct/wrong flash
   const [flashColor, setFlashColor] = useState<string | null>(null);
@@ -156,6 +173,11 @@ export function ReviewSession() {
       originalQueueSizeRef.current = entries.length;
       setUndoSnapshot(null);
 
+      interludeSeenSegmentsRef.current = new Set();
+      setInterludeSentences([]);
+      setInterludeRatings({});
+      setInterludeLoading(false);
+
       setPhase("reviewing");
     } catch (e) {
       console.error("Failed to start session:", e);
@@ -181,6 +203,69 @@ export function ReviewSession() {
       : Math.min(requestedSizeRef.current, dueCounts.total);
     startSession("mixed", size);
   }, [phase, loading, dueCounts.total, startSession]);
+
+  // Trigger a mid-session reading interlude for the segment we just finished.
+  // Sentences are fetched on-demand: the request fires as soon as we set the
+  // interlude phase so the user sees a brief "preparing" moment instead of a
+  // pre-roll loading screen. If generation fails or returns no sentences we
+  // silently slip back into review — interludes should never block progress.
+  const triggerInterlude = useCallback(
+    async (segmentIndex: number, sid: string) => {
+      if (interludeSeenSegmentsRef.current.has(segmentIndex)) return;
+      interludeSeenSegmentsRef.current.add(segmentIndex);
+
+      setInterludeSentences([]);
+      setInterludeLoading(true);
+      setPhase("interlude");
+
+      try {
+        const res = await fetch("/api/sentences/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sid,
+            segmentIndex,
+            count: INTERLUDE_SENTENCE_COUNT,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to load interlude");
+        const data = await res.json();
+        const sentences: WildSentenceData[] = data.sentences ?? [];
+        if (sentences.length === 0) {
+          // Nothing to read — slip straight back into review.
+          setPhase("reviewing");
+          return;
+        }
+        setInterludeSentences(sentences);
+      } catch (e) {
+        console.error("Interlude generation failed:", e);
+        setPhase("reviewing");
+      } finally {
+        setInterludeLoading(false);
+      }
+    },
+    [],
+  );
+
+  const handleInterludeRate = useCallback(
+    async (sentenceId: string, rating: DifficultyRating) => {
+      setInterludeRatings((prev) => ({ ...prev, [sentenceId]: rating }));
+      try {
+        await fetch("/api/sentences/rate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sentenceId, rating }),
+        });
+      } catch {
+        // Silent fail — rating is held client-side and re-attempted next time.
+      }
+    },
+    [],
+  );
+
+  const handleInterludeComplete = useCallback(() => {
+    setPhase("reviewing");
+  }, []);
 
   const handleGrade = async (grade: Grade) => {
     if (submitting || undoing || !sessionId) return;
@@ -307,6 +392,25 @@ export function ReviewSession() {
       } else {
         setCurrentIndex(nextIndex);
         setUndoSnapshot(pendingSnapshot);
+
+        // Reading interlude check: every INTERLUDE_SEGMENT_SIZE original-card
+        // completions, if at least INTERLUDE_MIN_TAIL cards remain afterward.
+        // Retries don't count toward the milestone — a wobbly streak should
+        // not shift the cadence.
+        if (!isRetry) {
+          const newCompletedOriginal = completedOriginal + 1;
+          const reachedMilestone =
+            newCompletedOriginal > 0 && newCompletedOriginal % INTERLUDE_SEGMENT_SIZE === 0;
+          if (reachedMilestone) {
+            const cardsRemainingAfter = updatedQueue.length - nextIndex;
+            if (cardsRemainingAfter >= INTERLUDE_MIN_TAIL) {
+              const segmentIndex = newCompletedOriginal / INTERLUDE_SEGMENT_SIZE - 1;
+              // Undo can't survive an interlude boundary — too confusing.
+              setUndoSnapshot(null);
+              triggerInterlude(segmentIndex, sessionId);
+            }
+          }
+        }
       }
     } catch (e) {
       console.error("Failed to submit grade:", e);
@@ -402,6 +506,10 @@ export function ReviewSession() {
     requeueMapRef.current = new Map();
     originalQueueSizeRef.current = 0;
     autoStartedRef.current = false;
+    interludeSeenSegmentsRef.current = new Set();
+    setInterludeSentences([]);
+    setInterludeRatings({});
+    setInterludeLoading(false);
     fetchStats();
   };
 
@@ -451,7 +559,9 @@ export function ReviewSession() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [phase, undoSnapshot, submitting, undoing, shortcutsOpen, handleUndo]);
 
-  const isFullScreen = phase === "reviewing" || phase === "summary" || phase === "wild";
+  const isFullScreen =
+    phase === "reviewing" || phase === "interlude" || phase === "summary" || phase === "wild";
+  const isReviewOrInterlude = phase === "reviewing" || phase === "interlude";
 
   return (
     <>
@@ -494,10 +604,36 @@ export function ReviewSession() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed inset-0 z-[100] flex flex-col ${phase === "reviewing" ? "" : "bg-background"}`}
+            className={`fixed inset-0 z-[100] flex flex-col ${isReviewOrInterlude ? "" : "bg-background"}`}
           >
-            {/* Static landscape background only during card review */}
-            {phase === "reviewing" && <StaticShinkansenBackground />}
+            {/* Backgrounds crossfade between review (shinkansen pastel-blue)
+                and interlude (warm buttercup) — same room, different light. */}
+            <AnimatePresence>
+              {phase === "reviewing" && (
+                <motion.div
+                  key="bg-review"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.45, ease: "easeInOut" }}
+                  className="absolute inset-0 z-0"
+                >
+                  <StaticShinkansenBackground />
+                </motion.div>
+              )}
+              {phase === "interlude" && (
+                <motion.div
+                  key="bg-interlude"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.45, ease: "easeInOut" }}
+                  className="absolute inset-0 z-0"
+                >
+                  <InterludeBackground />
+                </motion.div>
+              )}
+            </AnimatePresence>
             {/* Flash feedback overlay (inside full-screen so it stays on top of content) */}
             <AnimatePresence>
               {flashColor && (
@@ -513,9 +649,10 @@ export function ReviewSession() {
               )}
             </AnimatePresence>
 
-            {phase === "reviewing" && queue.length > 0 && (
+            {isReviewOrInterlude && queue.length > 0 && (
               <div className="relative z-10 flex flex-col flex-1 min-h-0">
-                {/* Minimal header: exit + progress only */}
+                {/* Minimal header: exit + progress only. Stays put during the
+                    reading interlude — same chrome, just a different room. */}
                 <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-sm">
                   <button
                     type="button"
@@ -546,45 +683,81 @@ export function ReviewSession() {
                         transition={{ duration: 0.25, ease: "easeOut" }}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShortcutsOpen(true)}
-                      className="text-muted-foreground hover:text-foreground transition-colors rounded-lg p-1.5 -mr-1"
-                      aria-label="Keyboard shortcuts"
-                      title="Keyboard shortcuts (?)"
-                    >
-                      <Keyboard className="h-4 w-4" />
-                    </button>
+                    {phase === "reviewing" ? (
+                      <button
+                        type="button"
+                        onClick={() => setShortcutsOpen(true)}
+                        className="text-muted-foreground hover:text-foreground transition-colors rounded-lg p-1.5 -mr-1"
+                        aria-label="Keyboard shortcuts"
+                        title="Keyboard shortcuts (?)"
+                      >
+                        <Keyboard className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground p-1.5 -mr-1" aria-hidden>
+                        <BookOpen className="h-4 w-4" />
+                      </span>
+                    )}
                   </div>
                 </header>
 
                 <div className="flex-1 flex flex-col min-h-0 overflow-auto">
                   <div className="flex-1 flex items-center justify-center p-6 pt-8 pb-32 md:pb-40">
                     <AnimatePresence mode="wait">
-                      <motion.div
-                        key="reviewing"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full max-w-2xl mx-auto"
-                      >
-                        <ReviewCard
-                          item={queue[currentIndex].item}
-                          index={currentIndex}
-                          total={queue.length}
-                          questionType={queue[currentIndex].item.questionType}
-                          consecutiveCorrect={consecutiveCorrect}
-                          onGrade={handleGrade}
-                          disabled={submitting || undoing || shortcutsOpen}
-                          fullScreen
-                          isRetry={queue[currentIndex].isRetry}
-                          retryReason={queue[currentIndex].retryReason}
-                          canUndo={!!undoSnapshot}
-                          onUndo={handleUndo}
-                          undoing={undoing}
-                        />
-                      </motion.div>
+                      {phase === "reviewing" ? (
+                        <motion.div
+                          key="reviewing"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ duration: 0.2 }}
+                          className="w-full max-w-2xl mx-auto"
+                        >
+                          <ReviewCard
+                            item={queue[currentIndex].item}
+                            index={currentIndex}
+                            total={queue.length}
+                            questionType={queue[currentIndex].item.questionType}
+                            consecutiveCorrect={consecutiveCorrect}
+                            onGrade={handleGrade}
+                            disabled={submitting || undoing || shortcutsOpen}
+                            fullScreen
+                            isRetry={queue[currentIndex].isRetry}
+                            retryReason={queue[currentIndex].retryReason}
+                            canUndo={!!undoSnapshot}
+                            onUndo={handleUndo}
+                            undoing={undoing}
+                          />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="interlude"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.3 }}
+                          className="w-full"
+                        >
+                          {interludeLoading || interludeSentences.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-4 py-10 text-amber-900/70">
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                              >
+                                <BookOpen className="h-8 w-8" />
+                              </motion.div>
+                              <p className="text-sm">Preparing your reading…</p>
+                            </div>
+                          ) : (
+                            <InterludeReading
+                              sentences={interludeSentences}
+                              ratings={interludeRatings}
+                              onRate={handleInterludeRate}
+                              onComplete={handleInterludeComplete}
+                            />
+                          )}
+                        </motion.div>
+                      )}
                     </AnimatePresence>
                   </div>
                 </div>
