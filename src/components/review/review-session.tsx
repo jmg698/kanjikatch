@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, CheckCircle2, Keyboard } from "lucide-react";
 import { PreReview } from "./pre-review";
@@ -16,9 +17,25 @@ import type { Grade } from "@/lib/srs";
 type Phase = "setup" | "reviewing" | "summary" | "wild";
 
 export function ReviewSession() {
+  const searchParams = useSearchParams();
+  const sizeParam = searchParams?.get("size") ?? null;
+  // Persist the requested size across "Review Again" within this page lifecycle.
+  // null = no auto-start (caller wants the manual fallback UI).
+  const requestedSizeRef = useRef<number | "all" | null>(
+    sizeParam === null
+      ? "all"
+      : sizeParam === "all"
+        ? "all"
+        : Number.isFinite(parseInt(sizeParam, 10)) && parseInt(sizeParam, 10) > 0
+          ? parseInt(sizeParam, 10)
+          : "all",
+  );
+
   const [phase, setPhase] = useState<Phase>("setup");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Guard so the auto-start effect only fires once per setup-phase entry.
+  const autoStartedRef = useRef(false);
 
   // Setup state
   const [dueCounts, setDueCounts] = useState<DueCounts>({ kanji: 0, vocab: 0, total: 0 });
@@ -100,7 +117,7 @@ export function ReviewSession() {
       });
   }, []);
 
-  const startSession = async (type: SessionType, size: number) => {
+  const startSession = useCallback(async (type: SessionType, size: number) => {
     setLoading(true);
     try {
       const queueRes = await fetch(`/api/review/queue?type=${type}&limit=${size}`);
@@ -145,7 +162,25 @@ export function ReviewSession() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [stats?.level]);
+
+  // Auto-start a session as soon as we know how many cards are due.
+  // The dashboard launches review with intent "do my reviews now" — the size
+  // picker has moved to a customize modal there, so this screen no longer
+  // needs to ask the user anything in the common case.
+  useEffect(() => {
+    if (phase !== "setup") return;
+    if (loading) return;
+    if (autoStartedRef.current) return;
+    if (dueCounts.total === 0) return;
+    if (requestedSizeRef.current === null) return;
+
+    autoStartedRef.current = true;
+    const size = requestedSizeRef.current === "all"
+      ? dueCounts.total
+      : Math.min(requestedSizeRef.current, dueCounts.total);
+    startSession("mixed", size);
+  }, [phase, loading, dueCounts.total, startSession]);
 
   const handleGrade = async (grade: Grade) => {
     if (submitting || undoing || !sessionId) return;
@@ -366,6 +401,7 @@ export function ReviewSession() {
     setWildPrefetchStatus("idle");
     requeueMapRef.current = new Map();
     originalQueueSizeRef.current = 0;
+    autoStartedRef.current = false;
     fetchStats();
   };
 
