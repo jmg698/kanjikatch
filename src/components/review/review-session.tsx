@@ -77,6 +77,12 @@ export function ReviewSession() {
   const [interludeLoading, setInterludeLoading] = useState(false);
   const [interludeRatings, setInterludeRatings] = useState<Record<string, DifficultyRating>>({});
   const interludeSeenSegmentsRef = useRef<Set<number>>(new Set());
+  // Aggregated across all interlude segments so the end-of-session closer
+  // can (a) skip items already featured mid-session and (b) offer the prior
+  // sentences as a revisitable "Earlier" tail. Refs (not state) because
+  // these are session-local and don't drive renders directly.
+  const allInterludeSentencesRef = useRef<WildSentenceData[]>([]);
+  const allInterludeItemIdsRef = useRef<Set<string>>(new Set());
 
   // Correct/wrong flash
   const [flashColor, setFlashColor] = useState<string | null>(null);
@@ -117,17 +123,27 @@ export function ReviewSession() {
 
   const prefetchWildSentences = useCallback((sid: string) => {
     setWildPrefetchStatus("loading");
+    const hasInterludes = allInterludeSentencesRef.current.length > 0;
     fetch("/api/sentences/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: sid }),
+      body: JSON.stringify({
+        sessionId: sid,
+        // 3 new sentences when interludes already happened; 5 otherwise.
+        count: hasInterludes ? 3 : 5,
+        excludeItemIds: Array.from(allInterludeItemIdsRef.current),
+      }),
     })
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("Generation failed");
       })
       .then((data) => {
-        setWildPrefetchStatus(data.sentences?.length > 0 ? "ready" : "error");
+        // Even if the closer returns nothing fresh, the user can still review
+        // the prior interlude sentences — count those toward "ready".
+        const closerCount = data.sentences?.length ?? 0;
+        const haveSomething = closerCount > 0 || hasInterludes;
+        setWildPrefetchStatus(haveSomething ? "ready" : "error");
       })
       .catch(() => {
         setWildPrefetchStatus("error");
@@ -174,6 +190,8 @@ export function ReviewSession() {
       setUndoSnapshot(null);
 
       interludeSeenSegmentsRef.current = new Set();
+      allInterludeSentencesRef.current = [];
+      allInterludeItemIdsRef.current = new Set();
       setInterludeSentences([]);
       setInterludeRatings({});
       setInterludeLoading(false);
@@ -228,17 +246,37 @@ export function ReviewSession() {
             count: INTERLUDE_SENTENCE_COUNT,
           }),
         });
-        if (!res.ok) throw new Error("Failed to load interlude");
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          // Surface the real failure in the console so the dev environment
+          // shows what went wrong (rate limit, auth, AI overload, etc.).
+          console.warn(
+            `[interlude] generation request failed: ${res.status} ${res.statusText}`,
+            body,
+          );
+          throw new Error(`Interlude generation failed (${res.status})`);
+        }
         const data = await res.json();
         const sentences: WildSentenceData[] = data.sentences ?? [];
         if (sentences.length === 0) {
-          // Nothing to read — slip straight back into review.
+          console.warn("[interlude] generation returned 0 sentences for segment", segmentIndex);
           setPhase("reviewing");
           return;
         }
         setInterludeSentences(sentences);
+
+        // Remember these for the closer's "Earlier" section + exclusion list.
+        allInterludeSentencesRef.current = [
+          ...allInterludeSentencesRef.current,
+          ...sentences,
+        ];
+        for (const s of sentences) {
+          for (const t of s.targets ?? []) {
+            allInterludeItemIdsRef.current.add(t.itemId);
+          }
+        }
       } catch (e) {
-        console.error("Interlude generation failed:", e);
+        console.error("[interlude] error:", e);
         setPhase("reviewing");
       } finally {
         setInterludeLoading(false);
@@ -507,6 +545,8 @@ export function ReviewSession() {
     originalQueueSizeRef.current = 0;
     autoStartedRef.current = false;
     interludeSeenSegmentsRef.current = new Set();
+    allInterludeSentencesRef.current = [];
+    allInterludeItemIdsRef.current = new Set();
     setInterludeSentences([]);
     setInterludeRatings({});
     setInterludeLoading(false);
@@ -800,6 +840,9 @@ export function ReviewSession() {
                 <div className="relative z-10 h-full">
                   <InTheWild
                     sessionId={sessionId}
+                    priorSentences={allInterludeSentencesRef.current}
+                    excludeItemIds={Array.from(allInterludeItemIdsRef.current)}
+                    closerCount={allInterludeSentencesRef.current.length > 0 ? 3 : 5}
                     onClose={() => (window.location.href = "/dashboard")}
                     onBackToDashboard={() => (window.location.href = "/dashboard")}
                   />

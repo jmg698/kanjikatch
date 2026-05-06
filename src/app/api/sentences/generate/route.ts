@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, generatedSentences, generatedSentenceTargets, reviewHistory, kanji, vocabulary } from "@/db";
-import { eq, and, inArray, isNotNull, isNull, desc, gte, asc } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, desc, gte, asc } from "drizzle-orm";
 import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
 import { annotateWords } from "@/lib/wild-annotation";
 import { loadStudiedCorpus } from "@/lib/wild-annotation-server";
 import { z } from "zod";
 
 const DEFAULT_END_COUNT = 5;
-const REDUCED_END_COUNT = 3; // when interludes already happened this session
 const SEGMENT_SIZE = 25; // matches ReviewSession interlude cadence
 const MAX_GENERATION_CALLS_PER_DAY = 20;
 type WildCoverageScope = "all_time" | "session" | "window_7d";
@@ -17,14 +16,16 @@ const WILD_COVERAGE_SCOPE: WildCoverageScope = "window_7d";
 
 const requestSchema = z.object({
   sessionId: z.string().uuid(),
-  // When provided, generate (or fetch cached) sentences for a specific
-  // mid-session interlude segment. Items targeted are drawn from the
-  // [segmentIndex*25, segmentIndex*25 + 25) slice of review history for
-  // this session, in original-completion order.
+  // When provided, generate sentences for a specific mid-session interlude
+  // segment. Targets are drawn from the [segmentIndex*25, segmentIndex*25 + 25)
+  // slice of review history. Interludes are NOT cached server-side — the
+  // client tracks which segments it has already shown via a ref.
   segmentIndex: z.number().int().min(0).optional(),
-  // Number of sentences to return. Interludes pass 2; end-of-session passes 3
-  // (when interludes already happened) or 5 (default, no interludes).
+  // Number of sentences to return.
   count: z.number().int().min(1).max(10).optional(),
+  // For the end-of-session closer: item IDs already featured in mid-session
+  // interludes, so the closer can prefer fresh material.
+  excludeItemIds: z.array(z.string().uuid()).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -42,75 +43,40 @@ export async function POST(req: NextRequest) {
 
     const { sessionId } = parsed.data;
     const segmentIndex = parsed.data.segmentIndex ?? null;
+    const count = parsed.data.count ?? DEFAULT_END_COUNT;
+    const excludeItemIds = new Set(parsed.data.excludeItemIds ?? []);
+    const isInterlude = segmentIndex !== null;
 
     const corpus = await loadStudiedCorpus(userId);
 
-    // For the end-of-session closer, gather any prior interlude segments so
-    // the user can revisit them as a "continue reading" tail. We fetch this
-    // up-front because both the cache-hit and cache-miss branches need it.
-    let priorSegmentRows: typeof generatedSentences.$inferSelect[] = [];
-    if (segmentIndex === null) {
-      priorSegmentRows = await db
+    // Cache check: only the end-of-session closer is cached server-side
+    // (keyed by sessionId, original behavior). Mid-session interludes always
+    // generate fresh — the client tracks segments it has already shown.
+    if (!isInterlude) {
+      const existing = await db
         .select()
         .from(generatedSentences)
         .where(
           and(
             eq(generatedSentences.userId, userId),
             eq(generatedSentences.sessionId, sessionId),
-            isNotNull(generatedSentences.segmentIndex),
           ),
-        )
-        .orderBy(asc(generatedSentences.segmentIndex), asc(generatedSentences.createdAt));
-    }
-
-    // Default count: 3 when interludes already happened (so the closer is a
-    // tight wrap-up), 5 otherwise (the historical full reading).
-    const fallbackCount = segmentIndex === null && priorSegmentRows.length > 0
-      ? REDUCED_END_COUNT
-      : DEFAULT_END_COUNT;
-    const count = parsed.data.count ?? fallbackCount;
-
-    // Cache check: rows are scoped to (sessionId, segmentIndex). Note that
-    // `segmentIndex IS NULL` represents the end-of-session closer; numbered
-    // segments are interludes.
-    const cacheCondition = segmentIndex === null
-      ? and(
-          eq(generatedSentences.userId, userId),
-          eq(generatedSentences.sessionId, sessionId),
-          isNull(generatedSentences.segmentIndex),
-        )
-      : and(
-          eq(generatedSentences.userId, userId),
-          eq(generatedSentences.sessionId, sessionId),
-          eq(generatedSentences.segmentIndex, segmentIndex),
         );
 
-    const existing = await db.select().from(generatedSentences).where(cacheCondition);
+      if (existing.length > 0) {
+        const targets = await db
+          .select()
+          .from(generatedSentenceTargets)
+          .where(inArray(generatedSentenceTargets.sentenceId, existing.map((s) => s.id)));
 
-    if (existing.length > 0) {
-      const idsForTargets = [
-        ...existing.map((s) => s.id),
-        ...priorSegmentRows.map((s) => s.id),
-      ];
-      const targets = idsForTargets.length > 0
-        ? await db
-            .select()
-            .from(generatedSentenceTargets)
-            .where(inArray(generatedSentenceTargets.sentenceId, idsForTargets))
-        : [];
-
-      return NextResponse.json({
-        sentences: existing.map((s) => ({
-          ...s,
-          words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
-          targets: targets.filter((t) => t.sentenceId === s.id),
-        })),
-        priorSegmentSentences: priorSegmentRows.map((s) => ({
-          ...s,
-          words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
-          targets: targets.filter((t) => t.sentenceId === s.id),
-        })),
-      });
+        return NextResponse.json({
+          sentences: existing.map((s) => ({
+            ...s,
+            words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
+            targets: targets.filter((t) => t.sentenceId === s.id),
+          })),
+        });
+      }
     }
 
     // Daily rate limit (per user, per calendar day)
@@ -148,37 +114,16 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    // Slice into the requested segment. For segmentIndex === null we operate
-    // on the closer pool: all items not yet featured in prior segments.
+    // Slice into the requested segment, or filter out items already used in
+    // prior interlude segments for the closer.
     let candidatePool = orderedItems;
-    if (segmentIndex !== null) {
+    if (isInterlude) {
       const start = segmentIndex * SEGMENT_SIZE;
       const end = start + SEGMENT_SIZE;
       candidatePool = orderedItems.slice(start, end);
-    } else {
-      // End-of-session closer: exclude items already targeted in prior
-      // interlude segments so the closer feels like fresh material.
-      const priorSegmentSentences = await db
-        .select({ id: generatedSentences.id })
-        .from(generatedSentences)
-        .where(
-          and(
-            eq(generatedSentences.userId, userId),
-            eq(generatedSentences.sessionId, sessionId),
-            isNotNull(generatedSentences.segmentIndex),
-          ),
-        );
-
-      if (priorSegmentSentences.length > 0) {
-        const priorTargetRows = await db
-          .select({ itemId: generatedSentenceTargets.itemId })
-          .from(generatedSentenceTargets)
-          .where(inArray(generatedSentenceTargets.sentenceId, priorSegmentSentences.map((s) => s.id)));
-        const priorItemIds = new Set(priorTargetRows.map((r) => r.itemId));
-        const filtered = orderedItems.filter((h) => !priorItemIds.has(h.itemId));
-        // Fall back to the full pool if filtering would leave us empty.
-        candidatePool = filtered.length > 0 ? filtered : orderedItems;
-      }
+    } else if (excludeItemIds.size > 0) {
+      const filtered = orderedItems.filter((h) => !excludeItemIds.has(h.itemId));
+      candidatePool = filtered.length > 0 ? filtered : orderedItems;
     }
 
     if (candidatePool.length === 0) {
@@ -191,10 +136,7 @@ export async function POST(req: NextRequest) {
       return a.quality - b.quality;
     });
 
-    // Cap how many distinct items we hand to the LLM. End-of-session keeps
-    // the historical 8; interludes feel tighter at 5 since they only need
-    // 2 sentences.
-    const targetCap = segmentIndex === null ? 8 : 5;
+    const targetCap = isInterlude ? 5 : 8;
     const targetHistoryItems = sortedPool.slice(0, targetCap);
 
     const kanjiIds = targetHistoryItems.filter((h) => h.itemType === "kanji").map((h) => h.itemId);
@@ -230,59 +172,64 @@ export async function POST(req: NextRequest) {
     }
 
     // Coverage check: reuse already-generated sentences for these items
-    // (subject to the configured scope). For interludes we still allow reuse,
-    // since the user benefits from contextual repetition.
+    // (subject to the configured scope). Skipped for interludes — we want
+    // fresh sentences in the moment, even if it costs an LLM call.
     const targetTexts = targets.map((t) => t.text);
-    const coverageQuery = db
-      .select({
-        sentenceId: generatedSentenceTargets.sentenceId,
-        itemText: generatedSentenceTargets.itemText,
-      })
-      .from(generatedSentenceTargets)
-      .innerJoin(generatedSentences, eq(generatedSentenceTargets.sentenceId, generatedSentences.id));
+    let reusedSentences: (typeof generatedSentences.$inferSelect)[] = [];
+    let coveredTexts = new Set<string>();
 
-    const existingTargets = WILD_COVERAGE_SCOPE === "session"
-      ? await coverageQuery.where(
-          and(
-            eq(generatedSentences.userId, userId),
-            inArray(generatedSentenceTargets.itemText, targetTexts),
-            eq(generatedSentences.sessionId, sessionId),
-          ),
-        )
-      : WILD_COVERAGE_SCOPE === "window_7d"
+    if (!isInterlude) {
+      const coverageQuery = db
+        .select({
+          sentenceId: generatedSentenceTargets.sentenceId,
+          itemText: generatedSentenceTargets.itemText,
+        })
+        .from(generatedSentenceTargets)
+        .innerJoin(generatedSentences, eq(generatedSentenceTargets.sentenceId, generatedSentences.id));
+
+      const existingTargets = WILD_COVERAGE_SCOPE === "session"
         ? await coverageQuery.where(
             and(
               eq(generatedSentences.userId, userId),
               inArray(generatedSentenceTargets.itemText, targetTexts),
-              gte(generatedSentences.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+              eq(generatedSentences.sessionId, sessionId),
             ),
           )
-        : await coverageQuery.where(
+        : WILD_COVERAGE_SCOPE === "window_7d"
+          ? await coverageQuery.where(
+              and(
+                eq(generatedSentences.userId, userId),
+                inArray(generatedSentenceTargets.itemText, targetTexts),
+                gte(generatedSentences.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+              ),
+            )
+          : await coverageQuery.where(
+              and(
+                eq(generatedSentences.userId, userId),
+                inArray(generatedSentenceTargets.itemText, targetTexts),
+              ),
+            );
+
+      const coveredSentenceIds = [...new Set(existingTargets.map((t) => t.sentenceId))];
+
+      if (coveredSentenceIds.length > 0) {
+        reusedSentences = await db
+          .select()
+          .from(generatedSentences)
+          .where(
             and(
               eq(generatedSentences.userId, userId),
-              inArray(generatedSentenceTargets.itemText, targetTexts),
+              inArray(generatedSentences.id, coveredSentenceIds),
             ),
           );
+      }
 
-    const coveredSentenceIds = [...new Set(existingTargets.map((t) => t.sentenceId))];
-    let reusedSentences: typeof existing = [];
-
-    if (coveredSentenceIds.length > 0) {
-      reusedSentences = await db
-        .select()
-        .from(generatedSentences)
-        .where(
-          and(
-            eq(generatedSentences.userId, userId),
-            inArray(generatedSentences.id, coveredSentenceIds),
-          ),
-        );
+      coveredTexts = new Set(existingTargets.map((t) => t.itemText));
     }
 
-    const coveredTexts = new Set(existingTargets.map((t) => t.itemText));
     const uncoveredTargets = targets.filter((t) => !coveredTexts.has(t.text));
 
-    const newSentences: typeof existing = [];
+    const newSentences: (typeof generatedSentences.$inferSelect)[] = [];
 
     if (uncoveredTargets.length > 0) {
       const recentRated = await db
@@ -313,6 +260,9 @@ export async function POST(req: NextRequest) {
 
       const generated = await generateWildSentences(uncoveredTargets, difficultyProfile);
 
+      // Dedup against existing Japanese to avoid surfacing the same sentence
+      // twice. For interludes we still dedupe against today's generations so
+      // a session doesn't repeat itself.
       const existingJapanese = new Set(
         [...reusedSentences, ...todayGenerations].map((s) => s.japanese),
       );
@@ -327,8 +277,10 @@ export async function POST(req: NextRequest) {
           .insert(generatedSentences)
           .values({
             userId,
-            sessionId,
-            segmentIndex,
+            // Mid-session interludes are not associated with the session in
+            // the DB — they're transient. Storing them under sessionId would
+            // make them appear in the closer's cache and confuse the deck.
+            sessionId: isInterlude ? null : sessionId,
             japanese: sentence.japanese,
             english: sentence.english,
             words: annotatedWords,
@@ -361,10 +313,7 @@ export async function POST(req: NextRequest) {
       ...reusedSentences.slice(0, reuseSlots),
     ].slice(0, count);
 
-    const allSentenceIds = [
-      ...allSentences.map((s) => s.id),
-      ...priorSegmentRows.map((s) => s.id),
-    ];
+    const allSentenceIds = allSentences.map((s) => s.id);
     const allTargets = allSentenceIds.length > 0
       ? await db
           .select()
@@ -374,11 +323,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       sentences: allSentences.map((s) => ({
-        ...s,
-        words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
-        targets: allTargets.filter((t) => t.sentenceId === s.id),
-      })),
-      priorSegmentSentences: priorSegmentRows.map((s) => ({
         ...s,
         words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
         targets: allTargets.filter((t) => t.sentenceId === s.id),
