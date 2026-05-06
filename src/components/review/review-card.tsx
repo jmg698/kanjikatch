@@ -161,28 +161,6 @@ export function ReviewCard({
         </div>
       )}
 
-      {/* Retry banner — visible explanation when an item reappears in-session.
-          Replaces the previous tiny "retry" badge that users mistook for a glitch. */}
-      <AnimatePresence>
-        {isRetry && (
-          <motion.div
-            key={`retry-banner-${item.id}-${index}`}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 px-4 py-2.5"
-            role="status"
-            aria-live="polite"
-          >
-            <RotateCcw className="h-4 w-4 flex-shrink-0" aria-hidden />
-            <span className="text-sm font-medium">
-              You missed this earlier — quick recheck
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Card */}
       <AnimatePresence mode="wait">
         <motion.div
