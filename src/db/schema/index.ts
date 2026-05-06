@@ -158,6 +158,10 @@ export const generatedSentences = pgTable("generated_sentences", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   sessionId: uuid("session_id").references(() => reviewSessions.id, { onDelete: "set null" }),
+  // Which segment of the session this sentence belongs to. NULL = end-of-session
+  // reading (legacy behavior). 0, 1, 2... = mid-session interlude segments
+  // (every 25 originally-completed cards).
+  segmentIndex: integer("segment_index"),
   japanese: text("japanese").notNull(),
   english: text("english").notNull(),
   words: jsonb("words").notNull(), // Array of {text, reading?, isTarget, containsTarget?}
@@ -167,6 +171,7 @@ export const generatedSentences = pgTable("generated_sentences", {
 }, (table) => ({
   userIdIdx: index("generated_sentences_user_id_idx").on(table.userId),
   sessionIdIdx: index("generated_sentences_session_id_idx").on(table.sessionId),
+  sessionSegmentIdx: index("generated_sentences_session_segment_idx").on(table.sessionId, table.segmentIndex),
   japaneseIdx: index("generated_sentences_japanese_idx").on(table.userId, table.japanese),
 }));
 

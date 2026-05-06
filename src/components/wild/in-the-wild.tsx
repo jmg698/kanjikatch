@@ -50,12 +50,23 @@ interface InTheWildProps {
 }
 
 export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildProps) {
+  // The closer is composed of two stitched-together sections: the "new"
+  // sentences generated for the end of session, followed by any sentences
+  // shown earlier as mid-session interludes (so the user can revisit them).
+  // We keep separate state so progress dots and the contextual header label
+  // can render the section break.
   const [sentences, setSentences] = useState<WildSentenceData[]>([]);
+  const [priorSentences, setPriorSentences] = useState<WildSentenceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [ratings, setRatings] = useState<Record<string, DifficultyRating>>({});
+
+  const newCount = sentences.length;
+  const combinedSentences: WildSentenceData[] = [...sentences, ...priorSentences];
+  const totalCount = combinedSentences.length;
+  const inEarlierSection = newCount > 0 && priorSentences.length > 0 && currentIndex >= newCount;
 
   const handleRate = useCallback(async (sentenceId: string, rating: DifficultyRating) => {
     setRatings((prev) => ({ ...prev, [sentenceId]: rating }));
@@ -90,9 +101,11 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
         const data = await res.json();
         if (!cancelled) {
           const fetched: WildSentenceData[] = data.sentences || [];
+          const prior: WildSentenceData[] = data.priorSegmentSentences || [];
           setSentences(fetched);
+          setPriorSentences(prior);
           const existingRatings: Record<string, DifficultyRating> = {};
-          for (const s of fetched) {
+          for (const s of [...fetched, ...prior]) {
             if (s.difficultyRating) existingRatings[s.id] = s.difficultyRating;
           }
           if (Object.keys(existingRatings).length > 0) setRatings(existingRatings);
@@ -111,11 +124,11 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
   }, [sessionId]);
 
   const goNext = useCallback(() => {
-    if (currentIndex < sentences.length - 1) {
+    if (currentIndex < totalCount - 1) {
       setDirection(1);
       setCurrentIndex((i) => i + 1);
     }
-  }, [currentIndex, sentences.length]);
+  }, [currentIndex, totalCount]);
 
   const goPrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -209,7 +222,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
     );
   }
 
-  if (sentences.length === 0) {
+  if (totalCount === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <div className="rounded-[14px] bg-[rgba(30,26,48,0.35)] backdrop-blur-[16px] px-10 py-8 border border-white/[0.08] flex flex-col items-center gap-6" style={{ WebkitBackdropFilter: "blur(16px)" }}>
@@ -228,7 +241,13 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
     );
   }
 
-  const sentence = sentences[currentIndex];
+  const sentence = combinedSentences[currentIndex];
+
+  // Per-section index labels for the contextual header. "New" runs from 1..N
+  // for sentences[]; "Earlier" runs from 1..M for priorSentences[].
+  const sectionLabel = inEarlierSection ? "Earlier" : "New";
+  const sectionIndex = inEarlierSection ? currentIndex - newCount + 1 : currentIndex + 1;
+  const sectionTotal = inEarlierSection ? priorSentences.length : newCount;
 
   return (
     <div className="flex flex-col h-full">
@@ -248,19 +267,26 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
           <span className="text-sm font-medium text-[#F0C88A]">See It In The Wild</span>
         </div>
         <div className="flex items-center gap-1.5 text-sm text-[#F5F0E6]/50">
-          <span className="font-mono">{currentIndex + 1}</span>
+          {priorSentences.length > 0 && (
+            <span className="text-[11px] uppercase tracking-wider mr-1 opacity-70">
+              {sectionLabel}
+            </span>
+          )}
+          <span className="font-mono">{sectionIndex}</span>
           <span className="opacity-50">/</span>
-          <span className="font-mono">{sentences.length}</span>
+          <span className="font-mono">{sectionTotal}</span>
         </div>
       </header>
 
-      {/* Progress dots */}
+      {/* Progress dots — when there's an "Earlier" section we render a small
+          gap between the two groups so the section break is visible without
+          a full divider. */}
       <div className="flex-shrink-0 flex items-center justify-center gap-2 py-3 bg-[rgba(30,26,48,0.25)]">
         {sentences.map((s, i) => {
           const rated = !!ratings[s.id];
           return (
             <button
-              key={i}
+              key={`new-${i}`}
               onClick={() => { setDirection(i > currentIndex ? 1 : -1); setCurrentIndex(i); }}
               className={`h-2 rounded-full transition-all duration-300 ${
                 i === currentIndex
@@ -269,7 +295,27 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
                     ? "w-2 bg-emerald-400/70"
                     : "w-2 bg-white/15 hover:bg-white/25"
               }`}
-              aria-label={`Sentence ${i + 1}${rated ? " (rated)" : ""}`}
+              aria-label={`New sentence ${i + 1}${rated ? " (rated)" : ""}`}
+            />
+          );
+        })}
+        {priorSentences.length > 0 && <span className="w-2" aria-hidden />}
+        {priorSentences.map((s, j) => {
+          const i = newCount + j;
+          const rated = !!ratings[s.id];
+          const active = i === currentIndex;
+          return (
+            <button
+              key={`prior-${j}`}
+              onClick={() => { setDirection(i > currentIndex ? 1 : -1); setCurrentIndex(i); }}
+              className={`h-2 rounded-full transition-all duration-300 border ${
+                active
+                  ? "w-6 bg-[#F0C88A]/60 border-[#F0C88A]"
+                  : rated
+                    ? "w-2 bg-emerald-400/40 border-emerald-400/40"
+                    : "w-2 bg-transparent border-white/30 hover:border-white/50"
+              }`}
+              aria-label={`Earlier sentence ${j + 1}${rated ? " (rated)" : ""}`}
             />
           );
         })}
@@ -320,7 +366,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
           <button
             type="button"
             onClick={goNext}
-            disabled={currentIndex === sentences.length - 1}
+            disabled={currentIndex === totalCount - 1}
             className="hidden md:flex items-center justify-center shrink-0 self-center h-11 w-11 rounded-full border border-white/[0.08] bg-[rgba(30,26,48,0.35)] backdrop-blur-md text-[#F5F0E6]/60 hover:text-[#F5F0E6] hover:border-white/20 transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none"
             style={{ WebkitBackdropFilter: "blur(12px)" }}
             aria-label="Next sentence"
@@ -344,10 +390,25 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
               <ChevronLeft className="h-6 w-6" />
             </Button>
 
-            {currentIndex === sentences.length - 1 ? (
-              <Button onClick={onBackToDashboard} size="lg" className="h-12 px-8 rounded-full">
-                Finish Reading
-              </Button>
+            {/* Finish appears as soon as the user has reached the closer's
+                last NEW sentence — earlier sentences are optional revisits. */}
+            {currentIndex >= newCount - 1 ? (
+              <div className="flex items-center gap-2">
+                {currentIndex < totalCount - 1 && (
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    onClick={goNext}
+                    className="h-12 w-12 rounded-full"
+                    aria-label="Continue to earlier sentences"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </Button>
+                )}
+                <Button onClick={onBackToDashboard} size="lg" className="h-12 px-8 rounded-full">
+                  Finish Reading
+                </Button>
+              </div>
             ) : (
               <Button
                 variant="ghost"
@@ -362,8 +423,10 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
         </div>
       </div>
 
-      {/* Desktop finish button (shown on last sentence) */}
-      {currentIndex === sentences.length - 1 && (
+      {/* Desktop finish button — shown once the user has hit the last new
+          sentence, so they can leave any time during the optional earlier
+          revisits without feeling tethered. */}
+      {currentIndex >= newCount - 1 && (
         <div className="hidden md:flex fixed bottom-6 left-0 right-0 z-10 justify-center">
           <Button onClick={onBackToDashboard} size="lg" className="h-12 px-8 rounded-full shadow-lg">
             Finish Reading
