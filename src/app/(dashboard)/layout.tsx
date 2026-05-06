@@ -37,7 +37,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen dash-bg">
       <header
         className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md"
-        style={{ borderColor: 'hsl(35 15% 87%)' }}
+        style={{ borderColor: 'hsl(220 10% 82%)' }}
       >
         <div className="container px-4">
           {/* Primary row: logo + desktop nav + user */}
