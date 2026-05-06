@@ -45,18 +45,32 @@ export interface WildSentenceData {
 
 interface InTheWildProps {
   sessionId: string;
+  /** Sentences shown earlier in this session as mid-session interludes.
+   *  Appended to the closer deck as a revisitable "Earlier" tail. */
+  priorSentences?: WildSentenceData[];
+  /** Item IDs already featured in interludes — passed to the API so the
+   *  closer prefers fresh material. */
+  excludeItemIds?: string[];
+  /** How many new closer sentences to request (3 when interludes already
+   *  happened, 5 otherwise). */
+  closerCount?: number;
   onClose: () => void;
   onBackToDashboard: () => void;
 }
 
-export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildProps) {
+export function InTheWild({
+  sessionId,
+  priorSentences = [],
+  excludeItemIds = [],
+  closerCount = 5,
+  onClose,
+  onBackToDashboard,
+}: InTheWildProps) {
   // The closer is composed of two stitched-together sections: the "new"
   // sentences generated for the end of session, followed by any sentences
-  // shown earlier as mid-session interludes (so the user can revisit them).
-  // We keep separate state so progress dots and the contextual header label
-  // can render the section break.
+  // shown earlier as mid-session interludes (passed in via props from
+  // ReviewSession, since they're session-local and not persisted server-side).
   const [sentences, setSentences] = useState<WildSentenceData[]>([]);
-  const [priorSentences, setPriorSentences] = useState<WildSentenceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -90,7 +104,11 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
         const res = await fetch("/api/sentences/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
+          body: JSON.stringify({
+            sessionId,
+            count: closerCount,
+            excludeItemIds,
+          }),
         });
 
         if (!res.ok) {
@@ -101,11 +119,9 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
         const data = await res.json();
         if (!cancelled) {
           const fetched: WildSentenceData[] = data.sentences || [];
-          const prior: WildSentenceData[] = data.priorSegmentSentences || [];
           setSentences(fetched);
-          setPriorSentences(prior);
           const existingRatings: Record<string, DifficultyRating> = {};
-          for (const s of [...fetched, ...prior]) {
+          for (const s of [...fetched, ...priorSentences]) {
             if (s.difficultyRating) existingRatings[s.id] = s.difficultyRating;
           }
           if (Object.keys(existingRatings).length > 0) setRatings(existingRatings);
@@ -121,6 +137,7 @@ export function InTheWild({ sessionId, onClose, onBackToDashboard }: InTheWildPr
 
     fetchSentences();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   const goNext = useCallback(() => {
