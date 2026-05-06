@@ -198,22 +198,6 @@ function SideCityscape({ side }: { side: "left" | "right" }) {
         }
         shapeRendering="crispEdges"
       >
-        <defs>
-          {/* Soft warm haze fade so the buildings sink into the dawn sky as
-              they recede away from the facade. */}
-          <linearGradient
-            id={`side-haze-${side}`}
-            x1={side === "left" ? "1" : "0"}
-            y1="0"
-            x2={side === "left" ? "0" : "1"}
-            y2="0"
-          >
-            <stop offset="0%" stopColor="#FEFCF0" stopOpacity="0" />
-            <stop offset="65%" stopColor="#FEFCF0" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#FEFCF0" stopOpacity="0.85" />
-          </linearGradient>
-        </defs>
-
         <g transform={transform}>
           {/* Distant skyline silhouettes */}
           <g opacity="0.55">
@@ -276,13 +260,6 @@ function SideCityscape({ side }: { side: "left" | "right" }) {
           )}
         </g>
 
-        {/* Warm haze fade applied on top, after the mirror transform, so it
-            always darkens the FAR end (away from the facade). */}
-        <rect
-          width={SIDE_W}
-          height={SIDE_H}
-          fill={`url(#side-haze-${side})`}
-        />
       </svg>
     </div>
   );
@@ -297,7 +274,7 @@ export function StaticCityscapeBackground() {
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "linear-gradient(to bottom, #FEFCF0 0%, #FBF5D5 38%, #F8EFC8 72%, #F3E5B0 100%)",
+            "#FBF1C2",
         }}
         aria-hidden
       />
