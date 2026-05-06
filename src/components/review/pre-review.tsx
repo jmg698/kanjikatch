@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,18 +13,15 @@ interface PreReviewProps {
   loading: boolean;
 }
 
-const SESSION_SIZES: (number | "all")[] = [5, 15, 25, 50, "all"];
-
+// PreReview is now a fallback surface: the dashboard launches review directly
+// into the session, so users only land here when there's nothing due (the
+// "all caught up" state) or if auto-start failed and we need to expose a
+// manual retry button.
 export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps) {
-  const sessionType: SessionType = "mixed";
-  const [sessionSize, setSessionSize] = useState<number | "all">(15);
-
   const hasDueItems = dueCounts.total > 0;
-  const effectiveSize = sessionSize === "all" ? dueCounts.total : Math.min(sessionSize, dueCounts.total);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      {/* Streak & Level Banner */}
       {stats && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -45,7 +41,6 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
         </motion.div>
       )}
 
-      {/* Due Items Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -88,73 +83,39 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
       </motion.div>
 
       {hasDueItems && (
-        <>
-          {/* Session Size */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-2"
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Button
+            onClick={() => onStart("mixed", dueCounts.total)}
+            disabled={loading}
+            size="lg"
+            className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
           >
-            <label className="text-sm font-medium text-muted-foreground block text-center">
-              Session Size
-            </label>
-            <div className="flex justify-center gap-2">
-              {SESSION_SIZES.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setSessionSize(size)}
-                  className={`
-                    px-4 py-2 rounded-lg border-2 font-medium text-sm transition-all
-                    ${size === "all" ? "" : "font-mono"}
-                    ${sessionSize === size
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border hover:border-primary/30 text-muted-foreground"
-                    }
-                  `}
-                >
-                  {size === "all" ? "All" : size}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+            {loading ? "Loading..." : `Start Review (${dueCounts.total} items)`}
+          </Button>
+        </motion.div>
+      )}
 
-          {/* Start Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Button
-              onClick={() => onStart(sessionType, effectiveSize)}
-              disabled={loading || effectiveSize === 0}
-              size="lg"
-              className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-            >
-              {loading ? "Loading..." : `Start Review (${effectiveSize} items)`}
-            </Button>
-          </motion.div>
-
-          {/* Daily Progress */}
-          {stats && (
+      {stats && hasDueItems && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-center text-sm text-muted-foreground"
+        >
+          Today: {stats.dailyReviewsToday} / {stats.dailyGoal} daily goal
+          <div className="mt-1 mx-auto max-w-xs h-2 bg-secondary rounded-full overflow-hidden">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-center text-sm text-muted-foreground"
-            >
-              Today: {stats.dailyReviewsToday} / {stats.dailyGoal} daily goal
-              <div className="mt-1 mx-auto max-w-xs h-2 bg-secondary rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-primary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (stats.dailyReviewsToday / stats.dailyGoal) * 100)}%` }}
-                  transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
-                />
-              </div>
-            </motion.div>
-          )}
-        </>
+              className="h-full bg-primary rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (stats.dailyReviewsToday / stats.dailyGoal) * 100)}%` }}
+              transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
+            />
+          </div>
+        </motion.div>
       )}
     </div>
   );

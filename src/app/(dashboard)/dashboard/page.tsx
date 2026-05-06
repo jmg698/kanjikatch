@@ -5,6 +5,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
 import { StaticCityscapeBackground } from "@/components/dashboard/static-cityscape-background";
+import { ReviewLauncher } from "@/components/dashboard/review-launcher";
 
 async function getDashboardData(userId: string) {
   const now = new Date();
@@ -196,14 +197,7 @@ export default async function DashboardPage() {
                             {data.streak} day streak
                           </span>
                         )}
-                        <div className="mt-auto pt-4">
-                          <Link
-                            href="/review"
-                            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold transition-all hover:bg-primary/90 active:scale-[0.98]"
-                          >
-                            Start Review
-                          </Link>
-                        </div>
+                        <ReviewLauncher totalDue={data.due.total} />
                       </>
                     ) : (
                       <>
