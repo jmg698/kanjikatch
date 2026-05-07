@@ -13,12 +13,13 @@ import {
   Headphones,
   Check,
   Minus,
+  RotateCcw,
 } from "lucide-react";
 
 export default async function HomePage() {
   const { userId } = await auth();
   const ctaHref = userId ? "/dashboard" : "/sign-up";
-  const ctaLabel = userId ? "Open dashboard" : "Catch your first kanji";
+  const ctaLabel = userId ? "Open dashboard" : "Catch your first page";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -116,7 +117,7 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
               A personal Japanese SRS
             </p>
             <h1 className="mt-5 font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
-              Catch the kanji
+              Catch the Japanese
               <br />
               you actually
               <span className="relative inline-block ml-3">
@@ -129,10 +130,12 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
               </span>
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-xl">
-              Snap a photo of your notes, your textbook, a manga panel — anything
-              in Japanese. KanjiKatch pulls every kanji and word off the page,
-              builds you a personal review deck, and shows those exact words
-              back to you in real sentences.
+              Anything with Japanese on it — handwritten notes, a textbook page,
+              a news screenshot, a manga panel. KanjiKatch reads the page,
+              catches every kanji, word, and sentence, and builds a review deck
+              calibrated to what you already know. Your studied words reappear
+              in fresh sentences; the new ones you spot there become tomorrow's
+              catch.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button size="lg" className="h-12 px-7 text-base shadow-sm" asChild>
@@ -302,25 +305,36 @@ function HeroDemo() {
 function HowItWorks() {
   const steps = [
     {
-      kanji: "捕",
+      kanji: "撮",
+      reading: "とる",
       en: "Snap",
-      title: "Snap a page.",
-      body: "Handwritten notes, a textbook spread, a manga panel, a screenshot — point your phone, take the photo. KanjiKatch reads the kanji even when your handwriting is rough.",
+      title: "Snap anything.",
+      body: "Handwritten notes, a textbook spread, a news screenshot, a manga panel, the lyric sheet on your fridge — if it has Japanese on it, KanjiKatch can parse it. Rough handwriting included.",
       icon: Camera,
     },
     {
       kanji: "拾",
+      reading: "ひろう",
       en: "Catch",
       title: "We pull every word.",
-      body: "KanjiKatch picks out each kanji, vocabulary item, and full sentence on the page. Readings, meanings, and example sentences are filled in for you. Edit anything that's not quite right.",
+      body: "Every kanji, vocabulary item, and full sentence on the page is pulled out for you, with readings, meanings, and example sentences filled in. Edit anything that's not quite right in one tap.",
       icon: ScanLine,
     },
     {
       kanji: "覚",
+      reading: "おぼえる",
       en: "Master",
       title: "Review until it sticks.",
-      body: "A spaced repetition schedule keeps the words you almost know in front of you, and quietly retires the ones you've nailed. Daily review takes minutes — not a planning session.",
+      body: "A spaced repetition schedule keeps the words you almost know in front of you and quietly retires the ones you've nailed. Daily review takes minutes — not a planning session.",
       icon: Layers,
+    },
+    {
+      kanji: "読",
+      reading: "よむ",
+      en: "Read",
+      title: "See it back in the wild.",
+      body: "Fresh sentences calibrated to your exact deck. Studied words glow gold; partials get a teal underline. Tap an unfamiliar word and it becomes tomorrow's catch. The cycle compounds.",
+      icon: Sparkles,
     },
   ];
 
@@ -329,19 +343,20 @@ function HowItWorks() {
       <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
         <div className="max-w-2xl">
           <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-            ・The loop ・
+            ・The cycle ・
           </p>
           <h2 className="mt-4 font-display text-4xl sm:text-5xl font-bold tracking-tight">
-            From a page in your hand to a deck that's yours.
+            A study cycle that grows with you.
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            No importing CSVs. No copying readings off Jisho. KanjiKatch turns
-            the pages you actually read into a study deck — in about thirty
-            seconds.
+            No importing CSVs. No copying readings off Jisho. Snap a textbook
+            page, a sticky note, a news article on your phone — anything with
+            Japanese on it. KanjiKatch turns it into a deck that knows what you
+            already know, then keeps feeding you new material from inside it.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((s, i) => (
             <div
               key={s.en}
@@ -352,15 +367,20 @@ function HowItWorks() {
                   "0 4px 6px -1px rgba(0,0,0,0.04), 0 2px 4px -1px rgba(0,0,0,0.02)",
               }}
             >
-              <div className="flex items-baseline justify-between">
-                <span className="font-serif text-5xl text-primary leading-none">
-                  {s.kanji}
-                </span>
+              <div className="flex items-start justify-between">
+                <div className="flex flex-col">
+                  <span className="font-serif text-5xl text-primary leading-none">
+                    {s.kanji}
+                  </span>
+                  <span className="mt-1.5 text-[10px] font-mono text-muted-foreground tracking-[0.18em]">
+                    {s.reading}
+                  </span>
+                </div>
                 <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
                   0{i + 1} · {s.en}
                 </span>
               </div>
-              <h3 className="mt-6 font-display text-xl font-semibold">
+              <h3 className="mt-5 font-display text-xl font-semibold">
                 {s.title}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -369,6 +389,13 @@ function HowItWorks() {
               <s.icon className="mt-6 h-5 w-5 text-muted-foreground/60" />
             </div>
           ))}
+        </div>
+
+        <div className="mt-8 flex items-center justify-center gap-3 text-xs font-mono uppercase tracking-[0.22em] text-muted-foreground">
+          <RotateCcw className="h-3.5 w-3.5" />
+          <span>
+            Step 04 feeds back into step 01. The deck deepens every loop.
+          </span>
         </div>
       </div>
     </section>
@@ -397,21 +424,22 @@ function WildSpotlight() {
               In the wild
             </p>
             <h2 className="mt-4 font-display text-4xl sm:text-5xl font-bold tracking-tight">
-              Your studied words,
+              Sentences calibrated
               <br />
-              alive in real sentences.
+              to your exact deck.
             </h2>
             <p className="mt-5 text-lg text-muted-foreground">
-              After every review, KanjiKatch shows you fresh sentences built
-              from the words in your deck. Studied kanji glow gold. Partials —
-              new words built from kanji you know — get a teal underline.
-              Everything else is the next thing worth catching.
+              After every review, KanjiKatch generates fresh sentences seeded
+              with words you've actually studied — and stretched with one or
+              two new pieces sized to where you are. Studied words glow gold.
+              Partials — new words built from kanji you already know — get a
+              teal underline. Tap anything new and it joins your deck.
             </p>
             <ul className="mt-8 space-y-3 text-sm">
               {[
-                "Sentences regenerate as your deck grows — never the same set twice.",
-                "Tap any word to see reading, meaning, and add it to your deck.",
-                "Translation hides behind a tap so you read first, check second.",
+                "Every sentence is built from your deck — and grows with it. Beginner today, novel-ready in a year.",
+                "Tap an unfamiliar word and it lands in your review queue. Your reading writes your study list.",
+                "The studied-to-new ratio shifts as you grow. The reading always meets you exactly where you are.",
               ].map((line) => (
                 <li key={line} className="flex items-start gap-3">
                   <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -542,8 +570,8 @@ function BuiltFor() {
             </h2>
           </div>
           <p className="text-sm text-muted-foreground max-w-sm">
-            KanjiKatch doesn't pick the words for you. Your materials do — and
-            that's the whole point.
+            KanjiKatch doesn't pick the words for you. Your materials do —
+            anything with Japanese on it, and that's the whole point.
           </p>
         </div>
 
@@ -712,12 +740,16 @@ function WhyKanjiKatch() {
 function FAQ() {
   const items = [
     {
-      q: "Will it read my handwriting?",
-      a: "Yes — that's what KanjiKatch was built for. If a kanji is legible to you, it's usually catchable. Anything unclear, you can correct in one tap.",
+      q: "What can I photograph?",
+      a: "Anything with Japanese on it. Handwritten notes, textbook pages, news screenshots, manga panels, signage you spotted on the street, sticky notes from class, subtitles from a paused show. KanjiKatch was built on rough handwriting — anything unclear, you can correct in one tap.",
+    },
+    {
+      q: "How are the sentences in 'Read' generated?",
+      a: "Every sentence is built from words in your deck, calibrated to your exact level. Beginners get short sentences with one or two unfamiliar pieces; advanced learners get longer, denser ones. As your deck grows, so does the reading.",
     },
     {
       q: "What level should I be?",
-      a: "Anywhere from your first kanji to N1. KanjiKatch doesn't pick a curriculum for you — your materials do. Beginners get the most out of textbook pages; advanced learners feed in novels, news, and screenshots.",
+      a: "Anywhere from your first kanji to N1. KanjiKatch doesn't pick a curriculum for you — your materials do. Beginners get the most out of textbook pages; advanced learners feed in novels, news articles, and screenshots from anything they're already reading.",
     },
     {
       q: "Do I have to type readings and meanings?",
@@ -725,11 +757,11 @@ function FAQ() {
     },
     {
       q: "Does it replace Anki or WaniKani?",
-      a: "It doesn't try to. WaniKani is a great curriculum if you want one chosen for you. Anki is a great empty deck. KanjiKatch is the one that matches the page you're reading right now.",
+      a: "It doesn't try to. WaniKani is a great curriculum if you want one chosen for you. Anki is a great empty deck. KanjiKatch is the one that matches the page you're reading right now — and keeps generating new reading from the words you've already learned.",
     },
     {
       q: "What does it cost?",
-      a: "Sign up free and catch your first kanji today. We'll always have a free tier for a real review habit.",
+      a: "Sign up free and catch your first words today. We'll always have a free tier for a real review habit.",
     },
   ];
 
