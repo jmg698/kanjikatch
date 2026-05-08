@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, Zap, BookOpen, Languages } from "lucide-react";
+import { Flame, BookOpen, Languages } from "lucide-react";
 import type { DueCounts, ReviewStats, SessionType } from "./review-types";
 
 interface PreReviewProps {
@@ -22,22 +22,14 @@ export function PreReview({ dueCounts, stats, onStart, loading }: PreReviewProps
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      {stats && (
+      {stats && stats.currentStreak > 0 && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center gap-6 text-sm"
+          className="flex items-center justify-center gap-2 text-sm text-orange-500 font-semibold"
         >
-          {stats.currentStreak > 0 && (
-            <div className="flex items-center gap-1.5 text-orange-500 font-semibold">
-              <Flame className="h-5 w-5" />
-              <span>{stats.currentStreak} day streak</span>
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 text-primary font-semibold">
-            <Zap className="h-5 w-5" />
-            <span>Lv. {stats.level} {stats.levelTitle}</span>
-          </div>
+          <Flame className="h-5 w-5" />
+          <span>{stats.currentStreak} day streak — keep it going</span>
         </motion.div>
       )}
 
