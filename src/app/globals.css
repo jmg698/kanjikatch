@@ -648,23 +648,11 @@
     background: rgba(255, 255, 255, 0.12);
   }
 
-  .wild-golden-panel .wild-hint-text {
-    color: rgba(245, 240, 230, 0.4);
-  }
-
   .wild-golden-panel .wild-translation-text {
     color: rgba(245, 240, 230, 0.6);
   }
 
   .wild-golden-panel .wild-rating-label {
     color: rgba(245, 240, 230, 0.35);
-  }
-
-  .wild-golden-panel .wild-hide-translation {
-    color: rgba(245, 240, 230, 0.35);
-  }
-
-  .wild-golden-panel .wild-hide-translation:hover {
-    color: rgba(245, 240, 230, 0.6);
   }
 }

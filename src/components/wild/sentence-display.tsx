@@ -27,7 +27,7 @@ function resolveFamiliarity(word: WildWord): WordFamiliarity {
   return "unknown";
 }
 
-function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: WildWord) => void }) {
+function WordToken({ word, showFurigana, onTapWord }: { word: WildWord; showFurigana: boolean; onTapWord?: (word: WildWord) => void }) {
   const isPunctuation = /^[。、！？「」『』（）\s…・ー～]+$/.test(word.text);
 
   if (isPunctuation) {
@@ -38,7 +38,7 @@ function WordToken({ word, onTapWord }: { word: WildWord; onTapWord?: (word: Wil
   const hasReading = !!word.reading && word.reading !== word.text;
   const isKana = /^[\u3040-\u309F\u30A0-\u30FF]+$/.test(word.text);
 
-  const content = hasReading ? (
+  const content = hasReading && showFurigana ? (
     <ruby className="wild-ruby">
       {word.text}
       <rp>(</rp>
@@ -146,7 +146,8 @@ const RATING_CONFIG: Record<DifficultyRating, {
 const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
 
 export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating }: SentenceDisplayProps) {
-  const [showTranslation, setShowTranslation] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [showFurigana, setShowFurigana] = useState(false);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
   const [addStatus, setAddStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [addError, setAddError] = useState<string | null>(null);
@@ -220,46 +221,43 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
           <WordToken
             key={`${word.text}-${i}`}
             word={word}
+            showFurigana={showFurigana}
             onTapWord={showAddWord ? handleAddWord : undefined}
           />
         ))}
       </div>
 
-      {/* Translation + rating */}
+      {/* Translation + reveal toggles + rating */}
       <div className="text-center space-y-4">
         <AnimatePresence mode="wait">
-          {showTranslation ? (
+          {showTranslation && (
             <motion.p
               key="translation"
-              initial={{ opacity: 1 }}
+              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className={`wild-translation-text text-muted-foreground ${compact ? "text-sm" : "text-lg sm:text-xl"}`}
             >
               {sentence.english}
             </motion.p>
-          ) : (
-            <motion.button
-              key="reveal-btn"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowTranslation(true)}
-              className="wild-hint-text text-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors py-1"
-            >
-              show translation
-            </motion.button>
           )}
         </AnimatePresence>
 
-        {showTranslation && (
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground/50">
           <button
-            onClick={() => setShowTranslation(false)}
-            className="wild-hide-translation text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+            onClick={() => setShowFurigana((v) => !v)}
+            className="hover:text-muted-foreground/80 transition-colors"
           >
-            hide
+            {showFurigana ? "hide reading" : "show reading"}
           </button>
-        )}
+          <span aria-hidden="true" className="text-muted-foreground/30">·</span>
+          <button
+            onClick={() => setShowTranslation((v) => !v)}
+            className="hover:text-muted-foreground/80 transition-colors"
+          >
+            {showTranslation ? "hide translation" : "show translation"}
+          </button>
+        </div>
 
         {onRate && (
           <div className="space-y-2">
