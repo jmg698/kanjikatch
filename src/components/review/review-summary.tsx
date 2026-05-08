@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, Zap, Trophy, ArrowRight, RotateCcw, Target, Clock, CheckCircle2, BookOpen, Loader2 } from "lucide-react";
+import { Flame, ArrowRight, RotateCcw, Target, Clock, CheckCircle2, BookOpen, Loader2 } from "lucide-react";
 import type { SessionSummary, ReviewStats } from "./review-types";
 
 interface ReviewSummaryProps {
   summary: SessionSummary;
   stats: ReviewStats | null;
-  leveledUp: boolean;
-  previousLevel: number;
   onReviewAgain: () => void;
   onBackToDashboard: () => void;
   onShowWild?: () => void;
@@ -38,12 +36,12 @@ function AnimatedNumber({ value, duration = 1 }: { value: number; duration?: num
 }
 
 function getEncouragingMessage(accuracy: number): string {
-  if (accuracy >= 95) return "Outstanding! Nearly perfect!";
-  if (accuracy >= 90) return "Excellent work! You're crushing it!";
-  if (accuracy >= 80) return "Great session! Keep it up!";
-  if (accuracy >= 70) return "Nice effort! You're making progress!";
-  if (accuracy >= 50) return "Good practice! Every review helps!";
-  return "Keep going! Practice makes progress!";
+  if (accuracy >= 95) return "You really know these. Beautiful work.";
+  if (accuracy >= 90) return "You're moving through these with confidence.";
+  if (accuracy >= 80) return "Good rhythm — these are sticking.";
+  if (accuracy >= 70) return "Solid work. Each pass makes them firmer.";
+  if (accuracy >= 50) return "Showing up for the hard ones is the work.";
+  return "Tough session — but you stayed with it. That counts.";
 }
 
 function formatDuration(ms: number): string {
@@ -57,8 +55,6 @@ function formatDuration(ms: number): string {
 export function ReviewSummary({
   summary,
   stats,
-  leveledUp,
-  previousLevel,
   onReviewAgain,
   onBackToDashboard,
   onShowWild,
@@ -71,12 +67,12 @@ export function ReviewSummary({
     : "loading";
 
   useEffect(() => {
-    if (leveledUp || summary.accuracy >= 90) {
+    if (summary.accuracy >= 90) {
       setShowConfetti(true);
       const timer = setTimeout(() => setShowConfetti(false), 3000);
       return () => clearTimeout(timer);
     }
-  }, [leveledUp, summary.accuracy]);
+  }, [summary.accuracy]);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -122,31 +118,11 @@ export function ReviewSummary({
         >
           <CheckCircle2 className="h-16 w-16 mx-auto text-primary" />
         </motion.div>
-        <h2 className="text-2xl font-bold">Session Complete!</h2>
+        <h2 className="text-2xl font-bold">Nice work — that&apos;s a wrap.</h2>
         <p className="text-muted-foreground">{getEncouragingMessage(summary.accuracy)}</p>
       </motion.div>
 
-      {/* Level Up Celebration */}
-      {leveledUp && stats && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="jr-panel border-primary/30 bg-primary/5">
-            <CardContent className="py-6 text-center">
-              <Trophy className="h-10 w-10 mx-auto mb-2 text-primary" />
-              <h3 className="text-xl font-bold text-primary">Level Up!</h3>
-              <p className="text-lg font-mono">
-                Lv. {previousLevel} → Lv. {stats.level}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">{stats.levelTitle}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Stats Grid */}
+      {/* Session stats — three honest numbers, no XP scoreboard */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -154,70 +130,32 @@ export function ReviewSummary({
       >
         <Card className="jr-panel">
           <CardContent className="py-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <Target className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-3xl font-mono font-bold">
-                  <AnimatedNumber value={summary.accuracy} />%
-                </div>
-                <span className="text-xs text-muted-foreground">Accuracy</span>
-              </div>
-              <div className="text-center">
-                <Zap className="h-5 w-5 mx-auto mb-1 text-primary" />
-                <div className="text-3xl font-mono font-bold text-primary">
-                  +<AnimatedNumber value={summary.xpEarned} />
-                </div>
-                <span className="text-xs text-muted-foreground">XP Earned</span>
-              </div>
+            <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
                 <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-emerald-500" />
                 <div className="text-2xl font-mono font-bold">
                   {summary.itemsCorrect}/{summary.itemsReviewed}
                 </div>
-                <span className="text-xs text-muted-foreground">Correct</span>
+                <span className="text-xs text-muted-foreground">Got these</span>
+              </div>
+              <div className="text-center">
+                <Target className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+                <div className="text-2xl font-mono font-bold">
+                  <AnimatedNumber value={summary.accuracy} />%
+                </div>
+                <span className="text-xs text-muted-foreground">On target</span>
               </div>
               <div className="text-center">
                 <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
                 <div className="text-2xl font-mono font-bold">
                   {formatDuration(summary.durationMs)}
                 </div>
-                <span className="text-xs text-muted-foreground">Duration</span>
+                <span className="text-xs text-muted-foreground">Time spent</span>
               </div>
             </div>
           </CardContent>
         </Card>
       </motion.div>
-
-      {/* XP & Level Progress */}
-      {stats && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card className="jr-panel">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                Level {stats.level} · {stats.levelTitle}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-primary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(stats.xpInLevel / stats.xpForNext) * 100}%` }}
-                  transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 text-right">
-                {stats.xpInLevel} / {stats.xpForNext} XP
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
 
       {/* Streak */}
       {stats && stats.currentStreak > 0 && (

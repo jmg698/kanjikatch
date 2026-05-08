@@ -55,8 +55,9 @@ export function ReviewSession() {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+  // XP is still tracked for undo/restore plumbing, but is no longer surfaced
+  // to the user — the experience leans on confidence growth, not points.
   const [totalXpEarned, setTotalXpEarned] = useState(0);
-  const previousLevelRef = useRef(1);
 
   // Intra-session re-queue tracking (refs for synchronous access in handleGrade)
   const requeueMapRef = useRef<Map<string, RequeueState>>(new Map());
@@ -65,7 +66,6 @@ export function ReviewSession() {
 
   // Summary state
   const [summary, setSummary] = useState<SessionSummary | null>(null);
-  const [leveledUp, setLeveledUp] = useState(false);
 
   // Wild sentences prefetch (fire early so it runs in parallel with session completion)
   const [wildPrefetchStatus, setWildPrefetchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -178,7 +178,6 @@ export function ReviewSession() {
         entryId: entryIdCounterRef.current++,
       }));
 
-      previousLevelRef.current = stats?.level ?? 1;
       setSessionId(sessionData.sessionId);
       setQueue(entries);
       setCurrentIndex(0);
@@ -202,7 +201,7 @@ export function ReviewSession() {
     } finally {
       setLoading(false);
     }
-  }, [stats?.level]);
+  }, []);
 
   // Auto-start a session as soon as we know how many cards are due.
   // The dashboard launches review with intent "do my reviews now" — the size
@@ -518,14 +517,8 @@ export function ReviewSession() {
 
       setSummary(data.summary);
 
-      // Refresh stats
+      // Refresh stats so the dashboard / streak chip is current.
       await fetchStats();
-
-      // Check for level up
-      const newLevel = stats?.level ?? 1;
-      if (newLevel > previousLevelRef.current) {
-        setLeveledUp(true);
-      }
 
       setPhase("summary");
     } catch (e) {
@@ -536,7 +529,6 @@ export function ReviewSession() {
 
   const handleReviewAgain = () => {
     setPhase("setup");
-    setLeveledUp(false);
     setSummary(null);
     setSessionId(null);
     setQueue([]);
@@ -816,8 +808,6 @@ export function ReviewSession() {
                   <ReviewSummary
                     summary={summary}
                     stats={stats}
-                    leveledUp={leveledUp}
-                    previousLevel={previousLevelRef.current}
                     onReviewAgain={handleReviewAgain}
                     onBackToDashboard={() => (window.location.href = "/dashboard")}
                     onShowWild={handleShowWild}

@@ -12,6 +12,9 @@ export const users = pgTable("users", {
 export const sourceImages = pgTable("source_images", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Optional user-provided label for the material (e.g. "Yotsubato Vol 3").
+  // When null, callers fall back to a date-based default.
+  name: text("name"),
   imageUrl: text("image_url"),
   sourceText: text("source_text"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
