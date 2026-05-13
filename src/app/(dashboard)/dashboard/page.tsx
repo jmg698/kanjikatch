@@ -4,10 +4,8 @@ import { db, kanji, vocabulary, userStats, reviewTracks } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
-import { listUserSourcesWithProgress } from "@/lib/sources-progress";
 import { StaticCityscapeBackground } from "@/components/dashboard/static-cityscape-background";
 import { ReviewLauncher } from "@/components/dashboard/review-launcher";
-import { SourcesProgress } from "@/components/dashboard/sources-progress";
 
 async function getDashboardData(userId: string) {
   const now = new Date();
@@ -19,7 +17,6 @@ async function getDashboardData(userId: string) {
     [vocabDue],
     stats,
     recentKanji,
-    sources,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(kanji).where(eq(kanji.userId, userId)),
     db.select({ count: sql<number>`count(*)::int` }).from(vocabulary).where(eq(vocabulary.userId, userId)),
@@ -47,7 +44,6 @@ async function getDashboardData(userId: string) {
       .where(eq(kanji.userId, userId))
       .orderBy(desc(kanji.firstSeenAt))
       .limit(20),
-    listUserSourcesWithProgress(userId),
   ]);
 
   // Compute effective confidence for recent kanji from their tracks
@@ -128,7 +124,6 @@ async function getDashboardData(userId: string) {
     streak: stats?.currentStreak ?? 0,
     recentKanji: recentKanjiWithConfidence,
     needsAttention,
-    sources,
   };
 }
 
@@ -255,19 +250,11 @@ export default async function DashboardPage() {
                 </div>
               </section>
 
-              {/* ── Floor 2: Your Materials (source progress) ── */}
-              {data.sources.length > 0 && (
-                <>
-                  <div className="floor-divider mt-6 -mx-5 sm:-mx-7" />
-                  <SourcesProgress sources={data.sources} />
-                </>
-              )}
-
-              {/* ── Floor 3: Needs Attention ── */}
+              {/* ── Floor 2: Needs Attention ── */}
               {data.needsAttention.length > 0 && (
                 <>
                   <div className="floor-divider mt-6 -mx-5 sm:-mx-7" />
-                  <section className="stagger-2 pt-6">
+                  <section className="stagger-1 pt-6">
                     <h2 className="floor-label floor-label-warning mb-3">
                       Worth Another Look
                     </h2>
@@ -304,11 +291,11 @@ export default async function DashboardPage() {
                 </>
               )}
 
-              {/* ── Floor 4: Recently Added ── */}
+              {/* ── Floor 3: Recently Added ── */}
               {data.recentKanji.length > 0 && (
                 <>
                   <div className="floor-divider mt-6 -mx-5 sm:-mx-7" />
-                  <section className="stagger-3 pt-6">
+                  <section className="stagger-2 pt-6">
                     <div className="flex items-baseline justify-between mb-3">
                       <h2 className="floor-label floor-label-primary">
                         Recently Added
