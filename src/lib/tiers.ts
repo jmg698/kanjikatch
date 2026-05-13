@@ -54,16 +54,29 @@ function buildContext(tier: SubscriptionTier): TierContext {
 /**
  * Load the tier for a user. If the user row is missing (race with Clerk
  * webhook), returns a free context — callers should still create the row
- * via their existing upsert path. Never throws.
+ * via their existing upsert path.
+ *
+ * Fails SOFT on DB errors. The subscription_tier column may not exist yet
+ * if the code deployed before `npm run db:push` ran; the DB may briefly
+ * be unreachable; etc. In all those cases we return a `free` context
+ * rather than letting the read throw and 500 the caller. No walls are
+ * live yet, so falling back to `free` is observably indistinguishable
+ * from the normal path — it just means comped users temporarily see
+ * free-tier behavior until the migration lands.
  */
 export async function getTierContext(userId: string): Promise<TierContext> {
-  const [row] = await db
-    .select({ subscriptionTier: users.subscriptionTier })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  try {
+    const [row] = await db
+      .select({ subscriptionTier: users.subscriptionTier })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
 
-  return buildContext(normalizeTier(row?.subscriptionTier));
+    return buildContext(normalizeTier(row?.subscriptionTier));
+  } catch (err) {
+    console.error("[tiers] getTierContext read failed, defaulting to free", err);
+    return buildContext("free");
+  }
 }
 
 export function tierContextFromValue(raw: string | null | undefined): TierContext {
