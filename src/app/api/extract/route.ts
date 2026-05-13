@@ -5,8 +5,17 @@ import { db, sourceImages, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
 import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
+import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
+import { getTierContext } from "@/lib/tiers";
 import { eq } from "drizzle-orm";
 import { agentDebugLog } from "@/lib/debug-ingest";
+
+function blockedResponse(reason: string, message: string, status: 429 | 503, retryAfterSec: number) {
+  return NextResponse.json(
+    { error: message, code: reason },
+    { status, headers: { "Retry-After": String(retryAfterSec) } },
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,11 +25,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const ipHash = hashIp(getClientIp(req));
+
+    // Cost protection (Package 0): circuit breaker, per-user token cap, per-IP throttle.
+    const guard = await assertCostProtection({ userId, ipHash, endpoint: "extract" });
+    if (!guard.allowed) {
+      return blockedResponse(guard.reason, guard.message, guard.status, guard.retryAfterSec);
+    }
+
+    // Load tier context. Today this is read-only — no walls are wired up yet.
+    // Comped users (pro_comped) already pass any future check.
+    const tier = await getTierContext(userId);
+
     const { allowed, remaining } = await checkExtractionRateLimit(userId);
     // #region agent log
     agentDebugLog("H0", "api/extract/route.ts:POST", "after_auth_rate", {
       allowed,
       remaining,
+      tier: tier.tier,
     });
     // #endregion
     if (!allowed) {
@@ -94,7 +116,11 @@ export async function POST(req: NextRequest) {
       // #region agent log
       agentDebugLog("H3", "api/extract/route.ts:POST", "before_extractFromImage", {});
       // #endregion
-      const extraction = await extractFromImage(imageUrl);
+      const extraction = await extractFromImage(imageUrl, {
+        userId,
+        ipHash,
+        endpoint: "extract",
+      });
       // #region agent log
       agentDebugLog("H4", "api/extract/route.ts:POST", "extractFromImage_ok", {
         kanji: extraction.kanji.length,

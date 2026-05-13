@@ -83,11 +83,14 @@ export async function POST(req: NextRequest) {
 
     for (const row of candidates) {
       try {
-        const enriched = await enrichVocabulary({
-          word: row.word,
-          reading: row.reading,
-          sentenceJapanese: row.enrichmentSourceSentence ?? null,
-        });
+        const enriched = await enrichVocabulary(
+          {
+            word: row.word,
+            reading: row.reading,
+            sentenceJapanese: row.enrichmentSourceSentence ?? null,
+          },
+          { userId: row.userId, ipHash: null },
+        );
 
         await db
           .update(vocabulary)

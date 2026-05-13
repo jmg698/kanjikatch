@@ -1,5 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { recordApiUsage } from "@/lib/cost-protection";
+
+export interface EnrichmentUsageContext {
+  userId: string | null;
+  ipHash: string | null;
+}
 
 /**
  * Vocabulary enrichment service.
@@ -139,7 +145,8 @@ function buildUserMessage(input: EnrichmentInput): string {
  * show an error or queue the row for later enrichment.
  */
 export async function enrichVocabulary(
-  input: EnrichmentInput
+  input: EnrichmentInput,
+  usageContext?: EnrichmentUsageContext,
 ): Promise<EnrichmentResult> {
   const userMessage = buildUserMessage(input);
 
@@ -153,6 +160,17 @@ export async function enrichVocabulary(
       },
     ],
   });
+
+  if (usageContext) {
+    void recordApiUsage({
+      userId: usageContext.userId,
+      ipHash: usageContext.ipHash,
+      endpoint: "enrich",
+      model: ENRICHMENT_MODEL,
+      inputTokens: response.usage?.input_tokens ?? 0,
+      outputTokens: response.usage?.output_tokens ?? 0,
+    });
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
