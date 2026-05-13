@@ -1,11 +1,26 @@
 import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, uniqueIndex, index, numeric } from "drizzle-orm/pg-core";
 
+// Subscription tier values. Stored as text (not a pg enum) so values can be
+// added without a schema migration. Validate at application boundaries.
+//   - free:        default, hits free-tier limits
+//   - pro:         paid subscriber
+//   - pro_comped:  internal-only tier with Pro features but no billing.
+//                  Manually granted via scripts/grant-comped-pro.ts.
+//                  Never surface in user-facing copy. See PRO_TIER_PLAN.md.
+export type SubscriptionTier = "free" | "pro" | "pro_comped";
+export const SUBSCRIPTION_TIER_VALUES: readonly SubscriptionTier[] = ["free", "pro", "pro_comped"] as const;
+
 // Users table - synced from Clerk
 export const users = pgTable("users", {
   id: text("id").primaryKey(), // Clerk user ID
   email: text("email").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  subscriptionTier: text("subscription_tier").default("free").notNull(),
+  // Comped-tier audit metadata. Only populated when subscriptionTier = 'pro_comped'.
+  compedBy: text("comped_by"),
+  compedReason: text("comped_reason"),
+  compedAt: timestamp("comped_at"),
 });
 
 // Source images/text - uploaded photos or pasted text of learning materials
@@ -226,9 +241,33 @@ export const contentItems = pgTable("content_items", {
   difficultyIdx: index("content_items_difficulty_idx").on(table.difficultyLevel),
 }));
 
+// API usage events — one row per Anthropic call. Powers the cost protection
+// guards (global circuit breaker, per-user token cap, per-IP throttle).
+// userId is nullable so we can still record IP-throttle events from
+// unauthenticated paths (extract-text etc. are auth-gated today, but
+// recording the IP regardless leaves the door open for future endpoints).
+export const apiUsageEvents = pgTable("api_usage_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  ipHash: text("ip_hash"), // sha256(ip + IP_HASH_SALT), never the raw IP
+  endpoint: text("endpoint").notNull(), // 'extract' | 'extract_text' | 'sentence_generate' | 'enrich'
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").default(0).notNull(),
+  outputTokens: integer("output_tokens").default(0).notNull(),
+  estimatedCostUsd: numeric("estimated_cost_usd", { precision: 10, scale: 6 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  createdAtIdx: index("api_usage_created_at_idx").on(table.createdAt),
+  userCreatedIdx: index("api_usage_user_created_idx").on(table.userId, table.createdAt),
+  ipCreatedIdx: index("api_usage_ip_created_idx").on(table.ipHash, table.createdAt),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export type ApiUsageEvent = typeof apiUsageEvents.$inferSelect;
+export type NewApiUsageEvent = typeof apiUsageEvents.$inferInsert;
 
 export type SourceImage = typeof sourceImages.$inferSelect;
 export type NewSourceImage = typeof sourceImages.$inferInsert;

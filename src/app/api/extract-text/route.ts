@@ -5,6 +5,8 @@ import { db, sourceImages, users } from "@/db";
 import { textInputSchema } from "@/lib/validations";
 import { extractFromText } from "@/lib/ai";
 import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
+import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
+import { getTierContext } from "@/lib/tiers";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -14,6 +16,19 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const ipHash = hashIp(getClientIp(req));
+
+    const guard = await assertCostProtection({ userId, ipHash, endpoint: "extract_text" });
+    if (!guard.allowed) {
+      return NextResponse.json(
+        { error: guard.message, code: guard.reason },
+        { status: guard.status, headers: { "Retry-After": String(guard.retryAfterSec) } },
+      );
+    }
+
+    // Tier context loaded for future feature gates (no walls live yet).
+    await getTierContext(userId);
 
     const { allowed, remaining } = await checkExtractionRateLimit(userId);
     if (!allowed) {
@@ -57,7 +72,11 @@ export async function POST(req: NextRequest) {
       .returning();
 
     try {
-      const extraction = await extractFromText(text);
+      const extraction = await extractFromText(text, {
+        userId,
+        ipHash,
+        endpoint: "extract_text",
+      });
 
       await db
         .update(sourceImages)

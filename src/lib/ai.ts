@@ -6,10 +6,37 @@ import {
 } from "./validations";
 import { z } from "zod";
 import { agentDebugLog } from "@/lib/debug-ingest";
+import { recordApiUsage, type CostProtectedEndpoint } from "@/lib/cost-protection";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
+
+// Caller context passed to each AI function so usage can be attributed to a
+// user and IP when recorded. Optional everywhere — call sites that don't
+// have a request context (scripts, internal warmups) can omit it.
+export interface AiUsageContext {
+  userId: string | null;
+  ipHash: string | null;
+  endpoint: CostProtectedEndpoint;
+}
+
+function reportUsage(
+  ctx: AiUsageContext | undefined,
+  model: string,
+  usage: { input_tokens?: number; output_tokens?: number } | undefined,
+): void {
+  if (!ctx) return;
+  // Fire-and-forget — recordApiUsage swallows its own errors.
+  void recordApiUsage({
+    userId: ctx.userId,
+    ipHash: ctx.ipHash,
+    endpoint: ctx.endpoint,
+    model,
+    inputTokens: usage?.input_tokens ?? 0,
+    outputTokens: usage?.output_tokens ?? 0,
+  });
+}
 
 const EXTRACTION_PROMPT = `You are a Japanese language extraction assistant. Your job is to find every piece of Japanese language content in an image and return structured data.
 
@@ -149,7 +176,12 @@ async function fetchImageAsBase64(url: string): Promise<{ base64: string; mediaT
   return { base64, mediaType };
 }
 
-export async function extractFromImage(imageUrl: string): Promise<ExtractionResult> {
+const EXTRACTION_MODEL = "claude-sonnet-4-20250514";
+
+export async function extractFromImage(
+  imageUrl: string,
+  usageContext?: AiUsageContext,
+): Promise<ExtractionResult> {
   let host = "invalid";
   try {
     host = new URL(imageUrl).hostname;
@@ -168,7 +200,7 @@ export async function extractFromImage(imageUrl: string): Promise<ExtractionResu
   let response: Anthropic.Message;
   try {
     response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: EXTRACTION_MODEL,
       max_tokens: 4096,
       messages: [
         {
@@ -205,6 +237,7 @@ export async function extractFromImage(imageUrl: string): Promise<ExtractionResu
   agentDebugLog("H3", "ai.ts:extractFromImage", "anthropic_ok", { blockTypes });
   // #endregion
 
+  reportUsage(usageContext, EXTRACTION_MODEL, response.usage);
   return parseExtractionResponse(response);
 }
 
@@ -262,9 +295,12 @@ Return ONLY valid JSON in this exact format:
 
 If a category has no items, return an empty array for that category.`;
 
-export async function extractFromText(text: string): Promise<ExtractionResult> {
+export async function extractFromText(
+  text: string,
+  usageContext?: AiUsageContext,
+): Promise<ExtractionResult> {
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: EXTRACTION_MODEL,
     max_tokens: 4096,
     messages: [
       {
@@ -279,6 +315,7 @@ export async function extractFromText(text: string): Promise<ExtractionResult> {
     ],
   });
 
+  reportUsage(usageContext, EXTRACTION_MODEL, response.usage);
   return parseExtractionResponse(response);
 }
 
@@ -473,7 +510,13 @@ function buildDifficultyGuidance(profile: DifficultyProfile): string {
   return lines.join("\n");
 }
 
-export async function generateWildSentences(targets: WildTargetItem[], difficultyProfile?: DifficultyProfile): Promise<WildSentence[]> {
+const WILD_SENTENCE_MODEL = "claude-sonnet-4-20250514";
+
+export async function generateWildSentences(
+  targets: WildTargetItem[],
+  difficultyProfile?: DifficultyProfile,
+  usageContext?: AiUsageContext,
+): Promise<WildSentence[]> {
   const targetList = targets
     .map((t) => {
       const label = t.type === "kanji" ? "Kanji" : "Vocab";
@@ -489,7 +532,7 @@ export async function generateWildSentences(targets: WildTargetItem[], difficult
     : "";
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: WILD_SENTENCE_MODEL,
     max_tokens: 4096,
     messages: [
       {
@@ -498,6 +541,8 @@ export async function generateWildSentences(targets: WildTargetItem[], difficult
       },
     ],
   });
+
+  reportUsage(usageContext, WILD_SENTENCE_MODEL, response.usage);
 
   const textContent = response.content.find((block) => block.type === "text");
   if (!textContent || textContent.type !== "text") {

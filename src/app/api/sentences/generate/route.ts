@@ -6,6 +6,8 @@ import { eq, and, inArray, isNotNull, desc, gte, asc } from "drizzle-orm";
 import { generateWildSentences, type WildTargetItem, type DifficultyProfile } from "@/lib/ai";
 import { annotateWords } from "@/lib/wild-annotation";
 import { loadStudiedCorpus } from "@/lib/wild-annotation-server";
+import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
+import { getTierContext } from "@/lib/tiers";
 import { z } from "zod";
 
 const DEFAULT_END_COUNT = 5;
@@ -34,6 +36,20 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const ipHash = hashIp(getClientIp(req));
+
+    const guard = await assertCostProtection({ userId, ipHash, endpoint: "sentence_generate" });
+    if (!guard.allowed) {
+      return NextResponse.json(
+        { error: guard.message, code: guard.reason },
+        { status: guard.status, headers: { "Retry-After": String(guard.retryAfterSec) } },
+      );
+    }
+
+    // Tier context — read but not yet enforced. When the post-session wall
+    // and personalized-sentence gate go live, they'll flip on here.
+    await getTierContext(userId);
 
     const body = await req.json();
     const parsed = requestSchema.safeParse(body);
@@ -258,7 +274,11 @@ export async function POST(req: NextRequest) {
         };
       }
 
-      const generated = await generateWildSentences(uncoveredTargets, difficultyProfile);
+      const generated = await generateWildSentences(uncoveredTargets, difficultyProfile, {
+        userId,
+        ipHash,
+        endpoint: "sentence_generate",
+      });
 
       // Dedup against existing Japanese to avoid surfacing the same sentence
       // twice. For interludes we still dedupe against today's generations so

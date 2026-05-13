@@ -5,6 +5,7 @@ import { db, vocabulary } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { ensureReviewTracks } from "@/lib/track-queries";
 import { enrichVocabulary } from "@/lib/enrichment";
+import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
 import { z } from "zod";
 
 /**
@@ -37,6 +38,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const ipHash = hashIp(getClientIp(req));
+
+    const guard = await assertCostProtection({ userId, ipHash, endpoint: "enrich" });
+    if (!guard.allowed) {
+      return NextResponse.json(
+        { error: guard.message, code: guard.reason },
+        { status: guard.status, headers: { "Retry-After": String(guard.retryAfterSec) } },
+      );
+    }
+
     const body = await req.json();
     const parsed = quickAddSchema.safeParse(body);
     if (!parsed.success) {
@@ -59,13 +70,16 @@ export async function POST(req: NextRequest) {
     let enrichmentError: string | null = null;
 
     try {
-      const enriched = await enrichVocabulary({
-        word,
-        reading: hintReading ?? null,
-        hintMeaning: hintMeaning ?? null,
-        sentenceJapanese: sentenceJapanese ?? null,
-        sentenceEnglish: sentenceEnglish ?? null,
-      });
+      const enriched = await enrichVocabulary(
+        {
+          word,
+          reading: hintReading ?? null,
+          hintMeaning: hintMeaning ?? null,
+          sentenceJapanese: sentenceJapanese ?? null,
+          sentenceEnglish: sentenceEnglish ?? null,
+        },
+        { userId, ipHash },
+      );
       enrichedReading = enriched.reading;
       enrichedMeanings = enriched.meanings;
       enrichedPartOfSpeech = enriched.partOfSpeech;
