@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
+import { readPlanQuota } from "@/lib/plan-limits";
 
 export async function GET() {
   const { userId } = await auth();
@@ -9,6 +9,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { remaining } = await checkExtractionRateLimit(userId);
-  return NextResponse.json({ remaining, limit: WEEKLY_EXTRACTION_LIMIT });
+  const { remaining, limit, tier } = await readPlanQuota(userId);
+  return NextResponse.json({
+    remaining,
+    limit,
+    tier: tier.tier,
+    isPro: tier.isPro,
+  });
 }

@@ -4,9 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { db, sourceImages, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
-import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
+import { checkPlanLimit, commitExtraction } from "@/lib/plan-limits";
 import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
-import { getTierContext } from "@/lib/tiers";
 import { eq } from "drizzle-orm";
 import { agentDebugLog } from "@/lib/debug-ingest";
 
@@ -33,24 +32,25 @@ export async function POST(req: NextRequest) {
       return blockedResponse(guard.reason, guard.message, guard.status, guard.retryAfterSec);
     }
 
-    // Load tier context. Today this is read-only — no walls are wired up yet.
-    // Comped users (pro_comped) already pass any future check.
-    const tier = await getTierContext(userId);
-
-    const { allowed, remaining } = await checkExtractionRateLimit(userId);
+    // Plan-aware extraction gate (Package 2). Decides allowed/remaining/limit
+    // based on the user's tier and the per-period counters; covers both the
+    // free-tier wall and the Pro fair-use ceiling.
+    const planDecision = await checkPlanLimit(userId, "extract");
     // #region agent log
     agentDebugLog("H0", "api/extract/route.ts:POST", "after_auth_rate", {
-      allowed,
-      remaining,
-      tier: tier.tier,
+      allowed: planDecision.allowed,
+      remaining: planDecision.remaining,
+      tier: planDecision.tier.tier,
     });
     // #endregion
-    if (!allowed) {
+    if (!planDecision.allowed) {
       return NextResponse.json(
         {
-          error: `Weekly extraction limit reached (${WEEKLY_EXTRACTION_LIMIT} per week). Please try again later.`,
+          error: planDecision.reason ?? "Extraction limit reached.",
           remaining: 0,
-          limit: WEEKLY_EXTRACTION_LIMIT,
+          limit: planDecision.limit,
+          tier: planDecision.tier.tier,
+          upgradeAvailable: planDecision.tier.isFree,
         },
         { status: 429 }
       );
@@ -134,12 +134,17 @@ export async function POST(req: NextRequest) {
         .set({ extractionRaw: extraction })
         .where(eq(sourceImages.id, sourceImage.id));
 
+      // Spend the extraction credit only after the LLM call succeeded — if
+      // the model fails or we throw mid-flight, the user keeps the credit.
+      await commitExtraction(userId);
+
       return NextResponse.json({
         success: true,
         sourceImageId: sourceImage.id,
         extraction,
-        remaining: Math.max(0, remaining - 1),
-        limit: WEEKLY_EXTRACTION_LIMIT,
+        remaining: Math.max(0, planDecision.remaining - 1),
+        limit: planDecision.limit,
+        tier: planDecision.tier.tier,
       });
     } catch (extractionError) {
       // Store error message on the source image and mark it processed so it

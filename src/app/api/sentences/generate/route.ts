@@ -13,6 +13,11 @@ import { z } from "zod";
 const DEFAULT_END_COUNT = 5;
 const SEGMENT_SIZE = 25; // matches ReviewSession interlude cadence
 const MAX_GENERATION_CALLS_PER_DAY = 20;
+// Free-tier post-session cap (PRO_TIER_PLAN.md: "2 from shared library, no audio").
+// Interludes are deliberately unlimited at this layer — the interlude cadence
+// itself caps how often they fire, and the tier-specific count (1 free / 2 pro)
+// is enforced by the calling component.
+const FREE_POST_SESSION_SENTENCE_CAP = 2;
 type WildCoverageScope = "all_time" | "session" | "window_7d";
 const WILD_COVERAGE_SCOPE: WildCoverageScope = "window_7d";
 
@@ -47,9 +52,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Tier context — read but not yet enforced. When the post-session wall
-    // and personalized-sentence gate go live, they'll flip on here.
-    await getTierContext(userId);
+    const tier = await getTierContext(userId);
 
     const body = await req.json();
     const parsed = requestSchema.safeParse(body);
@@ -59,9 +62,15 @@ export async function POST(req: NextRequest) {
 
     const { sessionId } = parsed.data;
     const segmentIndex = parsed.data.segmentIndex ?? null;
-    const count = parsed.data.count ?? DEFAULT_END_COUNT;
+    const requestedCount = parsed.data.count ?? DEFAULT_END_COUNT;
     const excludeItemIds = new Set(parsed.data.excludeItemIds ?? []);
     const isInterlude = segmentIndex !== null;
+
+    // Free users hit the post-session sentence cap. Interludes are gated
+    // separately (by the client) since the cadence already enforces scarcity.
+    const count = !isInterlude && tier.isFree
+      ? Math.min(requestedCount, FREE_POST_SESSION_SENTENCE_CAP)
+      : requestedCount;
 
     const corpus = await loadStudiedCorpus(userId);
 
@@ -347,6 +356,12 @@ export async function POST(req: NextRequest) {
         words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
         targets: allTargets.filter((t) => t.sentenceId === s.id),
       })),
+      // Surface the wall state so the InTheWild component can render a
+      // "see Pro" card when free users hit the 2-sentence cap. Pro users
+      // get { isPro: true } so the card is suppressed.
+      tier: tier.tier,
+      isPro: tier.isPro,
+      capped: !isInterlude && tier.isFree && requestedCount > count,
     });
   } catch (error) {
     Sentry.captureException(error);

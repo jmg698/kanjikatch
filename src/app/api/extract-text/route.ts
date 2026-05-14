@@ -4,9 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { db, sourceImages, users } from "@/db";
 import { textInputSchema } from "@/lib/validations";
 import { extractFromText } from "@/lib/ai";
-import { checkExtractionRateLimit, WEEKLY_EXTRACTION_LIMIT } from "@/lib/rate-limit";
+import { checkPlanLimit, commitExtraction } from "@/lib/plan-limits";
 import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
-import { getTierContext } from "@/lib/tiers";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -27,16 +26,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Tier context loaded for future feature gates (no walls live yet).
-    await getTierContext(userId);
-
-    const { allowed, remaining } = await checkExtractionRateLimit(userId);
-    if (!allowed) {
+    const planDecision = await checkPlanLimit(userId, "extract");
+    if (!planDecision.allowed) {
       return NextResponse.json(
         {
-          error: `Weekly extraction limit reached (${WEEKLY_EXTRACTION_LIMIT} per week). Please try again later.`,
+          error: planDecision.reason ?? "Extraction limit reached.",
           remaining: 0,
-          limit: WEEKLY_EXTRACTION_LIMIT,
+          limit: planDecision.limit,
+          tier: planDecision.tier.tier,
+          upgradeAvailable: planDecision.tier.isFree,
         },
         { status: 429 }
       );
@@ -83,12 +81,15 @@ export async function POST(req: NextRequest) {
         .set({ extractionRaw: extraction })
         .where(eq(sourceImages.id, source.id));
 
+      await commitExtraction(userId);
+
       return NextResponse.json({
         success: true,
         sourceImageId: source.id,
         extraction,
-        remaining: Math.max(0, remaining - 1),
-        limit: WEEKLY_EXTRACTION_LIMIT,
+        remaining: Math.max(0, planDecision.remaining - 1),
+        limit: planDecision.limit,
+        tier: planDecision.tier.tier,
       });
     } catch (extractionError) {
       const errorMessage =

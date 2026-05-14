@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Home, BookOpen, X, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home, BookOpen, X, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SentenceDisplay, type DifficultyRating } from "./sentence-display";
 
@@ -76,6 +77,10 @@ export function InTheWild({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [ratings, setRatings] = useState<Record<string, DifficultyRating>>({});
+  // Server signals when the free-tier post-session cap clipped the deck.
+  // Surface a tasteful nudge — never a hard wall, since the 2 sentences they
+  // got are still real value.
+  const [capped, setCapped] = useState(false);
 
   const newCount = sentences.length;
   const combinedSentences: WildSentenceData[] = [...sentences, ...priorSentences];
@@ -120,6 +125,7 @@ export function InTheWild({
         if (!cancelled) {
           const fetched: WildSentenceData[] = data.sentences || [];
           setSentences(fetched);
+          setCapped(Boolean(data.capped));
           const existingRatings: Record<string, DifficultyRating> = {};
           for (const s of [...fetched, ...priorSentences]) {
             if (s.difficultyRating) existingRatings[s.id] = s.difficultyRating;
@@ -337,6 +343,19 @@ export function InTheWild({
           );
         })}
       </div>
+
+      {capped && currentIndex >= newCount - 1 && (
+        <div className="flex-shrink-0 flex justify-center px-4 -mt-1 mb-2">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 text-[11px] text-[#F5F0E6]/70 hover:text-[#F0C88A] transition-colors px-3 py-1.5 rounded-full border border-white/[0.08] bg-[rgba(30,26,48,0.3)] backdrop-blur-md"
+            style={{ WebkitBackdropFilter: "blur(12px)" }}
+          >
+            <Sparkles className="h-3 w-3 text-[#F0C88A]" />
+            <span>Pro adds 3–5 personalized sentences with audio</span>
+          </Link>
+        </div>
+      )}
 
       {/* Sentence content — arrows sit beside the card, not at viewport edges */}
       <div className="flex-1 flex items-center justify-center px-4 pb-24 overflow-hidden min-h-0">

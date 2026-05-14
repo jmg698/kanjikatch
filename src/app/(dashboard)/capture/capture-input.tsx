@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUploadThing, getUploadThingPublicUrl } from "@/lib/uploadthing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Loader2, Check, CheckCircle, AlertCircle, AlertTriangle, Upload, X,
-  Image as ImageIcon, Camera, Type, ChevronLeft, SearchX,
+  Image as ImageIcon, Camera, Type, ChevronLeft, SearchX, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ExtractionResult } from "@/lib/validations";
@@ -69,6 +70,8 @@ const QUOTA_WARNING_THRESHOLD = 0.25;
 interface QuotaInfo {
   remaining: number;
   limit: number;
+  tier?: string;
+  isPro?: boolean;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -754,32 +757,52 @@ export function CaptureInput() {
     );
   }
 
-  const quotaBanner =
-    quota && quota.limit > 0 && quota.remaining / quota.limit <= QUOTA_WARNING_THRESHOLD ? (
-      <div
-        className={cn(
-          "flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm mb-4",
-          quota.remaining === 0
-            ? "border-jr-red/30 bg-jr-red/5 text-jr-red"
-            : "border-amber-300/60 bg-amber-50 text-amber-900",
-        )}
-        role="status"
-      >
-        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden />
-        <div className="leading-snug">
-          <p className="font-medium">
-            {quota.remaining === 0
-              ? `Weekly extraction limit reached (${quota.limit}/wk)`
-              : `${quota.remaining} of ${quota.limit} weekly extractions left`}
-          </p>
-          <p className="text-xs opacity-80 mt-0.5">
-            {quota.remaining === 0
-              ? "Older extractions roll off after seven days, freeing up new captures."
-              : "Quota resets on a rolling 7-day window."}
-          </p>
-        </div>
+  // Pro & comped users have an effectively unlimited cap (the fair-use number
+  // is high enough that the banner would only fire under genuine abuse). Don't
+  // warn them at all — the banner is a free-tier nudge, not a status display.
+  const showQuotaBanner =
+    quota &&
+    quota.limit > 0 &&
+    !quota.isPro &&
+    quota.remaining / quota.limit <= QUOTA_WARNING_THRESHOLD;
+
+  const quotaBanner = showQuotaBanner ? (
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm mb-4",
+        quota!.remaining === 0
+          ? "border-jr-red/30 bg-jr-red/5 text-jr-red"
+          : "border-amber-300/60 bg-amber-50 text-amber-900",
+      )}
+      role="status"
+    >
+      <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden />
+      <div className="leading-snug flex-1 min-w-0">
+        <p className="font-medium">
+          {quota!.remaining === 0
+            ? "You've used your free extractions for this month."
+            : `${quota!.remaining} of ${quota!.limit} free extractions left this month`}
+        </p>
+        <p className="text-xs opacity-80 mt-0.5">
+          {quota!.remaining === 0
+            ? "Pro adds unlimited captures, audio, and personalized sentences."
+            : "Free includes 10 starter + 5/month. Pro removes the cap."}
+        </p>
       </div>
-    ) : null;
+      <Link
+        href="/pricing"
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors flex-shrink-0",
+          quota!.remaining === 0
+            ? "bg-jr-red text-white hover:bg-jr-red/90"
+            : "bg-amber-900 text-white hover:bg-amber-900/90",
+        )}
+      >
+        <Sparkles className="h-3 w-3" />
+        See Pro
+      </Link>
+    </div>
+  ) : null;
 
   return (
     <>
