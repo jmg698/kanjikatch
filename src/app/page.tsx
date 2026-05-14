@@ -67,6 +67,12 @@ function Header({ userId }: { userId: string | null }) {
             In the wild
           </Link>
           <Link
+            href="/pricing"
+            className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
+          >
+            Pricing
+          </Link>
+          <Link
             href="#faq"
             className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
           >
@@ -761,7 +767,7 @@ function FAQ() {
     },
     {
       q: "What does it cost?",
-      a: "Sign up free and catch your first words today. We'll always have a free tier for a real review habit.",
+      a: "Free forever for the daily review habit — 10 starter extractions plus 5 per month, unlimited reviews. Pro ($10/mo or $100/yr, with a 7-day free trial) unlocks unlimited captures, audio on every sentence, 3–5 personalized sentences per session, and a session recap email. See the full breakdown on the pricing page.",
     },
   ];
 

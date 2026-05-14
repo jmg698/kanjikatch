@@ -21,7 +21,27 @@ export const users = pgTable("users", {
   compedBy: text("comped_by"),
   compedReason: text("comped_reason"),
   compedAt: timestamp("comped_at"),
-});
+  // Stripe billing state — populated and maintained by the Stripe webhook.
+  // null until the user starts checkout for the first time.
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripePriceId: text("stripe_price_id"),
+  // Mirrors Stripe Subscription.status: active | trialing | past_due | canceled
+  // | incomplete | incomplete_expired | unpaid | paused. null = never subscribed.
+  subscriptionStatus: text("subscription_status"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  trialEnd: timestamp("trial_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+  // Free-tier extraction accounting. See src/lib/plan-limits.ts for the
+  // read/reset semantics. extractionsPeriodStart is the first-of-month UTC
+  // for the period the counter belongs to; when the calendar month advances,
+  // the next read resets used→0 and advances the start.
+  extractionsUsedThisPeriod: integer("extractions_used_this_period").default(0).notNull(),
+  extractionsPeriodStart: timestamp("extractions_period_start").defaultNow().notNull(),
+  starterExtractionsUsed: integer("starter_extractions_used").default(0).notNull(),
+}, (table) => ({
+  stripeCustomerIdx: uniqueIndex("users_stripe_customer_id_idx").on(table.stripeCustomerId),
+}));
 
 // Source images/text - uploaded photos or pasted text of learning materials
 export const sourceImages = pgTable("source_images", {
