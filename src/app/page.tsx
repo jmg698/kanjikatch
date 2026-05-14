@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/site-footer";
 import {
   Camera,
   ArrowRight,
@@ -31,7 +32,7 @@ export default async function HomePage() {
       <WhyKanjiKatch />
       <FAQ />
       <FinalCTA ctaHref={ctaHref} ctaLabel={ctaLabel} />
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }
@@ -864,25 +865,3 @@ function FinalCTA({
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Footer                                                                    */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function Footer() {
-  return (
-    <footer className="border-t border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-baseline gap-2">
-          <span className="font-serif text-xl text-primary">漢字</span>
-          <span className="font-display font-semibold">KanjiKatch</span>
-          <span className="text-xs text-muted-foreground ml-2">
-            built for Japanese learners
-          </span>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} KanjiKatch
-        </p>
-      </div>
-    </footer>
-  );
-}

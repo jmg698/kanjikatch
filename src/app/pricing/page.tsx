@@ -4,6 +4,7 @@ import { db, users } from "@/db";
 import { eq } from "drizzle-orm";
 import { ArrowRight, Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/site-footer";
 import { getPlanCatalog } from "@/lib/stripe";
 import { PricingActions } from "./pricing-actions";
 
@@ -266,6 +267,8 @@ export default async function PricingPage() {
           </Button>
         </div>
       </section>
+
+      <SiteFooter />
     </div>
   );
 }

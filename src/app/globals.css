@@ -153,6 +153,42 @@
 /* ── Component Classes ─────────────────────────────────── */
 
 @layer components {
+  /* Legal pages — Terms, Privacy. Lightly opinionated prose styling so the
+   * documents read like real legal documents without pulling in @tailwind/typography. */
+  .legal-prose {
+    @apply text-foreground leading-relaxed;
+  }
+  .legal-prose h2 {
+    @apply font-display text-2xl font-semibold tracking-tight mt-12 mb-3;
+  }
+  .legal-prose h3 {
+    @apply font-display text-lg font-semibold tracking-tight mt-8 mb-2;
+  }
+  .legal-prose p {
+    @apply text-muted-foreground mt-3 leading-relaxed;
+  }
+  .legal-prose ul {
+    @apply mt-3 ml-5 space-y-2 list-disc text-muted-foreground;
+  }
+  .legal-prose li {
+    @apply leading-relaxed;
+  }
+  .legal-prose a {
+    @apply text-primary hover:underline;
+  }
+  .legal-prose strong {
+    @apply text-foreground font-medium;
+  }
+  .legal-prose table {
+    @apply mt-4 w-full text-sm border border-border/60 rounded-lg overflow-hidden;
+  }
+  .legal-prose th {
+    @apply text-left px-3 py-2 bg-muted/30 font-medium text-foreground;
+  }
+  .legal-prose td {
+    @apply px-3 py-2 border-t border-border/40 align-top text-muted-foreground;
+  }
+
   /* Legacy panel — retained for backwards compat */
   .jr-panel {
     @apply bg-white border-2 rounded-lg;

@@ -9,7 +9,7 @@ const SECONDARY_ITEMS = [
   { href: '/dashboard', label: 'Home' },
   { href: '/library', label: 'Library' },
   { href: '/read', label: 'Read' },
-  { href: '/dashboard/billing', label: 'Plan' },
+  { href: '/dashboard/settings', label: 'Settings' },
 ];
 
 interface TopNavProps {
