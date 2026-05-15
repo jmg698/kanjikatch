@@ -9,6 +9,9 @@ import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
+  // Tracked across the try/catch so the outer error response can include
+  // the source ref. Lets users report failures with a stable correlation ID.
+  let sourceImageId: string | null = null;
   try {
     const { userId } = await auth();
 
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
         processed: false,
       })
       .returning();
+    sourceImageId = source.id;
 
     try {
       const extraction = await extractFromText(text, {
@@ -110,6 +114,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     Sentry.captureException(error);
     console.error("Text extraction error:", error);
-    return NextResponse.json({ error: "Failed to process text" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to process text", sourceImageId: sourceImageId ?? undefined },
+      { status: 500 },
+    );
   }
 }

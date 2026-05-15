@@ -110,6 +110,17 @@ export const textInputSchema = z.object({
   text: z.string().min(1, "Please enter some text").max(20000, "Text is too long (max 20,000 characters)"),
 });
 
+// User feedback / report validation. Powers the "Report this issue" button
+// on the capture error screen. sourceImageId is optional because some
+// failures (upload errors, pre-insert validation) happen before a
+// source_images row exists.
+export const feedbackSchema = z.object({
+  category: z.enum(["extract_failure", "other"]),
+  sourceImageId: z.string().uuid().nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+  errorMessage: z.string().max(2000).nullable().optional(),
+});
+
 // Review response validation
 export const reviewResponseSchema = z.object({
   itemId: z.string().uuid(),

@@ -103,6 +103,12 @@ export function CaptureInput() {
   const [submissionKind, setSubmissionKind] = useState<"image" | "text">("text");
   const [captureStageIndex, setCaptureStageIndex] = useState(0);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
+  // Correlation ID for the most recent failed extraction. Set when the API
+  // returns one in its error payload (image or text), null otherwise. Lets
+  // us show the user a short ref and attach it to feedback reports.
+  const [errorRef, setErrorRef] = useState<string | null>(null);
+  const [reportState, setReportState] = useState<"idle" | "open" | "sending" | "sent" | "failed">("idle");
+  const [reportNote, setReportNote] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -336,6 +342,9 @@ export function CaptureInput() {
     setMode("empty");
     setState("idle");
     setError(null);
+    setErrorRef(null);
+    setReportState("idle");
+    setReportNote("");
     setExtractionResult(null);
     setDraft(null);
     setMobileTextMode(false);
@@ -362,6 +371,9 @@ export function CaptureInput() {
     if (!imageFile) return;
     setSubmissionKind("image");
     setState("uploading");
+    setErrorRef(null);
+    setReportState("idle");
+    setReportNote("");
 
     try {
       const res = await startUpload([imageFile]);
@@ -384,6 +396,9 @@ export function CaptureInput() {
           if (data && typeof data.error === "string") {
             errorMessage = data.error;
           }
+          if (data && typeof data.sourceImageId === "string") {
+            setErrorRef(data.sourceImageId);
+          }
           if (data && typeof data.remaining === "number" && typeof data.limit === "number") {
             setQuota({ remaining: data.remaining, limit: data.limit });
           }
@@ -405,6 +420,9 @@ export function CaptureInput() {
   const handleTextSubmit = async () => {
     setSubmissionKind("text");
     setState("processing");
+    setErrorRef(null);
+    setReportState("idle");
+    setReportNote("");
 
     try {
       const response = await fetch("/api/extract-text", {
@@ -417,6 +435,9 @@ export function CaptureInput() {
         const data = await response.json().catch(() => ({}));
         if (typeof data.remaining === "number" && typeof data.limit === "number") {
           setQuota({ remaining: data.remaining, limit: data.limit });
+        }
+        if (typeof data.sourceImageId === "string") {
+          setErrorRef(data.sourceImageId);
         }
         throw new Error(data.error || "Failed to process text");
       }
@@ -478,6 +499,26 @@ export function CaptureInput() {
       description: "Failed to process your content. Please try again.",
       variant: "destructive",
     });
+  };
+
+  const submitReport = async () => {
+    setReportState("sending");
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "extract_failure",
+          sourceImageId: errorRef ?? undefined,
+          note: reportNote.trim() || undefined,
+          errorMessage: error ?? undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("Report failed");
+      setReportState("sent");
+    } catch {
+      setReportState("failed");
+    }
   };
 
   const onSaveError = (message: string) => {
@@ -748,9 +789,75 @@ export function CaptureInput() {
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-jr-red" />
             <h3 className="text-lg font-semibold">Something went wrong</h3>
             <p className="text-muted-foreground mt-2">{error}</p>
-            <Button className="mt-4" onClick={clearAll}>
-              Try Again
-            </Button>
+            {errorRef && (
+              <p className="mt-1 text-xs text-muted-foreground/70 font-mono">
+                ref {errorRef.slice(0, 8)}
+              </p>
+            )}
+
+            {reportState === "open" || reportState === "sending" || reportState === "failed" ? (
+              <div className="mt-5 mx-auto max-w-sm text-left">
+                <label htmlFor="report-note" className="block text-sm font-medium mb-2">
+                  Tell us what happened
+                </label>
+                <textarea
+                  id="report-note"
+                  value={reportNote}
+                  onChange={(e) => setReportNote(e.target.value)}
+                  placeholder="Optional — what were you trying to capture?"
+                  rows={3}
+                  maxLength={2000}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm resize-y placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <div className="mt-3 flex gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setReportState("idle");
+                      setReportNote("");
+                    }}
+                    disabled={reportState === "sending"}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={submitReport}
+                    disabled={reportState === "sending"}
+                  >
+                    {reportState === "sending" ? "Sending..." : "Send report"}
+                  </Button>
+                </div>
+                {reportState === "failed" && (
+                  <p className="mt-2 text-xs text-jr-red text-right">
+                    Couldn&apos;t send. Try again?
+                  </p>
+                )}
+              </div>
+            ) : reportState === "sent" ? (
+              <>
+                <Button className="mt-4" onClick={clearAll}>
+                  Try Again
+                </Button>
+                <p className="mt-3 text-sm text-primary">
+                  Thanks — we got your report.
+                </p>
+              </>
+            ) : (
+              <>
+                <Button className="mt-4" onClick={clearAll}>
+                  Try Again
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setReportState("open")}
+                  className="block mx-auto mt-3 text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground"
+                >
+                  Report this issue
+                </button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

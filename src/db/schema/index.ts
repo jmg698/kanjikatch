@@ -261,6 +261,24 @@ export const contentItems = pgTable("content_items", {
   difficultyIdx: index("content_items_difficulty_idx").on(table.difficultyLevel),
 }));
 
+// User-submitted reports / feedback. Filed from the "Report this issue"
+// button on the capture error screen. source_image_id is nullable because
+// some failures happen before the source_images row is created (upload
+// errors, validation errors); the report is still useful without it.
+export const userReports = pgTable("user_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceImageId: uuid("source_image_id").references(() => sourceImages.id, { onDelete: "set null" }),
+  category: text("category").notNull(),
+  note: text("note"),
+  userAgent: text("user_agent"),
+  errorMessageSnapshot: text("error_message_snapshot"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("user_reports_user_id_idx").on(table.userId),
+  createdAtIdx: index("user_reports_created_at_idx").on(table.createdAt),
+}));
+
 // API usage events — one row per Anthropic call. Powers the cost protection
 // guards (global circuit breaker, per-user token cap, per-IP throttle).
 // userId is nullable so we can still record IP-throttle events from
@@ -321,3 +339,6 @@ export type NewGeneratedSentenceTarget = typeof generatedSentenceTargets.$inferI
 
 export type ReviewTrack = typeof reviewTracks.$inferSelect;
 export type NewReviewTrack = typeof reviewTracks.$inferInsert;
+
+export type UserReport = typeof userReports.$inferSelect;
+export type NewUserReport = typeof userReports.$inferInsert;

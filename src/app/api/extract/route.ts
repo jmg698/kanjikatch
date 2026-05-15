@@ -17,6 +17,9 @@ function blockedResponse(reason: string, message: string, status: 429 | 503, ret
 }
 
 export async function POST(req: NextRequest) {
+  // Tracked across the try/catch so the outer error response can include
+  // the source ref. Lets users report failures with a stable correlation ID.
+  let sourceImageId: string | null = null;
   try {
     const { userId } = await auth();
 
@@ -105,6 +108,7 @@ export async function POST(req: NextRequest) {
         processed: false,
       })
       .returning();
+    sourceImageId = sourceImage.id;
 
     // #region agent log
     agentDebugLog("H5", "api/extract/route.ts:POST", "source_image_inserted", {
@@ -189,6 +193,9 @@ export async function POST(req: NextRequest) {
       ? "Our AI is temporarily overloaded. Please try again in a minute."
       : "Failed to process image";
 
-    return NextResponse.json({ error: userMessage }, { status: isOverloaded ? 503 : 500 });
+    return NextResponse.json(
+      { error: userMessage, sourceImageId: sourceImageId ?? undefined },
+      { status: isOverloaded ? 503 : 500 },
+    );
   }
 }
