@@ -118,16 +118,12 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
         <div className="grid gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14 items-center">
           {/* Left: copy */}
           <div>
-            <p className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.22em] text-[hsl(38_70%_38%)]">
-              <span className="inline-block w-6 h-px bg-[hsl(38_70%_38%)]/60" />
-              A personal Japanese SRS
-            </p>
-            <h1 className="mt-5 font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
-              Catch the Japanese
+            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
+              Learn the Japanese
               <br />
-              you actually
+              you've
               <span className="relative inline-block ml-3">
-                <span className="relative z-10 text-primary">read.</span>
+                <span className="relative z-10 text-primary">seen.</span>
                 <span
                   aria-hidden
                   className="absolute inset-x-0 bottom-1 h-3 -z-0"
@@ -136,8 +132,8 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
               </span>
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-xl">
-              Anything with Japanese on it — handwritten notes, a textbook page,
-              a news screenshot, a manga panel. KanjiKatch reads the page,
+              KanjiKatch ingests anything with Japanese on it — your handwritten
+              notes, a textbook page, a news screenshot, a manga panel. It
               catches every kanji, word, and sentence, and builds a review deck
               calibrated to what you already know. Your studied words reappear
               in fresh sentences; the new ones you spot there become tomorrow's
