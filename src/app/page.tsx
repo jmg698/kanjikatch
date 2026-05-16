@@ -154,10 +154,6 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
                 <Link href="#how">See how it works</Link>
               </Button>
             </div>
-            <p className="mt-5 text-xs text-muted-foreground/80">
-              Free to start · Works with handwriting, print, and screenshots ·
-              No deck imports required
-            </p>
           </div>
 
           {/* Right: stacked paper demo */}
