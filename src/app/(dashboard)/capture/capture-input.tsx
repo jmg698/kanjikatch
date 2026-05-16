@@ -120,6 +120,13 @@ export function CaptureInput() {
   const stages =
     submissionKind === "image" ? CAPTURE_STAGES_IMAGE : CAPTURE_STAGES_TEXT;
 
+  // When a free user has exhausted their monthly extractions we still let
+  // them paste/attach content (so they see exactly what they want to do)
+  // but the submit button morphs into an upgrade CTA. Avoids the
+  // "click → spinner → 429 → red toast" failure path.
+  const isOutOfExtractions =
+    quota !== null && !quota.isPro && quota.remaining === 0;
+
   useEffect(() => {
     if (state === "uploading") {
       setCaptureStageIndex(0);
@@ -363,6 +370,10 @@ export function CaptureInput() {
   };
 
   const handleSubmit = async () => {
+    if (isOutOfExtractions) {
+      router.push("/pricing");
+      return;
+    }
     if (mode === "image" && imageFile) await handleImageSubmit();
     else if (mode === "text" && text.trim()) await handleTextSubmit();
   };
@@ -873,41 +884,53 @@ export function CaptureInput() {
     !quota.isPro &&
     quota.remaining / quota.limit <= QUOTA_WARNING_THRESHOLD;
 
+  // At 0 the primary CTA below morphs into "Upgrade to Pro", so the banner
+  // becomes informational only — neutral colors, no duplicate button.
+  // Above 0 (running-low warning) the primary CTA is still "Extract
+  // Content", so the banner keeps its amber tone and its own upgrade link.
   const quotaBanner = showQuotaBanner ? (
     <div
       className={cn(
         "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm mb-4",
         quota!.remaining === 0
-          ? "border-jr-red/30 bg-jr-red/5 text-jr-red"
+          ? "border-border bg-muted/40 text-foreground"
           : "border-amber-300/60 bg-amber-50 text-amber-900",
       )}
       role="status"
     >
-      <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden />
+      <AlertTriangle
+        className={cn(
+          "h-4 w-4 mt-0.5 flex-shrink-0",
+          quota!.remaining === 0 && "text-muted-foreground",
+        )}
+        aria-hidden
+      />
       <div className="leading-snug flex-1 min-w-0">
         <p className="font-medium">
           {quota!.remaining === 0
             ? "You've used your free extractions for this month."
             : `${quota!.remaining} of ${quota!.limit} free extractions left this month`}
         </p>
-        <p className="text-xs opacity-80 mt-0.5">
+        <p
+          className={cn(
+            "text-xs mt-0.5",
+            quota!.remaining === 0 ? "text-muted-foreground" : "opacity-80",
+          )}
+        >
           {quota!.remaining === 0
-            ? "Pro adds unlimited captures, audio, and personalized sentences."
+            ? "Your free quota resets at the start of next month."
             : "Free includes 10 starter + 5/month. Pro removes the cap."}
         </p>
       </div>
-      <Link
-        href="/pricing"
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors flex-shrink-0",
-          quota!.remaining === 0
-            ? "bg-jr-red text-white hover:bg-jr-red/90"
-            : "bg-amber-900 text-white hover:bg-amber-900/90",
-        )}
-      >
-        <Sparkles className="h-3 w-3" />
-        See Pro
-      </Link>
+      {quota!.remaining > 0 && (
+        <Link
+          href="/pricing"
+          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors flex-shrink-0 bg-amber-900 text-white hover:bg-amber-900/90"
+        >
+          <Sparkles className="h-3 w-3" />
+          See Pro
+        </Link>
+      )}
     </div>
   ) : null;
 
@@ -955,9 +978,18 @@ export function CaptureInput() {
                 <ImageIcon className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="truncate">{imageFile?.name}</span>
               </p>
-              <Button onClick={handleSubmit} className="w-full gap-2" size="lg">
-                Extract Content
-              </Button>
+              {isOutOfExtractions ? (
+                <Button asChild className="w-full gap-2" size="lg">
+                  <Link href="/pricing">
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade to Pro
+                  </Link>
+                </Button>
+              ) : (
+                <Button onClick={handleSubmit} className="w-full gap-2" size="lg">
+                  Extract Content
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : mobileTextMode ? (
@@ -983,13 +1015,22 @@ export function CaptureInput() {
                 <p className="text-xs text-muted-foreground">
                   {text.length > 0 ? `${text.length.toLocaleString()} characters` : ""}
                 </p>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={text.trim().length === 0}
-                  className="gap-2"
-                >
-                  Extract Content
-                </Button>
+                {isOutOfExtractions ? (
+                  <Button asChild className="gap-2">
+                    <Link href="/pricing">
+                      <Sparkles className="h-4 w-4" />
+                      Upgrade to Pro
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={text.trim().length === 0}
+                    className="gap-2"
+                  >
+                    Extract Content
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1138,18 +1179,29 @@ export function CaptureInput() {
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs text-muted-foreground">
                 {mode === "text"
-                  ? `${text.length.toLocaleString()} characters · ⌘+Enter to submit`
+                  ? isOutOfExtractions
+                    ? `${text.length.toLocaleString()} characters`
+                    : `${text.length.toLocaleString()} characters · ⌘+Enter to submit`
                   : mode === "image"
                     ? "Image ready"
                     : ""}
               </p>
-              <Button
-                onClick={handleSubmit}
-                disabled={mode === "empty"}
-                className="gap-2"
-              >
-                Extract Content
-              </Button>
+              {isOutOfExtractions ? (
+                <Button asChild className="gap-2">
+                  <Link href="/pricing">
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade to Pro
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={mode === "empty"}
+                  className="gap-2"
+                >
+                  Extract Content
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
