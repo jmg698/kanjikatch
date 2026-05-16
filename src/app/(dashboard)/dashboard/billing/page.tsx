@@ -22,6 +22,13 @@ function formatDate(date: Date | null | undefined): string | null {
   }).format(date);
 }
 
+function formatShortDate(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function describeStatus(status: string | null | undefined, cancelAtPeriodEnd: boolean): string {
   if (!status) return "No active subscription";
   if (cancelAtPeriodEnd && (status === "active" || status === "trialing")) {
@@ -204,7 +211,9 @@ export default async function BillingPage({
       <Card>
         <CardContent className="pt-6 space-y-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground font-mono">
-            This month
+            {quota.breakdown && quota.breakdown.starter.remaining > 0
+              ? "Extractions"
+              : "This month"}
           </p>
           <div className="flex items-baseline gap-2">
             <span className="font-display text-3xl font-semibold">
@@ -217,11 +226,58 @@ export default async function BillingPage({
             <span className="text-sm text-muted-foreground">
               {quota.limit === Infinity || quota.limit > 999
                 ? "extractions remaining"
-                : `of ${quota.limit} extractions left`}
+                : quota.breakdown && quota.breakdown.starter.remaining > 0
+                  ? "extractions left"
+                  : `of ${quota.limit} extractions left`}
             </span>
           </div>
+
+          {quota.breakdown && (
+            <div className="pt-3 border-t border-border/50 space-y-2.5 text-sm">
+              <div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-muted-foreground">
+                    Monthly allowance
+                  </span>
+                  <span className="font-mono tabular-nums">
+                    <span className="font-medium text-foreground">
+                      {quota.breakdown.monthly.remaining}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {" "}of {quota.breakdown.monthly.limit}
+                    </span>
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Refills {formatShortDate(quota.breakdown.nextMonthlyResetAt)}
+                </p>
+              </div>
+
+              {quota.breakdown.starter.remaining > 0 && (
+                <div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      Welcome bonus
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      <span className="font-medium text-foreground">
+                        {quota.breakdown.starter.remaining}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {" "}of {quota.breakdown.starter.limit}
+                      </span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    One-time bonus on signup — no expiry, used before your monthly allowance.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {!isPro && quota.remaining <= Math.max(1, Math.floor(quota.limit * 0.25)) && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground pt-1">
               Running low? Pro removes the cap.
             </p>
           )}
