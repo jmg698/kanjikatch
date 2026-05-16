@@ -134,10 +134,9 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
             <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-xl">
               KanjiKatch ingests anything with Japanese on it — your handwritten
               notes, a textbook page, a news screenshot, a manga panel. It
-              catches every kanji, word, and sentence, and builds a review deck
-              calibrated to what you already know. Your studied words reappear
-              in fresh sentences; the new ones you spot there become tomorrow's
-              catch.
+              catches every kanji, word, and sentence, and builds a working
+              knowledge of what kanji and vocab you've seen. You review those
+              words and read them in context to build fluency.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button size="lg" className="h-12 px-7 text-base shadow-sm" asChild>
