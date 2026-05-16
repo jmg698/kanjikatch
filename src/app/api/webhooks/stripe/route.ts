@@ -186,7 +186,7 @@ async function applySubscriptionToUser(userId: string, subscription: Stripe.Subs
       stripeSubscriptionId: subscription.id,
       stripePriceId: priceId,
       subscriptionStatus: subscription.status,
-      currentPeriodEnd: toDate(subscription.current_period_end),
+      currentPeriodEnd: toDate(getCurrentPeriodEnd(subscription)),
       trialEnd: toDate(subscription.trial_end),
       cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
       subscriptionTier: nextTier,
@@ -212,4 +212,17 @@ async function handleInvoiceEvent(invoice: Stripe.Invoice, eventType: Stripe.Eve
 function toDate(unixSeconds: number | null | undefined): Date | null {
   if (!unixSeconds) return null;
   return new Date(unixSeconds * 1000);
+}
+
+// Stripe API versions from 2025-09 onward (e.g. 2026-04-22.dahlia) removed
+// current_period_end from the Subscription object and moved it onto each
+// SubscriptionItem. Webhook payloads use the account's configured API
+// version, which can be newer than the SDK we pin, so we check both
+// locations and take whichever is populated.
+function getCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {
+  if (subscription.current_period_end) return subscription.current_period_end;
+  const item = subscription.items.data[0] as
+    | (Stripe.SubscriptionItem & { current_period_end?: number })
+    | undefined;
+  return item?.current_period_end ?? null;
 }
