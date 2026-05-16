@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles, ArrowRight } from "lucide-react";
+import { AlertTriangle, Check, Sparkles, ArrowRight } from "lucide-react";
 import { db, users } from "@/db";
 import { eq } from "drizzle-orm";
 import { getCurrentUserId } from "@/lib/auth";
@@ -81,6 +81,15 @@ export default async function BillingPage({
   const isPro = quota.tier.isPro;
   const isComped = quota.tier.isComped;
   const hasStripeCustomer = Boolean(row.stripeCustomerId);
+  const isCanceling = row.cancelAtPeriodEnd && isPro && !isComped;
+  // current_period_end can be null when the webhook payload uses a Stripe API
+  // version that moved the field onto subscription items. While the user is
+  // still in `trialing`, trial_end is the correct fallback (Stripe will either
+  // charge or cancel on that date). Post-trial we don't fall back — a stale
+  // trial_end would render as a misleading past date.
+  const accessEndsAt =
+    row.currentPeriodEnd ??
+    (row.subscriptionStatus === "trialing" ? row.trialEnd : null);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -128,6 +137,22 @@ export default async function BillingPage({
             )}
           </div>
 
+          {isCanceling && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-500 flex-shrink-0" />
+              <div className="space-y-1 flex-1">
+                <p className="font-medium">
+                  Your Pro access ends
+                  {accessEndsAt ? ` on ${formatDate(accessEndsAt)}` : " at the period end"}.
+                </p>
+                <p className="text-muted-foreground">
+                  After that you&apos;ll drop to the free plan (5 extractions/month, no
+                  audio, no personalized sentences). Change your mind?
+                </p>
+              </div>
+            </div>
+          )}
+
           {isPro && !isComped && (
             <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-border/50">
               {row.trialEnd && row.subscriptionStatus === "trialing" && (
@@ -138,12 +163,12 @@ export default async function BillingPage({
                   <p className="text-sm mt-1">{formatDate(row.trialEnd)}</p>
                 </div>
               )}
-              {row.currentPeriodEnd && (
+              {accessEndsAt && (
                 <div>
                   <p className="text-xs text-muted-foreground font-mono uppercase tracking-wide">
                     {row.cancelAtPeriodEnd ? "Access ends" : "Renews"}
                   </p>
-                  <p className="text-sm mt-1">{formatDate(row.currentPeriodEnd)}</p>
+                  <p className="text-sm mt-1">{formatDate(accessEndsAt)}</p>
                 </div>
               )}
             </div>
@@ -158,7 +183,7 @@ export default async function BillingPage({
 
           {hasStripeCustomer && !isComped && (
             <div className="pt-2 border-t border-border/50">
-              <BillingActions />
+              <BillingActions cancelAtPeriodEnd={row.cancelAtPeriodEnd} />
             </div>
           )}
         </CardContent>
