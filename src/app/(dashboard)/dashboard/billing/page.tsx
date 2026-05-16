@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Check, Sparkles, ArrowRight } from "lucide-react";
 import { db, users } from "@/db";
 import { eq } from "drizzle-orm";
 import { getCurrentUserId } from "@/lib/auth";
+import { ensureUserRow } from "@/lib/ensure-user";
 import { readPlanQuota } from "@/lib/plan-limits";
 import { BillingActions } from "./billing-actions";
 
@@ -56,7 +56,12 @@ export default async function BillingPage({
 }) {
   const userId = await getCurrentUserId();
 
-  const [row] = await db
+  // Self-heal in case the Clerk user.created webhook hasn't landed yet —
+  // otherwise a fresh signup would never be able to view their plan or
+  // start a checkout.
+  await ensureUserRow(userId);
+
+  const [maybeRow] = await db
     .select({
       subscriptionTier: users.subscriptionTier,
       subscriptionStatus: users.subscriptionStatus,
@@ -69,10 +74,17 @@ export default async function BillingPage({
     .where(eq(users.id, userId))
     .limit(1);
 
-  if (!row) {
-    // Should never happen — Clerk webhook upserts the row at signup.
-    redirect("/dashboard");
-  }
+  // ensureUserRow() above means maybeRow is virtually always defined; the
+  // fallback is belt-and-suspenders so a transient DB hiccup still renders
+  // a sensible free-tier view rather than crashing the page.
+  const row = maybeRow ?? {
+    subscriptionTier: "free" as const,
+    subscriptionStatus: null,
+    stripeCustomerId: null,
+    currentPeriodEnd: null,
+    trialEnd: null,
+    cancelAtPeriodEnd: false,
+  };
 
   const quota = await readPlanQuota(userId);
   const params = (await searchParams) ?? {};

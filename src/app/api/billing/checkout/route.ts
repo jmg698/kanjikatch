@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { db, users } from "@/db";
 import { eq } from "drizzle-orm";
+import { ensureUserRow } from "@/lib/ensure-user";
 import { getAppUrl, getPlan, getStripe, type PlanKey } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -40,6 +41,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Self-heal in case the Clerk user.created webhook hasn't landed yet so
+    // a brand-new signup can upgrade immediately (e.g. straight from
+    // onboarding) without bouncing on a "still provisioning" error.
+    await ensureUserRow(userId);
+
     const [userRow] = await db
       .select({
         email: users.email,
@@ -51,12 +57,13 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (!userRow) {
-      // Webhook race — Clerk's user.created hasn't run yet. The user can
-      // try again in a moment; bouncing them rather than fabricating a
-      // row avoids a fake email landing in Stripe.
+      // ensureUserRow above should have made this unreachable. If we still
+      // got nothing, something's wrong with the DB write — surface a real
+      // error rather than charging ahead and creating a Stripe customer
+      // with no row to attach it to.
       return NextResponse.json(
-        { error: "Account is still provisioning. Please try again in a moment." },
-        { status: 409 },
+        { error: "Failed to provision account. Please try again." },
+        { status: 500 },
       );
     }
 
