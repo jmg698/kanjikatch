@@ -10,6 +10,21 @@ import { getTierContext, TIER_LIMITS, type TierContext } from "@/lib/tiers";
 
 export type GatedAction = "extract";
 
+// Split of the free-tier extraction quota into its two underlying pools.
+// `monthly` is the recurring allowance that refills on the 1st of each UTC
+// month; `starter` is the one-time welcome bonus that drains first and
+// rolls over until exhausted. Surfaced so the billing UI can show users
+// where their remaining count actually comes from, rather than collapsing
+// "5 monthly + 10 welcome bonus" into an opaque "15 of 15".
+//
+// Always populated for free tier (even when a pool is empty); undefined
+// for Pro/comped, whose quota is a single fair-use cap.
+export interface PlanQuotaBreakdown {
+  monthly: { remaining: number; limit: number };
+  starter: { remaining: number; limit: number };
+  nextMonthlyResetAt: Date;
+}
+
 export interface PlanLimitDecision {
   allowed: boolean;
   // remaining / limit are user-facing — the existing capture UI surfaces
@@ -17,6 +32,7 @@ export interface PlanLimitDecision {
   remaining: number;
   limit: number;
   tier: TierContext;
+  breakdown?: PlanQuotaBreakdown;
   // When the gate is hit, copy that the client can render verbatim.
   reason?: string;
 }
@@ -85,7 +101,17 @@ async function loadExtractionAccount(userId: string): Promise<ExtractionAccount 
   };
 }
 
-function freeExtractionCapacity(account: ExtractionAccount): { remaining: number; limit: number } {
+// First-of-next-UTC-month — when account.used resets to 0 and the
+// monthly allowance refills. Month overflow rolls the year automatically.
+function nextMonthlyResetUtc(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+}
+
+function freeExtractionCapacity(account: ExtractionAccount): {
+  remaining: number;
+  limit: number;
+  breakdown: PlanQuotaBreakdown;
+} {
   const monthly = TIER_LIMITS.free.extractionsMonthly;
   const starterGrant = TIER_LIMITS.free.extractionsStarter;
 
@@ -99,6 +125,11 @@ function freeExtractionCapacity(account: ExtractionAccount): { remaining: number
   return {
     remaining: monthlyRemaining + starterRemaining,
     limit: monthly + starterRemaining,
+    breakdown: {
+      monthly: { remaining: monthlyRemaining, limit: monthly },
+      starter: { remaining: starterRemaining, limit: starterGrant },
+      nextMonthlyResetAt: nextMonthlyResetUtc(new Date()),
+    },
   };
 }
 
@@ -135,20 +166,28 @@ export async function checkPlanLimit(
   if (!account) {
     // Race with Clerk webhook — the user row will be created on next write.
     // Treat as a fresh free user with full starter pool.
+    const starter = TIER_LIMITS.free.extractionsStarter;
+    const monthly = TIER_LIMITS.free.extractionsMonthly;
     return {
       allowed: true,
-      remaining: TIER_LIMITS.free.extractionsStarter + TIER_LIMITS.free.extractionsMonthly,
-      limit: TIER_LIMITS.free.extractionsStarter + TIER_LIMITS.free.extractionsMonthly,
+      remaining: starter + monthly,
+      limit: starter + monthly,
       tier,
+      breakdown: {
+        monthly: { remaining: monthly, limit: monthly },
+        starter: { remaining: starter, limit: starter },
+        nextMonthlyResetAt: nextMonthlyResetUtc(new Date()),
+      },
     };
   }
 
-  const { remaining, limit } = freeExtractionCapacity(account);
+  const { remaining, limit, breakdown } = freeExtractionCapacity(account);
   return {
     allowed: remaining > 0,
     remaining,
     limit,
     tier,
+    breakdown,
     reason: remaining > 0
       ? undefined
       : `You've used your ${TIER_LIMITS.free.extractionsMonthly} extractions for this month. Upgrade to Pro for unlimited extractions.`,
@@ -157,9 +196,19 @@ export async function checkPlanLimit(
 
 // Read-only variant used by the quota endpoint. Same answer as checkPlanLimit
 // without spending a tier resolution if it's already in hand.
-export async function readPlanQuota(userId: string): Promise<{ remaining: number; limit: number; tier: TierContext }> {
+export async function readPlanQuota(userId: string): Promise<{
+  remaining: number;
+  limit: number;
+  tier: TierContext;
+  breakdown?: PlanQuotaBreakdown;
+}> {
   const decision = await checkPlanLimit(userId, "extract");
-  return { remaining: decision.remaining, limit: decision.limit, tier: decision.tier };
+  return {
+    remaining: decision.remaining,
+    limit: decision.limit,
+    tier: decision.tier,
+    breakdown: decision.breakdown,
+  };
 }
 
 // Atomically increment the user's extraction counter after a successful
