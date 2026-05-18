@@ -870,9 +870,27 @@ function Footer() {
             built for Japanese learners
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} KanjiKatch
-        </p>
+        <nav
+          aria-label="Footer"
+          className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
+        >
+          <Link href="/pricing" className="hover:text-foreground transition-colors">
+            Pricing
+          </Link>
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            Terms
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground transition-colors">
+            Privacy
+          </Link>
+          <a
+            href="mailto:support@kanjikatch.com"
+            className="hover:text-foreground transition-colors"
+          >
+            support@kanjikatch.com
+          </a>
+          <span>&copy; {new Date().getFullYear()} KanjiKatch</span>
+        </nav>
       </div>
     </footer>
   );
