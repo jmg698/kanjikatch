@@ -69,6 +69,26 @@ export default async function DashboardLayout({
       <main className="container px-4 py-6">
         {children}
       </main>
+
+      <footer className="border-t border-border/60 mt-12">
+        <div className="container px-4 py-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <Link href="/dashboard/settings" className="hover:text-foreground transition-colors">
+            Settings
+          </Link>
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            Terms
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground transition-colors">
+            Privacy
+          </Link>
+          <a
+            href="mailto:support@kanjikatch.com"
+            className="hover:text-foreground transition-colors"
+          >
+            support@kanjikatch.com
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
