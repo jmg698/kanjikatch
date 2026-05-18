@@ -183,9 +183,12 @@ export default function PrivacyPage() {
               describing the target items to Anthropic for generation.
             </p>
             <p>
-              We configure our AI providers to disable training on the data we
-              send them where that option is available. We do not train any AI
-              models ourselves.
+              We do not train AI models on your uploads or generated content.
+              We use third-party AI providers for some features. The providers
+              we use today do not train this kind of data. Provider terms can
+              change over time, and we may switch providers; if a change
+              materially affects how your content may be used, we will update
+              this Policy as soon as we can.
             </p>
           </Section>
 
