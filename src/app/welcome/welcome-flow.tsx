@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { StackedPaperHero } from "@/components/shared/stacked-paper-hero";
 import { track } from "@/lib/track";
 import {
   startWelcome,
@@ -71,8 +73,29 @@ export function WelcomeFlow({ initialStep }: { initialStep: Step }) {
     });
   }
 
+  function handleCatchAnother() {
+    setError(null);
+    track("onboarding_completed", { viaWildRevealCta: false });
+    // Mark complete then route straight to /capture so the user keeps the
+    // momentum. Completing the tour first is required so the dashboard
+    // gate doesn't bounce them back to /welcome from inside the (dashboard)
+    // layout that /capture lives under.
+    startTransition(async () => {
+      try {
+        await completeOnboarding("/capture");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
+    });
+  }
+
+  // Pitch screen wants the wider grid layout for the hero visual; other
+  // steps stay in a narrower column for readability.
+  const containerClass =
+    step === "pitch" ? "max-w-5xl mx-auto" : "max-w-2xl mx-auto";
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className={containerClass}>
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
@@ -90,7 +113,11 @@ export function WelcomeFlow({ initialStep }: { initialStep: Step }) {
         />
       )}
       {step === "summary" && (
-        <SummaryStep onFinish={handleFinish} pending={pending} />
+        <SummaryStep
+          onFinish={handleFinish}
+          onCatchAnother={handleCatchAnother}
+          pending={pending}
+        />
       )}
     </div>
   );
@@ -114,34 +141,43 @@ function PitchStep({
   pending: boolean;
 }) {
   return (
-    <section className="text-center pt-8 sm:pt-16">
-      <ProgressChip current={1} />
-      <h1 className="mt-6 font-display text-5xl sm:text-6xl font-bold tracking-tight leading-[1.05]">
-        Catch your first.
-      </h1>
-      <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto leading-relaxed">
-        Three minutes. One photo. A library that grows from what you actually
-        read.
-      </p>
+    <section className="pt-4 sm:pt-10">
+      <div className="grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-14 items-center">
+        <div>
+          <ProgressChip current={1} />
+          <h1 className="mt-5 font-display text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
+            Catch your first.
+          </h1>
+          <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed">
+            Three minutes. One photo. A library that grows from what you
+            actually read.
+          </p>
 
-      <div className="mt-12 flex justify-center">
-        <button
-          onClick={onStart}
-          disabled={pending}
-          className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-foreground text-background font-semibold text-base shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          Show me
-          <ArrowRight className="h-4 w-4" />
-        </button>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Button
+              size="lg"
+              className="h-12 px-7 text-base shadow-sm"
+              onClick={onStart}
+              disabled={pending}
+            >
+              Show me
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+            <button
+              type="button"
+              onClick={onSkip}
+              disabled={pending}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 px-3 py-2"
+            >
+              I&rsquo;ve used KanjiKatch before — skip this.
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden lg:block">
+          <StackedPaperHero />
+        </div>
       </div>
-
-      <button
-        onClick={onSkip}
-        disabled={pending}
-        className="mt-10 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-      >
-        I&rsquo;ve used KanjiKatch before — skip this.
-      </button>
     </section>
   );
 }
@@ -290,15 +326,15 @@ function SampleTile({
             This is what we&rsquo;ll catch from. You can review and edit every
             card before they land in your library.
           </p>
-          <button
-            type="button"
+          <Button
+            size="lg"
+            className="mt-4 w-full h-12 text-sm"
             onClick={() => onBorrow(slug)}
             disabled={disabled}
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait"
           >
             Borrow this one
-            <ArrowRight className="h-4 w-4" />
-          </button>
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         </div>
       )}
     </div>
@@ -307,9 +343,11 @@ function SampleTile({
 
 function SummaryStep({
   onFinish,
+  onCatchAnother,
   pending,
 }: {
   onFinish: () => void;
+  onCatchAnother: () => void;
   pending: boolean;
 }) {
   return (
@@ -336,14 +374,23 @@ function SummaryStep({
         </li>
       </ul>
 
-      <div className="mt-12 flex justify-center">
-        <button
+      <div className="mt-12 flex flex-col items-center gap-3">
+        <Button
+          size="lg"
+          className="h-12 px-8 text-base shadow-sm"
           onClick={onFinish}
           disabled={pending}
-          className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-foreground text-background font-semibold text-base shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           Go to dashboard
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+        <button
+          type="button"
+          onClick={onCatchAnother}
+          disabled={pending}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 px-3 py-2"
+        >
+          Or catch another page →
         </button>
       </div>
     </section>

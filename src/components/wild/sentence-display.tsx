@@ -13,6 +13,11 @@ interface SentenceDisplayProps {
   compact?: boolean;
   onRate?: (sentenceId: string, rating: DifficultyRating) => void;
   currentRating?: DifficultyRating | null;
+  /** Show a one-line explainer above the rating buttons describing what
+   *  the ratings do. Used by onboarding for the first wild sentence so
+   *  first-time raters understand the mechanic. See ONBOARDING_PLAN.md
+   *  Phase 2.0 item 6. */
+  showRatingHint?: boolean;
 }
 
 /**
@@ -145,7 +150,7 @@ const RATING_CONFIG: Record<DifficultyRating, {
 
 const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
 
-export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating }: SentenceDisplayProps) {
+export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating, showRatingHint = false }: SentenceDisplayProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showFurigana, setShowFurigana] = useState(false);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
@@ -264,6 +269,12 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
             <p className="wild-rating-label text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
               How was this sentence?
             </p>
+            {showRatingHint && (
+              <p className="text-xs text-muted-foreground/80 max-w-md mx-auto leading-relaxed italic">
+                Your ratings teach KanjiKatch what &ldquo;just right&rdquo; feels
+                like for you. Future sentences calibrate from this.
+              </p>
+            )}
             <div className="flex items-center justify-center gap-2">
               {RATINGS.map((rating) => {
                 const config = RATING_CONFIG[rating];

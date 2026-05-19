@@ -69,12 +69,14 @@ export async function skipOnboarding(): Promise<void> {
   redirect("/dashboard");
 }
 
-export async function completeOnboarding(): Promise<void> {
+export async function completeOnboarding(
+  destination: "/dashboard" | "/capture" = "/dashboard",
+): Promise<void> {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   await ensureUserRow(userId);
   await markCompleted(userId);
-  redirect("/dashboard");
+  redirect(destination);
 }
 
 export async function removeOnboardingSamples(): Promise<{ removed: number }> {

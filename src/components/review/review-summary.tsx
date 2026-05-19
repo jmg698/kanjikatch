@@ -15,6 +15,10 @@ interface ReviewSummaryProps {
   onShowWild?: () => void;
   sessionId?: string;
   wildPrefetchStatus?: "idle" | "loading" | "ready" | "error";
+  // True when the session was launched from /welcome (?onboarding=1).
+  // Swaps the celebratory headline for first-session framing so the screen
+  // reads as part of the tour rather than a generic completion.
+  isOnboarding?: boolean;
 }
 
 function AnimatedNumber({ value, duration = 1 }: { value: number; duration?: number }) {
@@ -60,6 +64,7 @@ export function ReviewSummary({
   onShowWild,
   sessionId,
   wildPrefetchStatus,
+  isOnboarding,
 }: ReviewSummaryProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   const wildStatus = wildPrefetchStatus === "ready" ? "ready"
@@ -118,8 +123,16 @@ export function ReviewSummary({
         >
           <CheckCircle2 className="h-16 w-16 mx-auto text-primary" />
         </motion.div>
-        <h2 className="text-2xl font-bold">Nice work — that&apos;s a wrap.</h2>
-        <p className="text-muted-foreground">{getEncouragingMessage(summary.accuracy)}</p>
+        <h2 className="text-2xl font-bold">
+          {isOnboarding
+            ? `${summary.itemsReviewed} reviews — your first session.`
+            : "Nice work — that's a wrap."}
+        </h2>
+        <p className="text-muted-foreground">
+          {isOnboarding
+            ? "Now the payoff."
+            : getEncouragingMessage(summary.accuracy)}
+        </p>
       </motion.div>
 
       {/* Session stats — three honest numbers, no XP scoreboard */}

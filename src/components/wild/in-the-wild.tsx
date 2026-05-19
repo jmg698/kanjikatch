@@ -55,6 +55,10 @@ interface InTheWildProps {
   /** How many new closer sentences to request (3 when interludes already
    *  happened, 5 otherwise). */
   closerCount?: number;
+  /** True when the session was launched from /welcome. Triggers the
+   *  difficulty-rating hint on the first sentence so first-time raters
+   *  know what their click does. See ONBOARDING_PLAN.md Phase 2.0 item 6. */
+  isOnboarding?: boolean;
   onClose: () => void;
   onBackToDashboard: () => void;
 }
@@ -64,6 +68,7 @@ export function InTheWild({
   priorSentences = [],
   excludeItemIds = [],
   closerCount = 5,
+  isOnboarding = false,
   onClose,
   onBackToDashboard,
 }: InTheWildProps) {
@@ -392,6 +397,7 @@ export function InTheWild({
                     showAddWord
                     onRate={handleRate}
                     currentRating={ratings[sentence.id] || null}
+                    showRatingHint={isOnboarding && currentIndex === 0}
                   />
                 </div>
               </motion.div>

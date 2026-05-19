@@ -899,6 +899,7 @@ export function ReviewSession() {
                     onShowWild={handleShowWild}
                     sessionId={summary.sessionId}
                     wildPrefetchStatus={wildPrefetchStatus}
+                    isOnboarding={isOnboarding}
                   />
                 </motion.div>
               </div>
@@ -919,6 +920,7 @@ export function ReviewSession() {
                     priorSentences={allInterludeSentencesRef.current}
                     excludeItemIds={Array.from(allInterludeItemIdsRef.current)}
                     closerCount={isOnboarding ? 2 : allInterludeSentencesRef.current.length > 0 ? 3 : 5}
+                    isOnboarding={isOnboarding}
                     onClose={() => (window.location.href = postSessionHref)}
                     onBackToDashboard={() => (window.location.href = postSessionHref)}
                   />
