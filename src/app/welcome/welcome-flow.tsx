@@ -187,9 +187,9 @@ function SourceStep({
 
         <div className="mt-5 grid grid-cols-1 gap-3">
           <SampleTile
-            slug="genki-ii-p14"
-            label="Genki II — page 14"
-            difficultyTag="Beginner · printed"
+            slug="town-news-cat"
+            label="Town News — the Nakano cat"
+            difficultyTag="Beginner · easy news"
             disabled={pending}
             onSelect={onChooseSample}
           />
