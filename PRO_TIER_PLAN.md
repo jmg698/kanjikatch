@@ -175,7 +175,49 @@ Everything stays. Cards, history, difficulty profile, cached audio — all prese
 
 ---
 
-## Not in v1
+## Not in v1 / backlog
+
+### Periodic knowledge scans + smart suggestions
+
+**Pitch:** Periodically scan a user's existing knowledge and surface kanji/vocab worth adding next. Suggestions should be *smart* — same approximate level as what they already know, and biased toward characters/words that appear in the material they actually read.
+
+**Inputs we already have:**
+- The user's library (current kanji + vocabulary, with SRS state — so we know what's mastered vs. struggling vs. new).
+- The user's source images (Pro retains them per the tier matrix), giving us a corpus of "what this user is actually reading."
+- Extraction history (every kanji/vocab we've ever pulled for them, even ones they didn't keep).
+
+**Suggestion signals (rough ranking inputs):**
+- Frequency in the user's own image corpus that *isn't yet in their library*.
+- Common companions / collocations of items already in library (e.g., suggests 帰る if 行く + 来る are both known).
+- Approximate JLPT/grade-level match to the bulk of their library — avoid lobbing N1 at an N4 reader.
+- "Almost there" items: kanji that appeared in their images but were dropped during confirmation.
+
+**Free vs Pro split:**
+
+| | Free | Pro |
+|---|---|---|
+| Scan cadence | One-time "starter" suggestion set (~3 items) when library passes a small threshold, then nothing | Weekly automated scan |
+| Suggestions per cycle | 3 (one-time) | 5–10 |
+| Source signal | Library only (no image corpus — free users' images are deleted post-extraction) | Library + retained image corpus + extraction history |
+| Surface | Dashboard card, dismissible | Dashboard card + included in session recap email |
+| "Why this?" rationale | Generic ("popular at your level") | Personalized ("appears 4× in images you captured this month; pairs with 食べる which you've mastered") |
+| One-tap add to library | ✓ | ✓ |
+
+The free version is intentionally a Pro preview — it demonstrates the mechanic once, then the Pro pitch is "this happens every week and uses what you're actually reading."
+
+**Cost / infra notes:**
+- Generation is a Claude call per scan. Cache aggressively; nothing here is real-time.
+- Run as a cron job (see LAUNCH_PLAN Package 9) — weekly per active Pro user, batched.
+- Needs a `suggestions` table (user_id, item, kind, rationale, source_signal, generated_at, status: pending/added/dismissed) so we don't re-suggest dismissed items and can measure add-through rate.
+- Counts toward the per-user token budget; needs a hard cap so a user with thousands of images doesn't blow it up.
+
+**Open questions:**
+- Cadence: fixed weekly vs adaptive (more often for power users, less for dormant)?
+- How aggressively to re-surface dismissed items after time passes?
+- Do we need explicit consent to scan retained images for this purpose, or does the existing ToS/Privacy cover it? (Probably the latter, but verify before shipping.)
+- What's the right empty-state when a user has <20 library items or <3 images? Fall back to generic JLPT recommendations or skip entirely.
+
+### Other backlog items
 
 - JLPT mock mode
 - Topic / context selection
