@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { db, reviewTracks } from "@/db";
 import { eq, and, or, lte, isNull, sql } from "drizzle-orm";
 import { TopNav } from "@/components/dashboard/top-nav";
+import { ensureUserRow } from "@/lib/ensure-user";
+import { getOnboardingStatus } from "@/lib/onboarding";
 
 async function getDueCount(userId: string): Promise<number> {
   const now = new Date();
@@ -29,6 +31,12 @@ export default async function DashboardLayout({
 
   if (!userId) {
     redirect("/sign-in");
+  }
+
+  await ensureUserRow(userId);
+  const { status: onboardingStatus } = await getOnboardingStatus(userId);
+  if (onboardingStatus === "pending") {
+    redirect("/welcome");
   }
 
   const dueCount = await getDueCount(userId);
