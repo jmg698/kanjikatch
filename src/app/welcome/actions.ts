@@ -3,48 +3,16 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { promises as fs } from "fs";
-import path from "path";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import * as Sentry from "@sentry/nextjs";
-import { db, sourceImages, kanji, vocabulary } from "@/db";
-import { ensureReviewTracks } from "@/lib/track-queries";
+import { db, sourceImages } from "@/db";
 import { ensureUserRow } from "@/lib/ensure-user";
-import { sqlTextArray } from "@/lib/pg-text-array";
+import { loadSample } from "@/lib/samples";
 import {
   markInProgress,
   markCompleted,
   markSkipped,
 } from "@/lib/onboarding";
-
-type SampleData = {
-  slug: string;
-  label: string;
-  kanji: Array<{
-    character: string;
-    meanings: string[];
-    readingsOn?: string[];
-    readingsKun?: string[];
-    jlptLevel?: number | null;
-    strokeCount?: number | null;
-  }>;
-  vocabulary: Array<{
-    word: string;
-    reading: string;
-    meanings: string[];
-    partOfSpeech?: string | null;
-    jlptLevel?: number | null;
-  }>;
-};
-
-async function loadSample(slug: string): Promise<SampleData> {
-  // Samples are baked into the deploy at public/samples/{slug}.json. Reading
-  // them from disk in a server action is fine — they're tiny and cached by
-  // the OS after the first hit.
-  const file = path.join(process.cwd(), "public", "samples", `${slug}.json`);
-  const raw = await fs.readFile(file, "utf-8");
-  return JSON.parse(raw) as SampleData;
-}
 
 export async function startWelcome(): Promise<void> {
   const { userId } = await auth();
@@ -60,8 +28,9 @@ export async function chooseSampleSource(slug: string): Promise<void> {
   await ensureUserRow(userId);
 
   let sourceId: string;
-
   try {
+    // Validate the sample exists before creating any rows. loadSample
+    // throws if the JSON is missing or malformed.
     const sample = await loadSample(slug);
 
     const [source] = await db
@@ -71,81 +40,25 @@ export async function chooseSampleSource(slug: string): Promise<void> {
         name: sample.label,
         imageUrl: null,
         sourceText: null,
-        processed: true,
+        // processed flips to true when /api/extract/save runs after the
+        // user confirms on /welcome/confirm. Keeping it false here lets the
+        // save endpoint's idempotency check fire normally.
+        processed: false,
         isOnboardingSample: true,
       })
       .returning({ id: sourceImages.id });
 
     sourceId = source.id;
-
-    for (const k of sample.kanji) {
-      const newMeanings = k.meanings;
-      const newOn = k.readingsOn ?? [];
-      const newKun = k.readingsKun ?? [];
-      const [row] = await db
-        .insert(kanji)
-        .values({
-          userId,
-          character: k.character,
-          meanings: newMeanings,
-          readingsOn: newOn,
-          readingsKun: newKun,
-          jlptLevel: k.jlptLevel ?? null,
-          strokeCount: k.strokeCount ?? null,
-          sourceImageIds: [sourceId],
-          timesSeen: 1,
-        })
-        .onConflictDoUpdate({
-          target: [kanji.userId, kanji.character],
-          set: {
-            lastSeenAt: new Date(),
-            timesSeen: sql`${kanji.timesSeen} + 1`,
-            sourceImageIds: sql`array_append(${kanji.sourceImageIds}, ${sourceId}::uuid)`,
-            meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.meanings}::text[] || ${sqlTextArray(newMeanings)}) AS val)`,
-            readingsOn: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.readingsOn}::text[] || ${sqlTextArray(newOn)}) AS val)`,
-            readingsKun: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${kanji.readingsKun}::text[] || ${sqlTextArray(newKun)}) AS val)`,
-          },
-        })
-        .returning({ id: kanji.id });
-      await ensureReviewTracks(userId, row.id, "kanji");
-    }
-
-    for (const v of sample.vocabulary) {
-      const newMeanings = v.meanings;
-      const [row] = await db
-        .insert(vocabulary)
-        .values({
-          userId,
-          word: v.word,
-          reading: v.reading,
-          meanings: newMeanings,
-          partOfSpeech: v.partOfSpeech ?? null,
-          jlptLevel: v.jlptLevel ?? null,
-          sourceImageIds: [sourceId],
-          timesSeen: 1,
-        })
-        .onConflictDoUpdate({
-          target: [vocabulary.userId, vocabulary.word, vocabulary.reading],
-          set: {
-            lastSeenAt: new Date(),
-            timesSeen: sql`${vocabulary.timesSeen} + 1`,
-            sourceImageIds: sql`array_append(${vocabulary.sourceImageIds}, ${sourceId}::uuid)`,
-            meanings: sql`(SELECT coalesce(array_agg(DISTINCT val), '{}') FROM unnest(${vocabulary.meanings}::text[] || ${sqlTextArray(newMeanings)}) AS val)`,
-            partOfSpeech: sql`coalesce(${v.partOfSpeech ?? null}, ${vocabulary.partOfSpeech})`,
-          },
-        })
-        .returning({ id: vocabulary.id });
-      await ensureReviewTracks(userId, row.id, "vocab");
-    }
   } catch (err) {
     Sentry.captureException(err);
     throw new Error("Could not load sample. Please try again.");
   }
 
-  // Route into the real review flow, capped at 5 cards. The review session
-  // already supports `size=5`; the `onboarding=1` flag lets the summary
-  // screen route the user back to /welcome on completion.
-  redirect(`/review?size=5&onboarding=1`);
+  // Hand off to the confirmation step instead of writing cards here. The
+  // user reviews the pre-extracted list, deselects anything they don't want,
+  // and the existing /api/extract/save endpoint writes the rows. See
+  // ONBOARDING_PLAN.md Phase 2.0 item 3.
+  redirect(`/welcome/confirm?slug=${encodeURIComponent(slug)}&sourceId=${sourceId}`);
 }
 
 export async function skipOnboarding(): Promise<void> {

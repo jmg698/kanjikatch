@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ArrowRight, BookOpen } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight } from "lucide-react";
 import { track } from "@/lib/track";
 import {
   startWelcome,
@@ -154,6 +155,7 @@ function SourceStep({
   onSkip: () => void;
   pending: boolean;
 }) {
+  const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
   return (
     <section className="pt-4 sm:pt-8">
       <ProgressChip current={2} />
@@ -165,13 +167,27 @@ function SourceStep({
         panel.
       </p>
 
-      {/* Phase 1: own-photo path is queued; sample-only walking skeleton. */}
-      <div className="mt-10 rounded-2xl border border-dashed border-border bg-white/40 p-6 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Use what&rsquo;s in front of you.</p>
-        <p className="mt-2 leading-relaxed">
-          Take a photo, paste a screenshot, or pick from your library — coming
-          shortly. For now, borrow one of ours below so you can feel the loop.
-        </p>
+      {/* Own-photo path lands in Phase 2.1. Tiles render as "available soon"
+          so the screen doesn't read as half-built. */}
+      <div className="mt-10 grid grid-cols-3 gap-3">
+        {(
+          [
+            { label: "Take a photo" },
+            { label: "Paste a screenshot" },
+            { label: "Pick from library" },
+          ] as const
+        ).map((tile) => (
+          <div
+            key={tile.label}
+            className="rounded-xl border border-dashed bg-white/40 px-3 py-4 text-center"
+            style={{ borderColor: "hsl(35 15% 80%)" }}
+          >
+            <p className="text-sm font-medium text-foreground/80">{tile.label}</p>
+            <p className="mt-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+              available soon
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="mt-10">
@@ -190,8 +206,11 @@ function SourceStep({
             slug="town-news-cat"
             label="Town News — the Nakano cat"
             difficultyTag="Beginner · easy news"
+            imagePath="/samples/town-news-cat.png"
             disabled={pending}
-            onSelect={onChooseSample}
+            expanded={expandedSlug === "town-news-cat"}
+            onExpand={() => setExpandedSlug("town-news-cat")}
+            onBorrow={onChooseSample}
           />
         </div>
       </div>
@@ -211,41 +230,78 @@ function SampleTile({
   slug,
   label,
   difficultyTag,
+  imagePath,
   disabled,
-  onSelect,
+  expanded,
+  onExpand,
+  onBorrow,
 }: {
   slug: string;
   label: string;
   difficultyTag: string;
+  imagePath: string;
   disabled: boolean;
-  onSelect: (slug: string) => void;
+  expanded: boolean;
+  onExpand: () => void;
+  onBorrow: (slug: string) => void;
 }) {
   return (
-    <button
-      onClick={() => onSelect(slug)}
-      disabled={disabled}
-      className="group rounded-xl bg-white border p-5 flex items-center gap-4 text-left transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-wait"
+    <div
+      className="rounded-xl bg-white border overflow-hidden"
       style={{ borderColor: "hsl(35 15% 86%)" }}
     >
-      <div
-        className="flex-shrink-0 w-14 h-14 rounded-lg flex items-center justify-center"
-        style={{ background: "hsl(35 30% 94%)", border: "1px solid hsl(35 15% 86%)" }}
+      <button
+        type="button"
+        onClick={expanded ? undefined : onExpand}
+        disabled={disabled}
+        className="w-full px-5 py-4 flex items-center gap-4 text-left transition-colors hover:bg-[hsl(35_30%_98%)] disabled:opacity-50 disabled:cursor-wait"
+        aria-expanded={expanded}
       >
-        <BookOpen className="h-6 w-6 text-foreground/70" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="font-display font-semibold text-base text-foreground">
-            {label}
-          </p>
-          <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground bg-[hsl(35_22%_92%)] px-1.5 py-0.5 rounded">
-            guided sample
-          </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-display font-semibold text-base text-foreground">
+              {label}
+            </p>
+            <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground bg-[hsl(35_22%_92%)] px-1.5 py-0.5 rounded">
+              guided sample
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{difficultyTag}</p>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">{difficultyTag}</p>
-      </div>
-      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-    </button>
+        {!expanded && <ArrowRight className="h-4 w-4 text-muted-foreground" />}
+      </button>
+
+      {expanded && (
+        <div className="px-5 pb-5">
+          <div
+            className="relative w-full rounded-lg overflow-hidden border"
+            style={{ aspectRatio: "16 / 9", borderColor: "hsl(35 15% 90%)" }}
+          >
+            <Image
+              src={imagePath}
+              alt={label}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 672px"
+              priority
+            />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+            This is what we&rsquo;ll catch from. You can review and edit every
+            card before they land in your library.
+          </p>
+          <button
+            type="button"
+            onClick={() => onBorrow(slug)}
+            disabled={disabled}
+            className="mt-4 w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait"
+          >
+            Borrow this one
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
