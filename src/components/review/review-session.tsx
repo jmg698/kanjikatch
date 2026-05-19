@@ -33,6 +33,12 @@ const INTERLUDE_PREFETCH_LOOKAHEAD = 7;
 export function ReviewSession() {
   const searchParams = useSearchParams();
   const sizeParam = searchParams?.get("size") ?? null;
+  const isOnboarding = searchParams?.get("onboarding") === "1";
+  // When the session was launched from the onboarding flow, post-session
+  // navigation routes back to /welcome (which then renders the summary step)
+  // so the user lands inside the tour rather than the bare dashboard. See
+  // ONBOARDING_PLAN.md Step 4–6.
+  const postSessionHref = isOnboarding ? "/welcome?step=summary" : "/dashboard";
   // Persist the requested size across "Review Again" within this page lifecycle.
   // null = no auto-start (caller wants the manual fallback UI).
   const requestedSizeRef = useRef<number | "all" | null>(
@@ -885,7 +891,7 @@ export function ReviewSession() {
                     summary={summary}
                     stats={stats}
                     onReviewAgain={handleReviewAgain}
-                    onBackToDashboard={() => (window.location.href = "/dashboard")}
+                    onBackToDashboard={() => (window.location.href = postSessionHref)}
                     onShowWild={handleShowWild}
                     sessionId={summary.sessionId}
                     wildPrefetchStatus={wildPrefetchStatus}
@@ -909,8 +915,8 @@ export function ReviewSession() {
                     priorSentences={allInterludeSentencesRef.current}
                     excludeItemIds={Array.from(allInterludeItemIdsRef.current)}
                     closerCount={allInterludeSentencesRef.current.length > 0 ? 3 : 5}
-                    onClose={() => (window.location.href = "/dashboard")}
-                    onBackToDashboard={() => (window.location.href = "/dashboard")}
+                    onClose={() => (window.location.href = postSessionHref)}
+                    onBackToDashboard={() => (window.location.href = postSessionHref)}
                   />
                 </div>
               </motion.div>

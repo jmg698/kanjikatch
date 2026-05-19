@@ -1,0 +1,119 @@
+{
+  "slug": "town-news-cat",
+  "label": "Town News — the Nakano cat",
+  "difficultyTag": "Beginner · easy news",
+  "imagePath": "/samples/town-news-cat.jpg",
+  "kanji": [
+    {
+      "character": "東",
+      "meanings": ["east"],
+      "readingsOn": ["トウ"],
+      "readingsKun": ["ひがし"],
+      "jlptLevel": 5,
+      "strokeCount": 8
+    },
+    {
+      "character": "京",
+      "meanings": ["capital"],
+      "readingsOn": ["キョウ", "ケイ"],
+      "readingsKun": [],
+      "jlptLevel": 4,
+      "strokeCount": 8
+    },
+    {
+      "character": "中",
+      "meanings": ["middle", "inside", "center"],
+      "readingsOn": ["チュウ"],
+      "readingsKun": ["なか"],
+      "jlptLevel": 5,
+      "strokeCount": 4
+    },
+    {
+      "character": "野",
+      "meanings": ["field", "plain"],
+      "readingsOn": ["ヤ"],
+      "readingsKun": ["の"],
+      "jlptLevel": 4,
+      "strokeCount": 11
+    },
+    {
+      "character": "前",
+      "meanings": ["before", "in front of"],
+      "readingsOn": ["ゼン"],
+      "readingsKun": ["まえ"],
+      "jlptLevel": 5,
+      "strokeCount": 9
+    },
+    {
+      "character": "名",
+      "meanings": ["name"],
+      "readingsOn": ["メイ", "ミョウ"],
+      "readingsKun": ["な"],
+      "jlptLevel": 5,
+      "strokeCount": 6
+    },
+    {
+      "character": "語",
+      "meanings": ["word", "language"],
+      "readingsOn": ["ゴ"],
+      "readingsKun": ["かた"],
+      "jlptLevel": 5,
+      "strokeCount": 14
+    }
+  ],
+  "vocabulary": [
+    {
+      "word": "名前",
+      "reading": "なまえ",
+      "meanings": ["name"],
+      "partOfSpeech": "noun",
+      "jlptLevel": 5
+    },
+    {
+      "word": "えがお",
+      "reading": "えがお",
+      "meanings": ["smiling face", "smile"],
+      "partOfSpeech": "noun",
+      "jlptLevel": 4
+    },
+    {
+      "word": "東京",
+      "reading": "とうきょう",
+      "meanings": ["Tokyo"],
+      "partOfSpeech": "noun",
+      "jlptLevel": 5
+    },
+    {
+      "word": "中野",
+      "reading": "なかの",
+      "meanings": ["Nakano (place name)"],
+      "partOfSpeech": "noun",
+      "jlptLevel": null
+    }
+  ],
+  "sentences": [
+    {
+      "japanese": "東京の中野えきの前に、くろいねこがいます。",
+      "english": "There is a black cat in front of Nakano Station in Tokyo."
+    },
+    {
+      "japanese": "このねこの名前は「くろちゃん」です。",
+      "english": "This cat's name is \"Kuro-chan\"."
+    }
+  ],
+  "fallbackWildSentence": {
+    "japanese": "東京で、ねこの名前を聞きました。",
+    "english": "In Tokyo, I asked for the cat's name.",
+    "words": [
+      { "text": "東京", "reading": "とうきょう", "isTarget": true },
+      { "text": "で", "isTarget": false },
+      { "text": "、", "isTarget": false },
+      { "text": "ねこ", "isTarget": false },
+      { "text": "の", "isTarget": false },
+      { "text": "名前", "reading": "なまえ", "isTarget": true },
+      { "text": "を", "isTarget": false },
+      { "text": "聞きました", "reading": "ききました", "isTarget": false },
+      { "text": "。", "isTarget": false }
+    ]
+  }
+}

@@ -39,6 +39,14 @@ export const users = pgTable("users", {
   extractionsUsedThisPeriod: integer("extractions_used_this_period").default(0).notNull(),
   extractionsPeriodStart: timestamp("extractions_period_start").defaultNow().notNull(),
   starterExtractionsUsed: integer("starter_extractions_used").default(0).notNull(),
+  // Onboarding tour state. 'pending' for new signups; the /dashboard server
+  // gate redirects pending users to /welcome. Flips to 'in_progress' when the
+  // user lands on /welcome, then 'completed' or 'skipped' on exit. See
+  // ONBOARDING_PLAN.md.
+  onboardingTourStatus: text("onboarding_tour_status").default("pending").notNull(),
+  // Set when the user first hits /welcome. Drives the 7-minute time-guardrail
+  // fallback that offers a sample if a real-photo path is dragging.
+  welcomeStartedAt: timestamp("welcome_started_at"),
 }, (table) => ({
   stripeCustomerIdx: uniqueIndex("users_stripe_customer_id_idx").on(table.stripeCustomerId),
 }));
@@ -56,6 +64,10 @@ export const sourceImages = pgTable("source_images", {
   processed: boolean("processed").default(false).notNull(),
   extractionRaw: jsonb("extraction_raw"),
   errorMessage: text("error_message"),
+  // True when the source was loaded from a pre-extracted onboarding sample
+  // (see ONBOARDING_PLAN.md). Library renders a "guided sample" pill on
+  // these and settings offers a one-tap removal action.
+  isOnboardingSample: boolean("is_onboarding_sample").default(false).notNull(),
 }, (table) => ({
   userIdIdx: index("source_images_user_id_idx").on(table.userId),
 }));
