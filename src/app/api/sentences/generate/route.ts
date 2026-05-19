@@ -89,17 +89,27 @@ export async function POST(req: NextRequest) {
         );
 
       if (existing.length > 0) {
+        // Apply the tier cap to the cache return. Without this slice, free
+        // users who hit a session that was previously generated when the cap
+        // logic was missing would see all stored rows (up to 5), bypassing
+        // FREE_POST_SESSION_SENTENCE_CAP. The slice is also a safety net for
+        // any future cache pollution.
+        const cappedExisting = existing.slice(0, count);
+        const cappedIds = new Set(cappedExisting.map((s) => s.id));
         const targets = await db
           .select()
           .from(generatedSentenceTargets)
-          .where(inArray(generatedSentenceTargets.sentenceId, existing.map((s) => s.id)));
+          .where(inArray(generatedSentenceTargets.sentenceId, cappedExisting.map((s) => s.id)));
 
         return NextResponse.json({
-          sentences: existing.map((s) => ({
+          sentences: cappedExisting.map((s) => ({
             ...s,
             words: annotateWords(Array.isArray(s.words) ? s.words : [], corpus),
-            targets: targets.filter((t) => t.sentenceId === s.id),
+            targets: targets.filter((t) => cappedIds.has(t.sentenceId) && t.sentenceId === s.id),
           })),
+          tier: tier.tier,
+          isPro: tier.isPro,
+          capped: !isInterlude && tier.isFree && existing.length > count,
         });
       }
     }
@@ -297,6 +307,12 @@ export async function POST(req: NextRequest) {
       );
 
       for (const sentence of generated) {
+        // Closer-only: stop inserting once we've reached the capped count.
+        // Without this break, the AI's response (which can return up to 5
+        // sentences regardless of `count`) pollutes the session cache with
+        // rows the response will never expose, and the next request to the
+        // same sessionId served from cache could leak them past the cap.
+        if (!isInterlude && newSentences.length + reusedSentences.length >= count) break;
         if (existingJapanese.has(sentence.japanese)) continue;
         existingJapanese.add(sentence.japanese);
 
