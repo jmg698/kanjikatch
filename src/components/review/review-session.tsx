@@ -138,13 +138,17 @@ export function ReviewSession() {
   const prefetchWildSentences = useCallback((sid: string) => {
     setWildPrefetchStatus("loading");
     const hasInterludes = allInterludeSentencesRef.current.length > 0;
+    // Onboarding mode wants a tight climax — two sentences max. See
+    // ONBOARDING_PLAN.md Phase 2.0 item 2. For normal sessions the existing
+    // 3-or-5 logic stands; the free-tier cap (FREE_POST_SESSION_SENTENCE_CAP)
+    // still applies server-side on top of this.
+    const closerCount = isOnboarding ? 2 : hasInterludes ? 3 : 5;
     fetch("/api/sentences/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId: sid,
-        // 3 new sentences when interludes already happened; 5 otherwise.
-        count: hasInterludes ? 3 : 5,
+        count: closerCount,
         excludeItemIds: Array.from(allInterludeItemIdsRef.current),
       }),
     })
@@ -895,6 +899,7 @@ export function ReviewSession() {
                     onShowWild={handleShowWild}
                     sessionId={summary.sessionId}
                     wildPrefetchStatus={wildPrefetchStatus}
+                    isOnboarding={isOnboarding}
                   />
                 </motion.div>
               </div>
@@ -914,7 +919,8 @@ export function ReviewSession() {
                     sessionId={sessionId}
                     priorSentences={allInterludeSentencesRef.current}
                     excludeItemIds={Array.from(allInterludeItemIdsRef.current)}
-                    closerCount={allInterludeSentencesRef.current.length > 0 ? 3 : 5}
+                    closerCount={isOnboarding ? 2 : allInterludeSentencesRef.current.length > 0 ? 3 : 5}
+                    isOnboarding={isOnboarding}
                     onClose={() => (window.location.href = postSessionHref)}
                     onBackToDashboard={() => (window.location.href = postSessionHref)}
                   />

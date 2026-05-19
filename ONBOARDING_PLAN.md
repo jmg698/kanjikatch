@@ -1,6 +1,6 @@
 # Onboarding Build Plan
 
-**Status:** v1.1 build spec
+**Status:** v1.2 build spec
 **Supersedes (as build doc):** `ONBOARDING_INSPIRATION.md` — kept as reference for the why; this is the what and how.
 
 ## Thesis
@@ -395,3 +395,63 @@ Today it no-ops in production and logs to console behind `NEXT_PUBLIC_TRACK_DEBU
 - Multi-step "did you know?" tour after onboarding (no — once is enough; we trust the loop to teach itself on repeat).
 - Variants / A/B testing scaffolding (deferred to Package 6 Analytics).
 - Localized onboarding copy (English only at launch).
+
+## Phase rollouts
+
+The packages above describe conceptual chunks. The phases below describe what actually ships, in order. Each phase is one or more PRs and is observably end-to-end.
+
+### Phase 1 — Walking skeleton (✅ shipped, commit `634fd3d`)
+
+Sample-only end-to-end loop: pitch → source picker (single sample tile) → fast-path extraction (no demo) → 5-card review → existing wild reveal → summary → dashboard. Proves architecture, surfaces unknowns. Naked aesthetics, no own-photo, no extraction confirmation step on sample path, no animations.
+
+### Phase 1 dogfood findings (resolved or queued)
+
+| Finding | Verdict | Lands in |
+|---|---|---|
+| Free user saw 5 wild closer sentences (cap is 2) | **Bug** — `/api/sentences/generate` session cache and generation loop ignore `count`. Cache returns all existing rows; generation loop inserts every sentence the AI returns even when count is lower | Phase 2.0 |
+| Sample path skipped extraction confirmation entirely | Real UX miss — user never sees the catch as a list, no feeling of curation | Phase 2.0 |
+| Pitch screen feels empty / off-brand | Plan called for stacked-paper hero, deferred too late | Phase 2.0 |
+| No sample image preview before commit | New requirement, not in original plan | Phase 2.0 |
+| 5 sentences too many for onboarding climax even if not capped | Onboarding-specific override to 2 | Phase 2.0 |
+| No context on what difficulty ratings do | New requirement, one-time coachmark | Phase 2.0 |
+| Summary CTA is dashboard-only — no momentum capture | Add quiet secondary "catch another page" | Phase 2.0 |
+| Magic loader (paced kanji-lift) not in walking skeleton | Always was Phase 2.1 — keep deferred | Phase 2.1 |
+| Own-photo path not in walking skeleton | Always was Phase 2.1 | Phase 2.1 |
+
+### Phase 2.0 — Feel of the loop (in build)
+
+One PR (or a small string of PRs). Everything in this phase makes the existing walking skeleton **feel right** without yet adding the magic loader or own-photo path. Brand language, sample preview, real confirmation step, capped closer, microcopy that explains itself.
+
+**Items in build order:**
+
+1. **Bug fix — free-tier closer cap.** `/api/sentences/generate`: slice the session-cache return to `count`, and break the generation insert loop when `newSentences.length >= count`. Free users will see exactly 2 sentences in the closer, not 5.
+2. **Onboarding closer cap = 2.** When the review session was launched with `?onboarding=1`, pass `count=2` to both the prefetch and the InTheWild fetch. Tighter climax; matches the free-tier cap so onboarding feels like a clean preview of free-tier reality.
+3. **Sample → extraction confirmation flow.** Sample tile no longer writes cards directly to library. Instead: server action creates the `source_images` row and stashes the sample's extraction JSON; client lands on `/welcome/confirm?sourceId=X&slug=Y` which renders the existing `ExtractionConfirmation` component with the sample data. Confirm → `/api/extract/save` (existing endpoint, no change) → `/review?size=5&onboarding=1`. The user now sees the catch as a list and can deselect items before committing.
+4. **Sample preview before commit.** Tap a sample tile → expand inline (not modal) showing the actual image at readable size with a *"Borrow this one"* primary CTA. Two-step commit: see what you're picking, then decide.
+5. **Visual identity pass on `/welcome`.**
+   - Extract `HeroDemo` from `src/app/page.tsx` into `src/components/shared/stacked-paper-hero.tsx`. Render it on the pitch screen.
+   - Replace raw `bg-foreground` buttons with the brand `Button` component from `src/components/ui/button.tsx`. Primary CTAs use the same shadow/weight as the landing-page hero CTA.
+   - Add a small wordmark to the welcome layout top-left (`漢字 KanjiKatch` + `キャッチ` mono subtitle), styled to match the landing-page header but quieter and non-interactive.
+   - Reframe the "Use what's in front of you" disabled card as three real-looking tiles (camera / paste / library) each with a quiet *"available soon"* mono label. Looks intentional, not unfinished.
+6. **Difficulty-rating coachmark.** One-time, fires the first time the *Too Easy / Just Right / Too Hard* buttons appear in the onboarding-mode wild reveal. Copy: *"Your ratings teach KanjiKatch what 'just right' feels like for you. Future sentences calibrate from this."*
+7. **First-session framing on review summary.** When `?onboarding=1`, the existing "Nice work — that's a wrap" copy becomes: *"Five reviews — your first session. Now the payoff."*
+8. **Secondary "catch another page" CTA on `/welcome` summary.** Primary stays *"Go to dashboard"*. Add a quieter secondary text link: *"Or catch another page →"* that routes to `/capture`.
+
+### Phase 2.1 — The magic loader + own-photo path
+
+Lands after Phase 2.0 ships and is dogfooded. Adds:
+
+- **Magic loader** (Package E in §Build packages) — paced kanji-lift animation. For samples, animates the pre-extracted JSON; for own photos, animates the real `/api/extract` response (still all-at-once, paced client-side).
+- **Own-photo path** in the source step — camera / paste / library tiles become real, wired through `/api/extract` with the `bonus: 'onboarding'` flag from §Step 3.
+- **Tap-to-catch coachmark** in the wild reveal (Step 5a in the spec).
+
+### Phase 2.2 — Time guardrail + resume + replay
+
+Lands after 2.1. Adds Packages G + final pieces of D + H:
+
+- 7-minute time guardrail fallback offer.
+- *Resume tour* chip on `/dashboard` for `in_progress` users.
+- *Replay onboarding tour* action in settings.
+- *Guided sample* pill on library listings (not just on the source tile).
+- *Remove sample cards* action in settings.
+- Final haptic + motion + accessibility audit.
