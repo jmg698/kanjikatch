@@ -24,6 +24,11 @@ type Phase = "setup" | "reviewing" | "interlude" | "summary" | "wild";
 const INTERLUDE_SEGMENT_SIZE = 25;
 const INTERLUDE_MIN_TAIL = 10;
 const INTERLUDE_SENTENCE_COUNT = 2;
+// Fire the interlude generation request this many cards before the milestone
+// so it runs in parallel with the user finishing the segment. At a typical
+// 5–10s per card this gives ~35–70s of headroom — comfortably more than the
+// model's response time, so the user usually sees the interlude with no wait.
+const INTERLUDE_PREFETCH_LOOKAHEAD = 7;
 
 export function ReviewSession() {
   const searchParams = useSearchParams();
@@ -83,6 +88,9 @@ export function ReviewSession() {
   // these are session-local and don't drive renders directly.
   const allInterludeSentencesRef = useRef<WildSentenceData[]>([]);
   const allInterludeItemIdsRef = useRef<Set<string>>(new Set());
+  // Background-fetched interlude payloads keyed by segmentIndex. Stored as
+  // promises so triggerInterlude can await whichever state the request is in.
+  const interludePrefetchRef = useRef<Map<number, Promise<WildSentenceData[] | null>>>(new Map());
 
   // Correct/wrong flash
   const [flashColor, setFlashColor] = useState<string | null>(null);
@@ -191,6 +199,7 @@ export function ReviewSession() {
       interludeSeenSegmentsRef.current = new Set();
       allInterludeSentencesRef.current = [];
       allInterludeItemIdsRef.current = new Set();
+      interludePrefetchRef.current = new Map();
       setInterludeSentences([]);
       setInterludeRatings({});
       setInterludeLoading(false);
@@ -221,11 +230,48 @@ export function ReviewSession() {
     startSession("mixed", size);
   }, [phase, loading, dueCounts.total, startSession]);
 
+  // Kick off interlude generation in the background a few cards before the
+  // milestone. The resulting promise is stashed in interludePrefetchRef and
+  // consumed by triggerInterlude — so the user usually arrives at the
+  // milestone with sentences already in hand.
+  const prefetchInterlude = useCallback((segmentIndex: number, sid: string) => {
+    if (interludePrefetchRef.current.has(segmentIndex)) return;
+    if (interludeSeenSegmentsRef.current.has(segmentIndex)) return;
+
+    const promise = fetch("/api/sentences/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: sid,
+        segmentIndex,
+        count: INTERLUDE_SENTENCE_COUNT,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          console.warn(
+            `[interlude] prefetch failed: ${res.status} ${res.statusText}`,
+            body,
+          );
+          return null;
+        }
+        const data = await res.json();
+        return (data.sentences ?? []) as WildSentenceData[];
+      })
+      .catch((e) => {
+        console.error("[interlude] prefetch error:", e);
+        return null;
+      });
+
+    interludePrefetchRef.current.set(segmentIndex, promise);
+  }, []);
+
   // Trigger a mid-session reading interlude for the segment we just finished.
-  // Sentences are fetched on-demand: the request fires as soon as we set the
-  // interlude phase so the user sees a brief "preparing" moment instead of a
-  // pre-roll loading screen. If generation fails or returns no sentences we
-  // silently slip back into review — interludes should never block progress.
+  // Prefers a prefetched payload if one is in flight (the common case); falls
+  // back to an on-demand fetch if prefetch was skipped or failed. If
+  // generation fails or returns no sentences we silently slip back into
+  // review — interludes should never block progress.
   const triggerInterlude = useCallback(
     async (segmentIndex: number, sid: string) => {
       if (interludeSeenSegmentsRef.current.has(segmentIndex)) return;
@@ -236,27 +282,39 @@ export function ReviewSession() {
       setPhase("interlude");
 
       try {
-        const res = await fetch("/api/sentences/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: sid,
-            segmentIndex,
-            count: INTERLUDE_SENTENCE_COUNT,
-          }),
-        });
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          // Surface the real failure in the console so the dev environment
-          // shows what went wrong (rate limit, auth, AI overload, etc.).
-          console.warn(
-            `[interlude] generation request failed: ${res.status} ${res.statusText}`,
-            body,
-          );
-          throw new Error(`Interlude generation failed (${res.status})`);
+        let sentences: WildSentenceData[] | null = null;
+        const prefetched = interludePrefetchRef.current.get(segmentIndex);
+        if (prefetched) {
+          sentences = await prefetched;
+          interludePrefetchRef.current.delete(segmentIndex);
         }
-        const data = await res.json();
-        const sentences: WildSentenceData[] = data.sentences ?? [];
+
+        if (sentences === null) {
+          // Cold path: no prefetch in flight, or it failed. Fall back to
+          // an on-demand request so the interlude still works.
+          const res = await fetch("/api/sentences/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: sid,
+              segmentIndex,
+              count: INTERLUDE_SENTENCE_COUNT,
+            }),
+          });
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            // Surface the real failure in the console so the dev environment
+            // shows what went wrong (rate limit, auth, AI overload, etc.).
+            console.warn(
+              `[interlude] generation request failed: ${res.status} ${res.statusText}`,
+              body,
+            );
+            throw new Error(`Interlude generation failed (${res.status})`);
+          }
+          const data = await res.json();
+          sentences = (data.sentences ?? []) as WildSentenceData[];
+        }
+
         if (sentences.length === 0) {
           console.warn("[interlude] generation returned 0 sentences for segment", segmentIndex);
           setPhase("reviewing");
@@ -436,6 +494,23 @@ export function ReviewSession() {
         // not shift the cadence.
         if (!isRetry) {
           const newCompletedOriginal = completedOriginal + 1;
+
+          // Prefetch the upcoming interlude a few cards before the milestone
+          // so the API call runs while the user works the tail of the segment.
+          // Only fire when there's plausibly room for the interlude to actually
+          // trigger — otherwise we'd be paying for sentences we'd never show.
+          const prefetchOffset =
+            (newCompletedOriginal + INTERLUDE_PREFETCH_LOOKAHEAD) % INTERLUDE_SEGMENT_SIZE;
+          if (prefetchOffset === 0) {
+            const upcomingSegment =
+              (newCompletedOriginal + INTERLUDE_PREFETCH_LOOKAHEAD) / INTERLUDE_SEGMENT_SIZE - 1;
+            const cardsRemainingAfterMilestone =
+              updatedQueue.length - nextIndex - INTERLUDE_PREFETCH_LOOKAHEAD;
+            if (cardsRemainingAfterMilestone >= INTERLUDE_MIN_TAIL) {
+              prefetchInterlude(upcomingSegment, sessionId);
+            }
+          }
+
           const reachedMilestone =
             newCompletedOriginal > 0 && newCompletedOriginal % INTERLUDE_SEGMENT_SIZE === 0;
           if (reachedMilestone) {
@@ -539,6 +614,7 @@ export function ReviewSession() {
     interludeSeenSegmentsRef.current = new Set();
     allInterludeSentencesRef.current = [];
     allInterludeItemIdsRef.current = new Set();
+    interludePrefetchRef.current = new Map();
     setInterludeSentences([]);
     setInterludeRatings({});
     setInterludeLoading(false);

@@ -531,13 +531,27 @@ export async function generateWildSentences(
     ? buildDifficultyGuidance(difficultyProfile)
     : "";
 
-  const response = await anthropic.messages.create({
+  // The static WILD_SENTENCE_PROMPT lives in `system` with cache_control so
+  // Anthropic caches the prefix on the first call. Subsequent calls within
+  // the cache TTL (~5 min) skip re-processing those tokens, which cuts both
+  // latency and cost for back-to-back interludes / closer generations.
+  // SDK 0.32.x exposes prompt caching under the `beta.promptCaching` namespace.
+  const userContent = `${difficultyGuidance}\n\n---\n\nTARGET ITEMS:\n${targetList}\n\nGenerate ${sentenceCount} sentences.`.trimStart();
+
+  const response = await anthropic.beta.promptCaching.messages.create({
     model: WILD_SENTENCE_MODEL,
     max_tokens: 4096,
+    system: [
+      {
+        type: "text",
+        text: WILD_SENTENCE_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",
-        content: `${WILD_SENTENCE_PROMPT}${difficultyGuidance}\n\n---\n\nTARGET ITEMS:\n${targetList}\n\nGenerate ${sentenceCount} sentences.`,
+        content: userContent,
       },
     ],
   });
