@@ -15,7 +15,19 @@ import {
 
 type Step = "pitch" | "source" | "summary";
 
-export function WelcomeFlow({ initialStep }: { initialStep: Step }) {
+export function WelcomeFlow({
+  initialStep,
+  showTimeGuardrail = false,
+}: {
+  initialStep: Step;
+  showTimeGuardrail?: boolean;
+}) {
+  useEffect(() => {
+    if (showTimeGuardrail) {
+      track("onboarding_time_guardrail_offered", { atStep: initialStep });
+    }
+  }, [showTimeGuardrail, initialStep]);
+
   const [step, setStep] = useState<Step>(initialStep);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +122,7 @@ export function WelcomeFlow({ initialStep }: { initialStep: Step }) {
           onChooseSample={handleChooseSample}
           onSkip={handleSkip}
           pending={pending}
+          showTimeGuardrail={showTimeGuardrail}
         />
       )}
       {step === "summary" && (
@@ -186,10 +199,12 @@ function SourceStep({
   onChooseSample,
   onSkip,
   pending,
+  showTimeGuardrail,
 }: {
   onChooseSample: (slug: string) => void;
   onSkip: () => void;
   pending: boolean;
+  showTimeGuardrail: boolean;
 }) {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
   return (
@@ -202,6 +217,22 @@ function SourceStep({
         Your handwriting works. So does printed text, a screenshot, a manga
         panel.
       </p>
+
+      {showTimeGuardrail && (
+        <div
+          className="mt-6 rounded-xl border bg-[hsl(45_100%_97%)] px-4 py-3.5 flex items-start gap-3"
+          style={{ borderColor: "hsl(45 60% 80%)" }}
+        >
+          <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[hsl(45_70%_50%)] flex-shrink-0" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium text-foreground">Stuck?</p>
+            <p className="mt-0.5 text-muted-foreground leading-relaxed">
+              Try a sample below to see the loop now &mdash; your own photo
+              will still be here when you&rsquo;re ready.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Own-photo path. All three tiles route to the same /capture page
           with the onboarding flag; the page already handles photo upload,

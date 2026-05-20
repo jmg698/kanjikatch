@@ -6,6 +6,8 @@ import { WelcomeFlow } from "./welcome-flow";
 
 export const dynamic = "force-dynamic";
 
+const TIME_GUARDRAIL_MS = 7 * 60 * 1000;
+
 export default async function WelcomePage({
   searchParams,
 }: {
@@ -15,7 +17,7 @@ export default async function WelcomePage({
   if (!userId) redirect("/sign-in");
 
   await ensureUserRow(userId);
-  const { status } = await getOnboardingStatus(userId);
+  const { status, welcomeStartedAt } = await getOnboardingStatus(userId);
 
   if (status === "completed" || status === "skipped") {
     redirect("/dashboard");
@@ -33,5 +35,13 @@ export default async function WelcomePage({
         ? "source"
         : "pitch";
 
-  return <WelcomeFlow initialStep={initialStep} />;
+  // Time guardrail: if the user has been mid-tour for >7 minutes without
+  // reaching the wild reveal, surface a soft "stuck? try a sample" nudge.
+  // See ONBOARDING_PLAN.md §9 failure modes.
+  const isStuck =
+    status === "in_progress" &&
+    welcomeStartedAt !== null &&
+    Date.now() - welcomeStartedAt.getTime() > TIME_GUARDRAIL_MS;
+
+  return <WelcomeFlow initialStep={initialStep} showTimeGuardrail={isStuck} />;
 }
