@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp } from "lucide-react";
+import { Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp, Eye, Languages } from "lucide-react";
 import type { WildSentenceData, WildWord, WordFamiliarity } from "./in-the-wild";
 
 export type DifficultyRating = "too_easy" | "just_right" | "too_hard";
@@ -108,6 +108,55 @@ function WordToken({ word, showFurigana, onTapWord }: { word: WildWord; showFuri
   }
 
   return <span>{content}</span>;
+}
+
+function RevealButton({
+  active,
+  inactiveLabel,
+  activeLabel,
+  Icon,
+  onClick,
+  compact,
+}: {
+  active: boolean;
+  inactiveLabel: string;
+  activeLabel: string;
+  Icon: typeof Eye;
+  onClick: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      whileTap={{ scale: 0.94 }}
+      transition={{ type: "spring", stiffness: 500, damping: 24 }}
+      className={`wild-reveal-button group inline-flex items-center gap-2 rounded-full border-2 font-medium transition-colors ${
+        compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
+      } ${
+        active
+          ? "wild-reveal-button--on bg-amber-100 border-amber-400 text-amber-900 shadow-sm"
+          : "wild-reveal-button--off bg-white border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+      }`}
+    >
+      <span className="relative inline-flex h-4 w-4 items-center justify-center">
+        <AnimatePresence initial={false} mode="wait">
+          <motion.span
+            key={active ? "on" : "off"}
+            initial={{ rotate: -90, scale: 0.6, opacity: 0 }}
+            animate={{ rotate: 0, scale: 1, opacity: 1 }}
+            exit={{ rotate: 90, scale: 0.6, opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="absolute inline-flex"
+          >
+            {active ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span>{active ? activeLabel : inactiveLabel}</span>
+    </motion.button>
+  );
 }
 
 const RATING_CONFIG: Record<DifficultyRating, {
@@ -248,61 +297,73 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
           )}
         </AnimatePresence>
 
-        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground/50">
-          <button
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <RevealButton
+            active={showFurigana}
+            inactiveLabel="Show Reading"
+            activeLabel="Reading"
+            Icon={Eye}
             onClick={() => setShowFurigana((v) => !v)}
-            className="hover:text-muted-foreground/80 transition-colors"
-          >
-            {showFurigana ? "hide reading" : "show reading"}
-          </button>
-          <span aria-hidden="true" className="text-muted-foreground/30">·</span>
-          <button
+            compact={compact}
+          />
+          <RevealButton
+            active={showTranslation}
+            inactiveLabel="Show Translation"
+            activeLabel="Translation"
+            Icon={Languages}
             onClick={() => setShowTranslation((v) => !v)}
-            className="hover:text-muted-foreground/80 transition-colors"
-          >
-            {showTranslation ? "hide translation" : "show translation"}
-          </button>
+            compact={compact}
+          />
         </div>
 
-        {onRate && (
-          <div className="space-y-2">
-            <p className="wild-rating-label text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
-              How was this sentence?
-            </p>
-            {showRatingHint && (
-              <p className="text-xs text-muted-foreground/80 max-w-md mx-auto leading-relaxed italic">
-                Your ratings teach KanjiKatch what &ldquo;just right&rdquo; feels
-                like for you. Future sentences calibrate from this.
+        <AnimatePresence initial={false}>
+          {onRate && showTranslation && (
+            <motion.div
+              key="rating"
+              initial={{ opacity: 0, y: 14, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 300, damping: 24, mass: 0.7 }}
+              className="space-y-2"
+            >
+              <p className="wild-rating-label text-xs text-muted-foreground/50 uppercase tracking-wider font-medium">
+                How was this sentence?
               </p>
-            )}
-            <div className="flex items-center justify-center gap-2">
-              {RATINGS.map((rating) => {
-                const config = RATING_CONFIG[rating];
-                const Icon = config.icon;
-                const isSelected = currentRating === rating;
+              {showRatingHint && (
+                <p className="text-xs text-muted-foreground/80 max-w-md mx-auto leading-relaxed italic">
+                  Your ratings teach KanjiKatch what &ldquo;just right&rdquo; feels
+                  like for you. Future sentences calibrate from this.
+                </p>
+              )}
+              <div className="flex items-center justify-center gap-2">
+                {RATINGS.map((rating) => {
+                  const config = RATING_CONFIG[rating];
+                  const Icon = config.icon;
+                  const isSelected = currentRating === rating;
 
-                return (
-                  <button
-                    key={rating}
-                    onClick={() => onRate(sentence.id, rating)}
-                    className={`
-                      flex items-center gap-1.5 rounded-xl border-2 transition-all
-                      active:scale-95
-                      ${isSelected
-                        ? `${config.activeBg} ${config.border} ${config.text}`
-                        : `${config.bg} ${config.border} ${config.text} ${config.hoverBg}`
-                      }
-                      ${compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}
-                    `}
-                  >
-                    <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
-                    <span className="font-medium">{config.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                  return (
+                    <button
+                      key={rating}
+                      onClick={() => onRate(sentence.id, rating)}
+                      className={`
+                        flex items-center gap-1.5 rounded-xl border-2 transition-all
+                        active:scale-95
+                        ${isSelected
+                          ? `${config.activeBg} ${config.border} ${config.text}`
+                          : `${config.bg} ${config.border} ${config.text} ${config.hoverBg}`
+                        }
+                        ${compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}
+                      `}
+                    >
+                      <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+                      <span className="font-medium">{config.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Add word dialog */}

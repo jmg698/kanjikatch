@@ -655,4 +655,21 @@
   .wild-golden-panel .wild-rating-label {
     color: rgba(245, 240, 230, 0.35);
   }
+
+  .wild-golden-panel .wild-reveal-button--off {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(245, 240, 230, 0.25);
+    color: rgba(245, 240, 230, 0.85);
+  }
+
+  .wild-golden-panel .wild-reveal-button--off:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(245, 240, 230, 0.4);
+  }
+
+  .wild-golden-panel .wild-reveal-button--on {
+    background: hsl(45 100% 72% / 0.22);
+    border-color: hsl(45 100% 72% / 0.7);
+    color: #F5F0E6;
+  }
 }
