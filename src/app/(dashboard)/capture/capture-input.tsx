@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUploadThing, getUploadThingPublicUrl } from "@/lib/uploadthing";
+import { ExtractionMagicLoader } from "@/components/onboarding/extraction-magic-loader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,6 +116,16 @@ export function CaptureInput() {
   const dragCounter = useRef(0);
   const hydratedRef = useRef(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isOnboarding = searchParams?.get("onboarding") === "1";
+  // URL of the just-uploaded image. Used as the backdrop for the
+  // onboarding magic loader (paced kanji-lift reveal); falls back to the
+  // dataURL preview if the public URL hasn't resolved yet.
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  // Onboarding-only: the magic loader takes over after extraction completes
+  // and before the confirmation card renders. Flips true on loader complete
+  // so the confirmation can mount. See ONBOARDING_PLAN.md Phase 2.1.
+  const [magicLoaderDismissed, setMagicLoaderDismissed] = useState(false);
   const { toast } = useToast();
 
   const stages =
@@ -390,13 +401,20 @@ export function CaptureInput() {
       const res = await startUpload([imageFile]);
       if (!res || res.length === 0) throw new Error("Upload failed");
 
+      const publicUrl = getUploadThingPublicUrl(res[0]);
+      setUploadedImageUrl(publicUrl);
+
       setState("processing");
       const response = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imageUrl: getUploadThingPublicUrl(res[0]),
+          imageUrl: publicUrl,
           fileName: res[0].name,
+          // Onboarding capture is on the house — server cross-checks the
+          // claim against the user's onboarding_tour_status. See
+          // ONBOARDING_PLAN.md §Step 3.
+          ...(isOnboarding ? { bonus: "onboarding" as const } : {}),
         }),
       });
 
@@ -478,6 +496,21 @@ export function CaptureInput() {
   };
 
   const onSaved = (data: SaveResponse) => {
+    // Onboarding mode: skip the success splash entirely and route straight
+    // to the capped review session. The magic loader already showed the
+    // user what was caught; the confirmation step let them curate it; now
+    // we keep the momentum and put them in front of a card.
+    if (isOnboarding) {
+      try {
+        localStorage.removeItem(TEXT_STORAGE_KEY);
+        localStorage.removeItem(IMAGE_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      router.push("/review?size=5&onboarding=1");
+      return;
+    }
+
     setExtractionResult({ extracted: data.extracted, items: data.items });
     setDraft(null);
     setState("success");
@@ -641,6 +674,21 @@ export function CaptureInput() {
   }
 
   if (state === "confirming" && draft) {
+    // Onboarding own-photo path: paced kanji-lift reveal of the just-arrived
+    // extraction before the confirmation card mounts. See ONBOARDING_PLAN.md
+    // Phase 2.1.
+    if (isOnboarding && !magicLoaderDismissed) {
+      return (
+        <ExtractionMagicLoader
+          imagePath={uploadedImageUrl ?? imagePreview ?? null}
+          kanjiCharacters={draft.extraction.kanji.map((k) => k.character)}
+          vocabCount={draft.extraction.vocabulary.length}
+          ready
+          onComplete={() => setMagicLoaderDismissed(true)}
+        />
+      );
+    }
+
     return (
       <ExtractionConfirmation
         sourceImageId={draft.sourceImageId}

@@ -8,6 +8,7 @@ import {
   type SaveResponse,
 } from "@/app/(dashboard)/capture/extraction-confirmation";
 import type { ExtractionResult } from "@/lib/validations";
+import { ExtractionMagicLoader } from "@/components/onboarding/extraction-magic-loader";
 import { track } from "@/lib/track";
 
 interface Props {
@@ -17,9 +18,12 @@ interface Props {
   extraction: ExtractionResult;
 }
 
+type Phase = "loading" | "confirming";
+
 export function ConfirmFlow({ sourceId, label, imagePath, extraction }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>("loading");
 
   function handleSaved(data: SaveResponse) {
     track("onboarding_cards_saved", {
@@ -35,8 +39,29 @@ export function ConfirmFlow({ sourceId, label, imagePath, extraction }: Props) {
     // Returning to /welcome leaves the source row behind, but it's marked
     // isOnboardingSample and processed=false, so the user can pick again
     // and end up on a fresh /welcome/confirm with a new sourceId. We keep
-    // it for tomorrow's Phase 2.2 "remove sample cards" sweep.
+    // it for the Phase 2.2 "remove sample cards" sweep.
     router.push("/welcome");
+  }
+
+  if (phase === "loading") {
+    return (
+      <ExtractionMagicLoader
+        imagePath={imagePath}
+        kanjiCharacters={extraction.kanji.map((k) => k.character)}
+        vocabCount={extraction.vocabulary.length}
+        // Sample path: the extraction is already in hand. Pass ready=true
+        // from the start so the reveal animation plays immediately,
+        // bounded only by the loader's MIN_TOTAL_MS floor.
+        ready
+        onComplete={() => {
+          track("onboarding_extraction_succeeded", {
+            cardsCaptured: extraction.kanji.length + extraction.vocabulary.length,
+            durationMs: 0,
+          });
+          setPhase("confirming");
+        }}
+      />
+    );
   }
 
   return (

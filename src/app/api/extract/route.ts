@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
+import { z } from "zod";
 import { db, sourceImages, users } from "@/db";
 import { uploadSchema } from "@/lib/validations";
 import { extractFromImage } from "@/lib/ai";
@@ -8,6 +9,15 @@ import { checkPlanLimit, commitExtraction } from "@/lib/plan-limits";
 import { assertCostProtection, getClientIp, hashIp } from "@/lib/cost-protection";
 import { eq } from "drizzle-orm";
 import { agentDebugLog } from "@/lib/debug-ingest";
+
+// Extract request body accepts the upload fields plus an optional bonus flag.
+// When `bonus === "onboarding"` and the user is mid-tour, the extract counts
+// as the onboarding freebie and skips `commitExtraction` so the user keeps
+// their full starter quota for real materials later. See
+// ONBOARDING_PLAN.md §Step 3.
+const extractBodySchema = uploadSchema.extend({
+  bonus: z.literal("onboarding").optional(),
+});
 
 function blockedResponse(reason: string, message: string, status: 429 | 503, retryAfterSec: number) {
   return NextResponse.json(
@@ -60,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const parsed = uploadSchema.safeParse(body);
+    const parsed = extractBodySchema.safeParse(body);
 
     if (!parsed.success) {
       // #region agent log
@@ -76,6 +86,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { imageUrl, fileName } = parsed.data;
+    const bonusClaim = parsed.data.bonus;
     // #region agent log
     let imageHost = "parse-failed";
     try {
@@ -140,7 +151,27 @@ export async function POST(req: NextRequest) {
 
       // Spend the extraction credit only after the LLM call succeeded — if
       // the model fails or we throw mid-flight, the user keeps the credit.
-      await commitExtraction(userId);
+      //
+      // Onboarding bonus: when the client claims `bonus: "onboarding"` AND
+      // the server confirms the user is mid-tour (onboarding_tour_status =
+      // 'in_progress'), skip the commit so the capture is free. Status flips
+      // to 'completed' as soon as they finish the tour, after which any
+      // further bonus claim from the same user is ignored — so the freebie
+      // is naturally single-shot for legitimate flows.
+      let appliedBonus = false;
+      if (bonusClaim === "onboarding") {
+        const [u] = await db
+          .select({ status: users.onboardingTourStatus })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        if (u?.status === "in_progress") {
+          appliedBonus = true;
+        }
+      }
+      if (!appliedBonus) {
+        await commitExtraction(userId);
+      }
 
       return NextResponse.json({
         success: true,

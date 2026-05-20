@@ -203,8 +203,9 @@ function SourceStep({
         panel.
       </p>
 
-      {/* Own-photo path lands in Phase 2.1. Tiles render as "available soon"
-          so the screen doesn't read as half-built. */}
+      {/* Own-photo path. All three tiles route to the same /capture page
+          with the onboarding flag; the page already handles photo upload,
+          screenshot paste, and library picker via a single uploader. */}
       <div className="mt-10 grid grid-cols-3 gap-3">
         {(
           [
@@ -213,16 +214,22 @@ function SourceStep({
             { label: "Pick from library" },
           ] as const
         ).map((tile) => (
-          <div
+          <a
             key={tile.label}
-            className="rounded-xl border border-dashed bg-white/40 px-3 py-4 text-center"
-            style={{ borderColor: "hsl(35 15% 80%)" }}
+            href="/capture?onboarding=1"
+            onClick={() =>
+              track("onboarding_source_chosen", { source: "photo" })
+            }
+            className="group rounded-xl border bg-white px-3 py-4 text-center transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            style={{ borderColor: "hsl(35 15% 86%)" }}
           >
-            <p className="text-sm font-medium text-foreground/80">{tile.label}</p>
-            <p className="mt-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-              available soon
+            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+              {tile.label}
             </p>
-          </div>
+            <p className="mt-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+              on the house
+            </p>
+          </a>
         ))}
       </div>
 
