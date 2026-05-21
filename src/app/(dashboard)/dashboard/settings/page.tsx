@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
-import { db, users } from "@/db";
+import { db, users, sourceImages } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { ensureUserRow } from "@/lib/ensure-user";
 import { DangerZone } from "./danger-zone";
 import { ExportButton } from "./export-button";
+import { OnboardingSection } from "./onboarding-section";
 
 export const metadata = {
   title: "Settings — KanjiKatch",
@@ -18,7 +19,7 @@ export default async function SettingsPage() {
   const userId = await getCurrentUserId();
   await ensureUserRow(userId);
 
-  const [clerkUser, [row]] = await Promise.all([
+  const [clerkUser, [row], [sampleCountRow]] = await Promise.all([
     currentUser(),
     db
       .select({
@@ -28,7 +29,18 @@ export default async function SettingsPage() {
       .from(users)
       .where(eq(users.id, userId))
       .limit(1),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(sourceImages)
+      .where(
+        and(
+          eq(sourceImages.userId, userId),
+          eq(sourceImages.isOnboardingSample, true),
+        ),
+      ),
   ]);
+
+  const sampleSourceCount = sampleCountRow?.count ?? 0;
 
   const email =
     clerkUser?.primaryEmailAddress?.emailAddress ??
@@ -74,6 +86,15 @@ export default async function SettingsPage() {
               Open billing
             </Link>
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-mono">
+            Onboarding
+          </p>
+          <OnboardingSection sampleSourceCount={sampleSourceCount} />
         </CardContent>
       </Card>
 

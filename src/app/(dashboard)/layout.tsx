@@ -40,9 +40,32 @@ export default async function DashboardLayout({
   }
 
   const dueCount = await getDueCount(userId);
+  // Resume-tour chip: users who left mid-tour see a quiet pill in the
+  // dashboard header that links back to /welcome. Hidden once they finish
+  // or skip. See ONBOARDING_PLAN.md Phase 2.2.
+  const showResumeTour = onboardingStatus === "in_progress";
 
   return (
     <div className="min-h-screen dash-bg">
+      {showResumeTour && (
+        <div
+          className="border-b text-center px-4 py-2 text-sm flex items-center justify-center gap-3"
+          style={{
+            background: "hsl(45 100% 97%)",
+            borderColor: "hsl(45 60% 80%)",
+          }}
+        >
+          <span className="text-foreground/80">
+            You left mid-tour.
+          </span>
+          <Link
+            href="/welcome"
+            className="font-medium text-foreground hover:underline underline-offset-4"
+          >
+            Resume tour →
+          </Link>
+        </div>
+      )}
       <header
         className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md"
         style={{ borderColor: 'hsl(220 10% 82%)' }}

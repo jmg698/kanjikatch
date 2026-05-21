@@ -398,6 +398,7 @@ export function InTheWild({
                     onRate={handleRate}
                     currentRating={ratings[sentence.id] || null}
                     showRatingHint={isOnboarding && currentIndex === 0}
+                    showTapToCatchHint={isOnboarding && currentIndex === 0}
                   />
                 </div>
               </motion.div>

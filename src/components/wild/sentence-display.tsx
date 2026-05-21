@@ -18,6 +18,11 @@ interface SentenceDisplayProps {
    *  first-time raters understand the mechanic. See ONBOARDING_PLAN.md
    *  Phase 2.0 item 6. */
   showRatingHint?: boolean;
+  /** Show a one-line nudge above the sentence prompting the user to tap
+   *  any new word to add it to their library. Used by onboarding for the
+   *  first wild sentence so first-time users discover the compounding
+   *  loop. See ONBOARDING_PLAN.md §Step 5a. */
+  showTapToCatchHint?: boolean;
 }
 
 /**
@@ -199,7 +204,7 @@ const RATING_CONFIG: Record<DifficultyRating, {
 
 const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
 
-export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating, showRatingHint = false }: SentenceDisplayProps) {
+export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating, showRatingHint = false, showTapToCatchHint = false }: SentenceDisplayProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showFurigana, setShowFurigana] = useState(false);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
@@ -269,6 +274,17 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
 
   return (
     <div className={`space-y-6 ${compact ? "" : "py-4"}`}>
+      {showTapToCatchHint && showAddWord && (
+        <div className="text-center">
+          <p className="inline-block text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground/80 bg-white/40 backdrop-blur-sm border px-3 py-1.5 rounded-full" style={{ borderColor: "rgba(255,255,255,0.3)" }}>
+            Tap any new word to catch it
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground/70 italic">
+            Your reading grows your library.
+          </p>
+        </div>
+      )}
+
       {/* Japanese sentence */}
       <div className={`wild-sentence-text ${compact ? "text-xl" : "text-3xl sm:text-4xl"} leading-relaxed text-center`}>
         {words.map((word, i) => (

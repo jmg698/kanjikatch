@@ -1,6 +1,6 @@
 # Onboarding Build Plan
 
-**Status:** v1.2 build spec
+**Status:** v1.3 build spec
 **Supersedes (as build doc):** `ONBOARDING_INSPIRATION.md` — kept as reference for the why; this is the what and how.
 
 ## Thesis
@@ -437,21 +437,28 @@ One PR (or a small string of PRs). Everything in this phase makes the existing w
 7. **First-session framing on review summary.** When `?onboarding=1`, the existing "Nice work — that's a wrap" copy becomes: *"Five reviews — your first session. Now the payoff."*
 8. **Secondary "catch another page" CTA on `/welcome` summary.** Primary stays *"Go to dashboard"*. Add a quieter secondary text link: *"Or catch another page →"* that routes to `/capture`.
 
-### Phase 2.1 — The magic loader + own-photo path
+### Phase 2.1 — Magic loader + own-photo path (✅ shipped, commit `caab465`)
 
-Lands after Phase 2.0 ships and is dogfooded. Adds:
+- **Magic loader** — paced kanji-lift animation as a client-side reveal of the all-at-once extraction response. Lives at `src/components/onboarding/extraction-magic-loader.tsx` and is used on both paths (sample fast-path + own-photo path).
+- **Own-photo path** — source step tiles route to `/capture?onboarding=1`. The capture flow detects the flag, runs through the existing upload + extract + confirm pipeline, surfaces the magic loader after extraction, and routes straight to `/review?size=5&onboarding=1` on save.
+- **Free bonus** — `/api/extract` accepts `bonus: 'onboarding'` and skips `commitExtraction` when the user's status is `in_progress`, so the starter quota is preserved.
+- **Tap-to-catch coachmark** on the first wild sentence in onboarding mode.
 
-- **Magic loader** (Package E in §Build packages) — paced kanji-lift animation. For samples, animates the pre-extracted JSON; for own photos, animates the real `/api/extract` response (still all-at-once, paced client-side).
-- **Own-photo path** in the source step — camera / paste / library tiles become real, wired through `/api/extract` with the `bonus: 'onboarding'` flag from §Step 3.
-- **Tap-to-catch coachmark** in the wild reveal (Step 5a in the spec).
+### Phase 2.2 — Time guardrail + resume + replay (✅ shipped, commit `8a71af5`)
 
-### Phase 2.2 — Time guardrail + resume + replay
+- **7-minute time guardrail** — `welcome_started_at` drives an amber "Stuck?" banner on the source step when the user has been mid-tour too long.
+- **Resume tour chip** — amber banner above the dashboard for users with status `in_progress`.
+- **Replay onboarding tour** action in settings — resets status to `pending` and redirects.
+- **Remove guided sample cards** action in settings — deletes onboarding sample sources with a two-step confirm.
+- **Guided sample pill** on library `KanjiCard` and `VocabCard` for items derived from sample sources — same visual language as the source picker and confirm screen.
 
-Lands after 2.1. Adds Packages G + final pieces of D + H:
+### Phase 2.3 — Final polish pass (deferred)
 
-- 7-minute time guardrail fallback offer.
-- *Resume tour* chip on `/dashboard` for `in_progress` users.
-- *Replay onboarding tour* action in settings.
-- *Guided sample* pill on library listings (not just on the source tile).
-- *Remove sample cards* action in settings.
-- Final haptic + motion + accessibility audit.
+Not in current scope. Reserved for the final polish-pass items from §Build packages H:
+
+- Haptic audit across the flow.
+- Motion audit + reduced-motion respect on every transition.
+- Mobile vs desktop parity sweep.
+- Accessibility audit (coachmark roles, keyboard reachability, prefers-reduced-motion overrides).
+- Microcopy grep to ensure every string still matches §7.
+- Real `cards_caught_from_wild` instrumentation wired through the existing add-word action.

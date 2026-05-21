@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -44,7 +44,12 @@ const STAGE_CONFIG: Record<ConfidenceLevel, { label: string; color: string }> = 
 };
 
 interface LibraryClientProps {
-  initialCounts: { kanji: number; vocabulary: number; sentences: number };
+  initialCounts: {
+    kanji: number;
+    vocabulary: number;
+    sentences: number;
+    sampleSourceIds: string[];
+  };
 }
 
 interface FetchState {
@@ -65,6 +70,13 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [counts, setCounts] = useState(initialCounts);
+  // Quick lookup so each card can render a "guided sample" pill when any of
+  // its sourceImageIds matches a borrowed sample source. Memoized once per
+  // mount since the parent server component owns the list.
+  const sampleSourceIdSet = useMemo(
+    () => new Set(initialCounts.sampleSourceIds),
+    [initialCounts.sampleSourceIds],
+  );
 
   const [fetchState, setFetchState] = useState<FetchState>({
     items: [],
@@ -400,7 +412,11 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
             emptyMessage="No kanji yet. Capture an image to start building your collection!"
             emptyFilterMessage="No kanji match your filters."
             hasActiveFilters={hasActiveFilters}
-            renderItem={(item) => <KanjiCard kanji={item as Kanji} />}
+            renderItem={(item) => {
+              const k = item as Kanji;
+              const isSample = k.sourceImageIds.some((id) => sampleSourceIdSet.has(id));
+              return <KanjiCard kanji={k} isSample={isSample} />;
+            }}
           />
         </TabsContent>
 
@@ -413,7 +429,11 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
             emptyMessage="No vocabulary yet. Capture an image to start building your collection!"
             emptyFilterMessage="No vocabulary matches your filters."
             hasActiveFilters={hasActiveFilters}
-            renderItem={(item) => <VocabCard vocab={item as Vocabulary} />}
+            renderItem={(item) => {
+              const v = item as Vocabulary;
+              const isSample = v.sourceImageIds.some((id) => sampleSourceIdSet.has(id));
+              return <VocabCard vocab={v} isSample={isSample} />;
+            }}
           />
         </TabsContent>
 
@@ -518,7 +538,7 @@ function StageBadge({ level }: { level: string }) {
   );
 }
 
-function KanjiCard({ kanji: k }: { kanji: Kanji }) {
+function KanjiCard({ kanji: k, isSample = false }: { kanji: Kanji; isSample?: boolean }) {
   return (
     <Card className="jr-panel">
       <CardHeader className="pb-2">
@@ -530,6 +550,7 @@ function KanjiCard({ kanji: k }: { kanji: Kanji }) {
             )}
           </div>
           <div className="flex flex-col items-end gap-1">
+            {isSample && <GuidedSamplePill />}
             {k.jlptLevel && (
               <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-mono font-medium">
                 N{k.jlptLevel}
@@ -559,7 +580,7 @@ function KanjiCard({ kanji: k }: { kanji: Kanji }) {
   );
 }
 
-function VocabCard({ vocab: v }: { vocab: Vocabulary }) {
+function VocabCard({ vocab: v, isSample = false }: { vocab: Vocabulary; isSample?: boolean }) {
   return (
     <Card className="jr-panel">
       <CardHeader className="pb-2">
@@ -574,6 +595,7 @@ function VocabCard({ vocab: v }: { vocab: Vocabulary }) {
             <CardDescription>{v.reading}</CardDescription>
           </div>
           <div className="flex flex-col items-end gap-1">
+            {isSample && <GuidedSamplePill />}
             {v.jlptLevel && (
               <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-mono font-medium">
                 N{v.jlptLevel}
@@ -602,5 +624,20 @@ function SentenceCard({ sentence: s }: { sentence: Sentence }) {
         <p className="text-xs text-muted-foreground">Source: {s.source}</p>
       </CardContent>
     </Card>
+  );
+}
+
+// Small mono pill rendered on library cards derived from an onboarding
+// sample source. Matches the pill used on the source picker tile so the
+// user sees the same visual language across the loop. The settings page
+// offers a one-tap "remove sample cards" action when any of these exist.
+function GuidedSamplePill() {
+  return (
+    <span
+      className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground bg-[hsl(35_22%_92%)] px-1.5 py-0.5 rounded"
+      title="From a guided sample. Removable in settings."
+    >
+      guided sample
+    </span>
   );
 }
