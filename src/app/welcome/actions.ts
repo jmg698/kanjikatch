@@ -70,7 +70,7 @@ export async function skipOnboarding(): Promise<void> {
 }
 
 export async function completeOnboarding(
-  destination: "/dashboard" | "/capture" = "/dashboard",
+  destination: "/dashboard" | "/capture" | "/review" = "/dashboard",
 ): Promise<void> {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");

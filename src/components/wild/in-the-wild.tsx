@@ -95,6 +95,22 @@ export function InTheWild({
   const handleRate = useCallback(async (sentenceId: string, rating: DifficultyRating) => {
     setRatings((prev) => ({ ...prev, [sentenceId]: rating }));
 
+    // Onboarding: rating is the "I'm done with this one" signal. Auto-advance
+    // after a short beat so the user isn't left wondering what to do next —
+    // forward to the next sentence, or close the reveal out to the summary
+    // step on the last one. Normal sessions keep manual paging.
+    if (isOnboarding) {
+      const isLast = currentIndex >= sentences.length - 1;
+      window.setTimeout(() => {
+        if (isLast) {
+          onBackToDashboard();
+        } else {
+          setDirection(1);
+          setCurrentIndex((i) => i + 1);
+        }
+      }, 900);
+    }
+
     try {
       await fetch("/api/sentences/rate", {
         method: "POST",
@@ -104,7 +120,7 @@ export function InTheWild({
     } catch {
       // Rating saved optimistically — silent fail is fine
     }
-  }, []);
+  }, [isOnboarding, currentIndex, sentences.length, onBackToDashboard]);
 
   useEffect(() => {
     let cancelled = false;
@@ -398,7 +414,7 @@ export function InTheWild({
                     onRate={handleRate}
                     currentRating={ratings[sentence.id] || null}
                     showRatingHint={isOnboarding && currentIndex === 0}
-                    showTapToCatchHint={isOnboarding && currentIndex === 0}
+                    coach={isOnboarding && currentIndex === 0}
                   />
                 </div>
               </motion.div>
