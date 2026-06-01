@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Camera, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StackedPaperHero } from "@/components/shared/stacked-paper-hero";
 import { track } from "@/lib/track";
@@ -101,6 +101,20 @@ export function WelcomeFlow({
     });
   }
 
+  function handleKeepReviewing() {
+    setError(null);
+    track("onboarding_completed", { viaWildRevealCta: false });
+    // Drop them into the normal review loop — no onboarding flag, no size
+    // cap. From here on they're just using the app like any returning user.
+    startTransition(async () => {
+      try {
+        await completeOnboarding("/review");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
+    });
+  }
+
   // Pitch screen wants the wider grid layout for the hero visual; other
   // steps stay in a narrower column for readability.
   const containerClass =
@@ -129,6 +143,7 @@ export function WelcomeFlow({
         <SummaryStep
           onFinish={handleFinish}
           onCatchAnother={handleCatchAnother}
+          onKeepReviewing={handleKeepReviewing}
           pending={pending}
         />
       )}
@@ -382,10 +397,12 @@ function SampleTile({
 function SummaryStep({
   onFinish,
   onCatchAnother,
+  onKeepReviewing,
   pending,
 }: {
   onFinish: () => void;
   onCatchAnother: () => void;
+  onKeepReviewing: () => void;
   pending: boolean;
 }) {
   return (
@@ -412,7 +429,7 @@ function SummaryStep({
         </li>
       </ul>
 
-      <div className="mt-12 flex flex-col items-center gap-3">
+      <div className="mt-12 flex flex-col items-stretch gap-3 max-w-sm mx-auto">
         <Button
           size="lg"
           className="h-12 px-8 text-base shadow-sm"
@@ -422,14 +439,26 @@ function SummaryStep({
           Go to dashboard
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
-        <button
-          type="button"
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-12 px-8 text-base"
           onClick={onCatchAnother}
           disabled={pending}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 px-3 py-2"
         >
-          Or catch another page →
-        </button>
+          <Camera className="h-4 w-4 mr-2" />
+          Capture more
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-12 px-8 text-base"
+          onClick={onKeepReviewing}
+          disabled={pending}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Keep reviewing
+        </Button>
       </div>
     </section>
   );

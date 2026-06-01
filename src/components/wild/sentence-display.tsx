@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Check, Loader2, Zap, ThumbsUp, TrendingUp, Eye, Languages } from "lucide-react";
 import type { WildSentenceData, WildWord, WordFamiliarity } from "./in-the-wild";
@@ -23,7 +23,34 @@ interface SentenceDisplayProps {
    *  first wild sentence so first-time users discover the compounding
    *  loop. See ONBOARDING_PLAN.md §Step 5a. */
   showTapToCatchHint?: boolean;
+  /** Run the stepped onboarding coach on this sentence: a guided sequence
+   *  that walks a first-time reader through the loop — try reading it,
+   *  reveal the reading, reveal the translation, then tap a word to catch
+   *  it. Each step highlights the relevant control and advances on the
+   *  matching action. Never blocks progress (the rating still auto-advances
+   *  the session). Used by onboarding for the first wild sentence only. */
+  coach?: boolean;
 }
+
+type CoachStep = "reading" | "translation" | "tap" | "done";
+
+const COACH_COPY: Record<Exclude<CoachStep, "done">, { step: number; title: string; body: string }> = {
+  reading: {
+    step: 1,
+    title: "Try reading it first.",
+    body: "Say it in your head. Stuck on a word? Reveal the reading below.",
+  },
+  translation: {
+    step: 2,
+    title: "Now check yourself.",
+    body: "Reveal the translation to see how close you were.",
+  },
+  tap: {
+    step: 3,
+    title: "Catch a new word.",
+    body: "Tap any highlighted word for its meaning — or add it to your library.",
+  },
+};
 
 /**
  * Derive the authoritative familiarity for a word, with a fallback for
@@ -37,12 +64,18 @@ function resolveFamiliarity(word: WildWord): WordFamiliarity {
   return "unknown";
 }
 
-function WordToken({ word, showFurigana, onTapWord }: { word: WildWord; showFurigana: boolean; onTapWord?: (word: WildWord) => void }) {
+function WordToken({ word, showFurigana, onTapWord, highlight = false }: { word: WildWord; showFurigana: boolean; onTapWord?: (word: WildWord) => void; highlight?: boolean }) {
   const isPunctuation = /^[。、！？「」『』（）\s…・ー～]+$/.test(word.text);
 
   if (isPunctuation) {
     return <span className="wild-punctuation">{word.text}</span>;
   }
+
+  // The onboarding coach's "tap a word" step rings the tappable tokens so a
+  // first-time reader can see what's interactive.
+  const highlightClass = highlight
+    ? " ring-2 ring-amber-400 rounded-md animate-pulse"
+    : "";
 
   const familiarity = resolveFamiliarity(word);
   const hasReading = !!word.reading && word.reading !== word.text;
@@ -84,7 +117,7 @@ function WordToken({ word, showFurigana, onTapWord }: { word: WildWord; showFuri
         <button
           type="button"
           onClick={() => onTapWord(word)}
-          className="wild-partial-word wild-tappable-word"
+          className={`wild-partial-word wild-tappable-word${highlightClass}`}
           role="mark"
           aria-label={ariaLabel}
           title="Contains a kanji you've studied — tap for details"
@@ -105,7 +138,7 @@ function WordToken({ word, showFurigana, onTapWord }: { word: WildWord; showFuri
       <button
         type="button"
         onClick={() => onTapWord(word)}
-        className="wild-tappable-word"
+        className={`wild-tappable-word${highlightClass}`}
       >
         {content}
       </button>
@@ -122,6 +155,7 @@ function RevealButton({
   Icon,
   onClick,
   compact,
+  pulse = false,
 }: {
   active: boolean;
   inactiveLabel: string;
@@ -129,6 +163,8 @@ function RevealButton({
   Icon: typeof Eye;
   onClick: () => void;
   compact?: boolean;
+  /** Draw a pulsing ring to point the onboarding coach at this control. */
+  pulse?: boolean;
 }) {
   return (
     <motion.button
@@ -139,6 +175,8 @@ function RevealButton({
       transition={{ type: "spring", stiffness: 500, damping: 24 }}
       className={`wild-reveal-button group inline-flex items-center gap-2 rounded-full border-2 font-medium transition-colors ${
         compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
+      } ${
+        pulse ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-transparent animate-pulse" : ""
       } ${
         active
           ? "wild-reveal-button--on bg-amber-100 border-amber-400 text-amber-900 shadow-sm"
@@ -204,12 +242,27 @@ const RATING_CONFIG: Record<DifficultyRating, {
 
 const RATINGS: DifficultyRating[] = ["too_easy", "just_right", "too_hard"];
 
-export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating, showRatingHint = false, showTapToCatchHint = false }: SentenceDisplayProps) {
+export function SentenceDisplay({ sentence, showAddWord = false, compact = false, onRate, currentRating, showRatingHint = false, showTapToCatchHint = false, coach = false }: SentenceDisplayProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showFurigana, setShowFurigana] = useState(false);
   const [addingWord, setAddingWord] = useState<WildWord | null>(null);
   const [addStatus, setAddStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Stepped onboarding coach. Advances as the user performs each action;
+  // "Skip tips" or a word-tap on the last step finishes it. The coach never
+  // gates the session — rating still auto-advances regardless of coach state.
+  const [coachStep, setCoachStep] = useState<CoachStep>("reading");
+  useEffect(() => {
+    if (!coach) return;
+    if (coachStep === "reading" && showFurigana) setCoachStep("translation");
+    else if (coachStep === "translation" && showTranslation) setCoachStep("tap");
+  }, [coach, coachStep, showFurigana, showTranslation]);
+  useEffect(() => {
+    if (coach && coachStep === "tap" && addingWord) setCoachStep("done");
+  }, [coach, coachStep, addingWord]);
+
+  const coachActive = coach && coachStep !== "done";
 
   const words: WildWord[] = Array.isArray(sentence.words)
     ? sentence.words
@@ -274,7 +327,37 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
 
   return (
     <div className={`space-y-6 ${compact ? "" : "py-4"}`}>
-      {showTapToCatchHint && showAddWord && (
+      {coachActive && (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={coachStep}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="mx-auto max-w-md rounded-2xl border-2 border-amber-300 bg-amber-50/95 px-4 py-3 text-center shadow-sm dark:border-amber-700 dark:bg-amber-950/60"
+          >
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-amber-700/80 dark:text-amber-300/80">
+              Step {COACH_COPY[coachStep].step} of 3
+            </p>
+            <p className="mt-1 font-semibold text-amber-900 dark:text-amber-100">
+              {COACH_COPY[coachStep].title}
+            </p>
+            <p className="mt-0.5 text-sm text-amber-800/80 dark:text-amber-200/70 leading-relaxed">
+              {COACH_COPY[coachStep].body}
+            </p>
+            <button
+              type="button"
+              onClick={() => setCoachStep("done")}
+              className="mt-2 text-[11px] font-medium text-amber-700/70 hover:text-amber-900 underline underline-offset-2 transition-colors dark:text-amber-300/70 dark:hover:text-amber-100"
+            >
+              Skip tips
+            </button>
+          </motion.div>
+        </AnimatePresence>
+      )}
+
+      {showTapToCatchHint && showAddWord && !coach && (
         <div className="text-center">
           <p className="inline-block text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground/80 bg-white/40 backdrop-blur-sm border px-3 py-1.5 rounded-full" style={{ borderColor: "rgba(255,255,255,0.3)" }}>
             Tap any new word to catch it
@@ -293,6 +376,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
             word={word}
             showFurigana={showFurigana}
             onTapWord={showAddWord ? handleAddWord : undefined}
+            highlight={coachActive && coachStep === "tap"}
           />
         ))}
       </div>
@@ -321,6 +405,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
             Icon={Eye}
             onClick={() => setShowFurigana((v) => !v)}
             compact={compact}
+            pulse={coachActive && coachStep === "reading"}
           />
           <RevealButton
             active={showTranslation}
@@ -329,6 +414,7 @@ export function SentenceDisplay({ sentence, showAddWord = false, compact = false
             Icon={Languages}
             onClick={() => setShowTranslation((v) => !v)}
             compact={compact}
+            pulse={coachActive && coachStep === "translation"}
           />
         </div>
 

@@ -18,7 +18,7 @@ import type { DifficultyRating } from "@/components/wild/sentence-display";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState, UndoSnapshot } from "./review-types";
 import type { Grade } from "@/lib/srs";
 
-type Phase = "setup" | "reviewing" | "interlude" | "summary" | "wild";
+type Phase = "setup" | "reviewing" | "interlude" | "summary" | "transition" | "wild";
 
 // Mid-session reading interlude config — kept tight on purpose.
 const INTERLUDE_SEGMENT_SIZE = 25;
@@ -80,6 +80,11 @@ export function ReviewSession() {
 
   // Wild sentences prefetch (fire early so it runs in parallel with session completion)
   const [wildPrefetchStatus, setWildPrefetchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  // Guards prefetchWildSentences against double-firing. In onboarding we kick
+  // generation off a couple cards before the end (so the closer is warm by the
+  // time the reveal mounts); this ref stops the end-of-session call from
+  // re-triggering it. Reset in startSession / handleReviewAgain.
+  const wildPrefetchStartedRef = useRef(false);
 
   // Mid-session reading interlude. Triggered every INTERLUDE_SEGMENT_SIZE
   // originally-completed cards when there are still enough cards remaining
@@ -135,7 +140,23 @@ export function ReviewSession() {
     fetchStats().finally(() => setLoading(false));
   }, [fetchStats]);
 
+  // Onboarding transition beat: hold the "Now — read them in the wild"
+  // headline for ~1.6s, then advance into the sentence reveal. The closer was
+  // already warmed mid-session, so by the time we arrive the deck is ready.
+  useEffect(() => {
+    if (phase !== "transition") return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const t = window.setTimeout(() => setPhase("wild"), reduceMotion ? 400 : 1600);
+    return () => window.clearTimeout(t);
+  }, [phase]);
+
   const prefetchWildSentences = useCallback((sid: string) => {
+    // Fire at most once per session — onboarding warms this early, normal
+    // sessions warm it on the last card; either way the first call wins.
+    if (wildPrefetchStartedRef.current) return;
+    wildPrefetchStartedRef.current = true;
     setWildPrefetchStatus("loading");
     const hasInterludes = allInterludeSentencesRef.current.length > 0;
     // Onboarding mode wants a tight climax — two sentences max. See
@@ -166,7 +187,7 @@ export function ReviewSession() {
       .catch(() => {
         setWildPrefetchStatus("error");
       });
-  }, []);
+  }, [isOnboarding]);
 
   const startSession = useCallback(async (type: SessionType, size: number) => {
     setLoading(true);
@@ -205,6 +226,7 @@ export function ReviewSession() {
       requeueMapRef.current = new Map();
       originalQueueSizeRef.current = entries.length;
       setUndoSnapshot(null);
+      wildPrefetchStartedRef.current = false;
 
       interludeSeenSegmentsRef.current = new Set();
       allInterludeSentencesRef.current = [];
@@ -498,6 +520,15 @@ export function ReviewSession() {
         setCurrentIndex(nextIndex);
         setUndoSnapshot(pendingSnapshot);
 
+        // Onboarding: warm the closer two cards before the end so generation
+        // (which keys off the items reviewed so far) finishes while the user
+        // works the last couple cards — by the time the reveal mounts the
+        // server cache is hot and there's no spinner. The once-guard inside
+        // prefetchWildSentences keeps the end-of-session call from re-firing.
+        if (isOnboarding && nextIndex >= updatedQueue.length - 2) {
+          prefetchWildSentences(sessionId);
+        }
+
         // Reading interlude check: every INTERLUDE_SEGMENT_SIZE original-card
         // completions, if at least INTERLUDE_MIN_TAIL cards remain afterward.
         // Retries don't count toward the milestone — a wobbly streak should
@@ -605,10 +636,14 @@ export function ReviewSession() {
       // Refresh stats so the dashboard / streak chip is current.
       await fetchStats();
 
-      setPhase("summary");
+      // Onboarding skips the stats summary entirely — it's a speed bump with
+      // off-ramps right where we want momentum. Instead we play a brief
+      // "Now — read them in the wild" beat, then drop straight into the
+      // sentence reveal. See ONBOARDING_PLAN.md Step 4 (card-stack → wild).
+      setPhase(isOnboarding ? "transition" : "summary");
     } catch (e) {
       console.error("Failed to complete session:", e);
-      setPhase("summary");
+      setPhase(isOnboarding ? "transition" : "summary");
     }
   };
 
@@ -618,6 +653,7 @@ export function ReviewSession() {
     setSessionId(null);
     setQueue([]);
     setWildPrefetchStatus("idle");
+    wildPrefetchStartedRef.current = false;
     requeueMapRef.current = new Map();
     originalQueueSizeRef.current = 0;
     autoStartedRef.current = false;
@@ -678,7 +714,7 @@ export function ReviewSession() {
   }, [phase, undoSnapshot, submitting, undoing, shortcutsOpen, handleUndo]);
 
   const isFullScreen =
-    phase === "reviewing" || phase === "interlude" || phase === "summary" || phase === "wild";
+    phase === "reviewing" || phase === "interlude" || phase === "summary" || phase === "transition" || phase === "wild";
   const isReviewOrInterlude = phase === "reviewing" || phase === "interlude";
 
   return (
@@ -903,6 +939,29 @@ export function ReviewSession() {
                   />
                 </motion.div>
               </div>
+            )}
+
+            {phase === "transition" && (
+              <motion.div
+                key="transition"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex-1 min-h-0 relative"
+              >
+                <StaticGoldenHourBackground />
+                <div className="relative z-10 h-full flex items-center justify-center px-6">
+                  <motion.h2
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }}
+                    className="font-display text-4xl sm:text-5xl font-bold text-center text-[#F5F0E6] leading-tight"
+                  >
+                    Now — read them in the wild.
+                  </motion.h2>
+                </div>
+              </motion.div>
             )}
 
             {phase === "wild" && sessionId && (

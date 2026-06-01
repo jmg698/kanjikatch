@@ -462,3 +462,22 @@ Not in current scope. Reserved for the final polish-pass items from §Build pack
 - Accessibility audit (coachmark roles, keyboard reachability, prefers-reduced-motion overrides).
 - Microcopy grep to ensure every string still matches §7.
 - Real `cards_caught_from_wild` instrumentation wired through the existing add-word action.
+
+### Phase 2.4 — Climax flow fixes (in build)
+
+Dogfood pass on the full sample loop surfaced friction at the review → wild
+handoff. These changes tighten that handoff and add real coaching where the
+payoff lives. Onboarding-only — normal review/wild behavior is untouched.
+
+| Finding | Verdict | Fix |
+|---|---|---|
+| Post-review stats summary ("5 reviews — your first session") is a dead stop with off-ramps right at the climax | UX miss | In onboarding, skip `phase: "summary"` entirely. Play a brief (~1.6s) "Now — read them in the wild." transition beat, then drop straight into the reveal. |
+| Sentences take a visible beat to generate when the reveal mounts | Perf | Warm the closer two cards before the end of the session (generation keys off items reviewed so far) so the server cache is hot by the time the reveal mounts. A once-guard stops the end-of-session call from re-firing. |
+| After rating a sentence, it's unclear what to do next | UX miss | Onboarding auto-advances ~900ms after a rating: forward to the next sentence, or close the reveal out to the summary step on the last one. |
+| First-time readers don't know they can reveal reading/translation in sequence, or tap words to catch them | Coaching gap | Stepped coach on the first onboarding sentence: (1) try reading it, (2) reveal the reading, (3) reveal the translation, then tap a highlighted word to catch it. Each step highlights the relevant control and advances on the matching action. "Skip tips" dismisses it; it never blocks the session. |
+| Summary page CTAs were thin (dashboard + one text link) | UX miss | Three clear buttons: **Go to dashboard** (primary), **Capture more**, **Keep reviewing** (routes to the normal `/review` loop — no onboarding flag or size cap). |
+
+Touched: `review-session.tsx` (transition phase + early prefetch),
+`in-the-wild.tsx` (rating auto-advance + coach wiring),
+`sentence-display.tsx` (stepped coach), `welcome-flow.tsx` + `welcome/actions.ts`
+(three-button summary).
