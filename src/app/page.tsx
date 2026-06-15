@@ -122,7 +122,7 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
             <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
               Learn the Japanese
               <br />
-              you've
+              you&apos;ve
               <span className="relative inline-block ml-3">
                 <span className="relative z-10 text-primary">seen.</span>
                 <span
@@ -136,7 +136,7 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
               KanjiKatch ingests anything with Japanese on it — your handwritten
               notes, a textbook page, a news screenshot, a manga panel. We
               catch every kanji, word, and sentence, and build a working
-              knowledge of what stuff you've seen. You review that and read in
+              knowledge of what stuff you&apos;ve seen. You review that and read in
               context to really learn.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -297,7 +297,7 @@ function WildSpotlight() {
             </h2>
             <p className="mt-5 text-lg text-muted-foreground">
               After every review, KanjiKatch generates fresh sentences seeded
-              with words you've actually studied — and stretched with one or
+              with words you&apos;ve actually studied — and stretched with one or
               two new pieces sized to where you are. Studied words glow gold.
               Partials — new words built from kanji you already know — get a
               teal underline. Tap anything new and it joins your deck.
@@ -437,8 +437,8 @@ function BuiltFor() {
             </h2>
           </div>
           <p className="text-sm text-muted-foreground max-w-sm">
-            KanjiKatch doesn't pick the words for you. Your materials do —
-            anything with Japanese on it, and that's the whole point.
+            KanjiKatch doesn&apos;t pick the words for you. Your materials do —
+            anything with Japanese on it, and that&apos;s the whole point.
           </p>
         </div>
 
@@ -517,8 +517,8 @@ function WhyKanjiKatch() {
             <span className="text-primary"> KanjiKatch is yours.</span>
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            We're not trying to replace the great tools you already use. We're
-            the missing one — the deck shaped exactly by what's in front of
+            We&apos;re not trying to replace the great tools you already use. We&apos;re
+            the missing one — the deck shaped exactly by what&apos;s in front of
             you today.
           </p>
         </div>

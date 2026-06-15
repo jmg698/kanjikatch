@@ -30,7 +30,6 @@ const DEBUG_ENABLED =
 export function track(event: OnboardingEvent, props?: Record<string, unknown>): void {
   if (!DEBUG_ENABLED) return;
   try {
-    // eslint-disable-next-line no-console
     console.log(`[track] ${event}`, props ?? {});
   } catch {
     // Never let instrumentation affect UX.
