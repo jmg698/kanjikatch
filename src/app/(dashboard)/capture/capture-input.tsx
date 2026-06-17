@@ -708,7 +708,7 @@ export function CaptureInput() {
             <SearchX className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold">No Japanese content found</h3>
             <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-              The AI couldn&apos;t detect any kanji, vocabulary, or sentences.
+              Kanji Katch couldn&apos;t find any kanji, vocabulary, or sentences.
               Try a clearer photo, better lighting, or crop closer to your notes.
             </p>
             <Button className="mt-6" onClick={clearAll}>

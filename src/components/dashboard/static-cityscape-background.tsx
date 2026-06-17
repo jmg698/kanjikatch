@@ -183,10 +183,9 @@ function SideCityscape({ side }: { side: "left" | "right" }) {
 
   return (
     <div
-      className={`absolute bottom-0 ${side === "left" ? "left-0" : "right-0"} pointer-events-none`}
+      className={`absolute bottom-0 h-full ${side === "left" ? "left-0" : "right-0"} pointer-events-none`}
       style={{
-        width: "min(45vw, 720px)",
-        height: "min(48vh, 460px)",
+        width: "min(46vw, 720px)",
       }}
       aria-hidden
     >
@@ -269,22 +268,24 @@ export function StaticCityscapeBackground() {
   return (
     <>
       {/* Dawn sky — fixed, covers the entire viewport including behind nav.
-          This is the "calm at dawn" mood the dashboard sits in. */}
+          A soft cool-dawn gradient gives the scene depth instead of a flat
+          fill; this is the "calm at dawn" mood the dashboard sits in. */}
       <div
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "#D0D4DB",
+            "linear-gradient(to bottom, #DEE2E8 0%, #D3D7DE 52%, #C6CBD3 100%)",
         }}
         aria-hidden
       />
 
-      {/* Side cityscapes — flanking scenery, hidden on mobile where the
-          facade fills the screen. Container uses the page's max width as a
-          ceiling so the buildings always tuck in toward the facade. */}
+      {/* Side cityscapes — flanking scenery that frames the central facade.
+          Shown on every screen size: on mobile the buildings read as a dawn
+          skyline along the bottom, so the screen is never a flat empty wash.
+          A touch shorter on mobile so they sit as a horizon rather than
+          crowding the card. */}
       <div
-        className="hidden md:block fixed inset-x-0 bottom-0 z-0 pointer-events-none"
-        style={{ height: "min(48vh, 460px)" }}
+        className="block fixed inset-x-0 bottom-0 z-0 pointer-events-none h-[min(40vh,320px)] md:h-[min(48vh,460px)]"
         aria-hidden
       >
         <div className="relative w-full h-full">

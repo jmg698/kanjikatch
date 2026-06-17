@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Camera, Flame } from "lucide-react";
+import { Camera, Flame, Plus, ImageIcon, ClipboardPaste, Type } from "lucide-react";
 import { db, kanji, vocabulary, userStats, reviewTracks } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
 import { StaticCityscapeBackground } from "@/components/dashboard/static-cityscape-background";
+import { EmptyTower } from "@/components/dashboard/empty-tower";
 import { ReviewLauncher } from "@/components/dashboard/review-launcher";
 
 async function getDashboardData(userId: string) {
@@ -154,22 +155,44 @@ export default async function DashboardPage() {
         <div className="dash-facade px-5 pt-7 pb-7 sm:px-7 sm:pt-8 sm:pb-8">
           {isNewUser ? (
             <section className="stagger-0">
-              <div className="window-pane px-6 py-10 text-center">
-                <h2 className="text-4xl sm:text-5xl font-serif font-bold text-foreground leading-tight">
+              <div className="window-pane px-6 py-9 text-center">
+                <EmptyTower />
+
+                <h2 className="text-4xl sm:text-5xl font-serif font-bold text-foreground leading-tight mt-5">
                   はじめましょう
                 </h2>
-                <p className="text-sm text-muted-foreground mt-4 max-w-sm mx-auto leading-relaxed">
-                  Photograph your handwritten notes and AI will extract kanji
-                  and vocabulary for spaced repetition review.
+                <p className="text-[15px] text-foreground/80 mt-3 max-w-sm mx-auto leading-relaxed">
+                  Every kanji and word you catch lights up your tower.
                 </p>
+                <p className="text-sm text-muted-foreground mt-3 max-w-sm mx-auto leading-relaxed">
+                  Snap a textbook page, an email, hand written notes, a menu, a
+                  manga panel — anything with Japanese on it. Kanji Katch pulls
+                  out the kanji and vocab and queues them for review.
+                </p>
+
                 <div className="mt-7">
                   <Link
                     href="/capture"
                     className="lit-window inline-flex items-center gap-2 px-7 py-3.5 font-semibold"
                   >
-                    <Camera className="h-4 w-4 relative z-10" />
-                    <span className="relative z-10">Capture Your Notes</span>
+                    <Plus className="h-4 w-4 relative z-10" />
+                    <span className="relative z-10">Catch Japanese</span>
                   </Link>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5" /> Photo
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5" /> Screenshot
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ClipboardPaste className="h-3.5 w-3.5" /> Paste
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Type className="h-3.5 w-3.5" /> Type
+                  </span>
                 </div>
               </div>
             </section>
