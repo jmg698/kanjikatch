@@ -61,7 +61,7 @@ export function CaptureUploader() {
             <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
             <h3 className="text-lg font-semibold">Processing your image...</h3>
             <p className="text-muted-foreground mt-2">
-              AI is extracting kanji, vocabulary, and sentences.
+              Kanji Katch is pulling out kanji, vocabulary, and sentences.
             </p>
           </div>
         </CardContent>
