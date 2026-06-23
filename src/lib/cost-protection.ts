@@ -29,6 +29,8 @@ import type { NextRequest } from "next/server";
 // at time of writing — update when models change. Falls back to Sonnet 4
 // numbers for unknown models (conservative).
 const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
+  "claude-sonnet-4-6": { inputPer1M: 3, outputPer1M: 15 },
+  // Retired model id — kept so historical usage rows still price correctly.
   "claude-sonnet-4-20250514": { inputPer1M: 3, outputPer1M: 15 },
   "claude-3-5-haiku-20241022": { inputPer1M: 0.8, outputPer1M: 4 },
 };
