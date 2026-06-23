@@ -176,7 +176,7 @@ async function fetchImageAsBase64(url: string): Promise<{ base64: string; mediaT
   return { base64, mediaType };
 }
 
-const EXTRACTION_MODEL = "claude-sonnet-4-20250514";
+const EXTRACTION_MODEL = "claude-sonnet-4-6";
 
 export async function extractFromImage(
   imageUrl: string,
@@ -510,7 +510,7 @@ function buildDifficultyGuidance(profile: DifficultyProfile): string {
   return lines.join("\n");
 }
 
-const WILD_SENTENCE_MODEL = "claude-sonnet-4-20250514";
+const WILD_SENTENCE_MODEL = "claude-sonnet-4-6";
 
 export async function generateWildSentences(
   targets: WildTargetItem[],
