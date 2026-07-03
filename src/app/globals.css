@@ -6,6 +6,12 @@
 
 @layer base {
   :root {
+    /* Font slots (overridable at runtime, e.g. by /font-lab) */
+    --font-sans: 'Noto Sans JP';
+    --font-serif: 'Noto Serif JP';
+    --font-display: 'Fraunces';
+    --font-mono: 'JetBrains Mono';
+
     /* Warm washi paper tones */
     --background: 35 28% 97%;
     --foreground: 25 20% 12%;

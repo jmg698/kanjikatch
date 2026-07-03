@@ -64,10 +64,10 @@ const config: Config = {
         paper: "hsl(var(--paper))",
       },
       fontFamily: {
-        sans: ["'Noto Sans JP'", "sans-serif"],
-        serif: ["'Noto Serif JP'", "serif"],
-        display: ["'Fraunces'", "'Noto Serif JP'", "serif"],
-        mono: ["'JetBrains Mono'", "monospace"],
+        sans: ["var(--font-sans)", "'Noto Sans JP'", "sans-serif"],
+        serif: ["var(--font-serif)", "'Noto Serif JP'", "serif"],
+        display: ["var(--font-display)", "'Fraunces'", "'Noto Serif JP'", "serif"],
+        mono: ["var(--font-mono)", "'JetBrains Mono'", "monospace"],
       },
       borderRadius: {
         lg: "var(--radius)",
