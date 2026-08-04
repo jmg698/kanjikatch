@@ -11,7 +11,7 @@ import { getTierContext } from "@/lib/tiers";
 import { z } from "zod";
 
 const DEFAULT_END_COUNT = 5;
-const SEGMENT_SIZE = 25; // matches ReviewSession interlude cadence
+const SEGMENT_SIZE = 10; // matches ReviewSession interlude cadence
 const MAX_GENERATION_CALLS_PER_DAY = 20;
 // Free-tier post-session cap (PRO_TIER_PLAN.md: "2 from shared library, no audio").
 // Interludes are deliberately unlimited at this layer — the interlude cadence
@@ -24,7 +24,7 @@ const WILD_COVERAGE_SCOPE: WildCoverageScope = "window_7d";
 const requestSchema = z.object({
   sessionId: z.string().uuid(),
   // When provided, generate sentences for a specific mid-session interlude
-  // segment. Targets are drawn from the [segmentIndex*25, segmentIndex*25 + 25)
+  // segment. Targets are drawn from the [segmentIndex*10, segmentIndex*10 + 10)
   // slice of review history. Interludes are NOT cached server-side — the
   // client tracks which segments it has already shown via a ref.
   segmentIndex: z.number().int().min(0).optional(),

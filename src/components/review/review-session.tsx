@@ -21,13 +21,15 @@ import type { Grade } from "@/lib/srs";
 type Phase = "setup" | "reviewing" | "interlude" | "summary" | "transition" | "wild";
 
 // Mid-session reading interlude config — kept tight on purpose.
-const INTERLUDE_SEGMENT_SIZE = 25;
+const INTERLUDE_SEGMENT_SIZE = 10;
 const INTERLUDE_MIN_TAIL = 10;
-const INTERLUDE_SENTENCE_COUNT = 2;
+const INTERLUDE_SENTENCE_COUNT = 1;
 // Fire the interlude generation request this many cards before the milestone
 // so it runs in parallel with the user finishing the segment. At a typical
 // 5–10s per card this gives ~35–70s of headroom — comfortably more than the
 // model's response time, so the user usually sees the interlude with no wait.
+// This is an absolute card count, not a fraction of the segment, so it keeps
+// the same headroom even though the segment shrank from 25 to 10.
 const INTERLUDE_PREFETCH_LOOKAHEAD = 7;
 
 export function ReviewSession() {
