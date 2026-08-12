@@ -63,6 +63,8 @@ export default async function WelcomeConfirmPage({
         kanji: sample.kanji,
         vocabulary: sample.vocabulary,
         sentences: sample.sentences,
+        // Pre-extracted onboarding samples predate grammar extraction.
+        grammarPatterns: [],
       }}
     />
   );

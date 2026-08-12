@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { db, kanji, vocabulary, sentences, reviewTracks } from "@/db";
+import { db, kanji, vocabulary, sentences, grammarPatterns, reviewTracks } from "@/db";
 import { eq, desc, asc, and, or, ilike, inArray, sql, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
 
-const VALID_TABS = ["kanji", "vocabulary", "sentences"] as const;
+const VALID_TABS = ["kanji", "vocabulary", "grammar", "sentences"] as const;
 type Tab = (typeof VALID_TABS)[number];
 
 const VALID_SORTS = ["recent", "oldest", "alphabetical", "next_review", "jlpt_asc", "jlpt_desc"] as const;
@@ -228,6 +228,52 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         items: enrichedItems,
+        total,
+        page,
+        hasMore: offset + items.length < total,
+      });
+    }
+
+    // Grammar tab — no SRS tracks (grammar review is a future feature), so
+    // search + JLPT filters only.
+    if (tab === "grammar") {
+      const conditions: SQL[] = [eq(grammarPatterns.userId, userId)];
+
+      if (searchTerm) {
+        conditions.push(
+          or(
+            ilike(grammarPatterns.pattern, searchTerm),
+            ilike(grammarPatterns.label!, searchTerm),
+            ilike(grammarPatterns.structure!, searchTerm),
+            ilike(grammarPatterns.explanation!, searchTerm),
+          )!,
+        );
+      }
+
+      if (jlptLevels.length > 0) {
+        conditions.push(inArray(grammarPatterns.jlptLevel, jlptLevels));
+      }
+
+      const where = and(...conditions)!;
+
+      const orderBy = (() => {
+        switch (sortBy) {
+          case "oldest": return asc(grammarPatterns.firstSeenAt);
+          case "alphabetical": return asc(grammarPatterns.pattern);
+          case "jlpt_asc": return asc(grammarPatterns.jlptLevel);
+          case "jlpt_desc": return desc(grammarPatterns.jlptLevel);
+          case "recent":
+          default: return desc(grammarPatterns.lastSeenAt);
+        }
+      })();
+
+      const [items, [{ total }]] = await Promise.all([
+        db.select().from(grammarPatterns).where(where).orderBy(orderBy).limit(limit).offset(offset),
+        db.select({ total: count() }).from(grammarPatterns).where(where),
+      ]);
+
+      return NextResponse.json({
+        items,
         total,
         page,
         hasMore: offset + items.length < total,

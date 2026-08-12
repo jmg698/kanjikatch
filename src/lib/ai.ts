@@ -78,6 +78,18 @@ Extract the following and return as valid JSON:
    - japanese: The sentence in Japanese
    - english: English translation if visible or inferrable
 
+4. **Grammar Patterns**: Grammar points the material is teaching or using deliberately. Look for conjugation rules, sentence patterns, particles-as-topic (e.g. 〜という, 〜くなります, 〜てから), register ladders (が／けれども／けど), and set idioms (e.g. 頭が回らない). For each:
+   - pattern: The canonical Japanese form, e.g. "〜という" or "〜くなります"
+   - label: A short English handle, e.g. "B called A"
+   - structure: The formation rule, e.g. "Noun A + という + Noun B"
+   - explanation: 1-3 plain-English sentences on what it means and when to use it
+   - register: Formality/usage note if relevant (e.g. "casual speech"), else null
+   - nuance: Contrasts, pitfalls, or common-mistake warnings if relevant (e.g. "the particle is と, never の"), else null
+   - jlptLevel: Approximate JLPT level 1-5 if known
+   - examples: 1-3 example usages as { japanese, english }, taken from the material where possible
+
+   Only extract grammar the material actually teaches or prominently uses — do not list every particle in every sentence. A vocabulary list slide typically has zero grammar patterns; a slide titled with a pattern typically has one or two. Conjugated forms of ordinary verbs are vocabulary, not grammar patterns.
+
 Return ONLY valid JSON in this exact format:
 {
   "kanji": [
@@ -103,6 +115,23 @@ Return ONLY valid JSON in this exact format:
     {
       "japanese": "毎日ご飯を食べます。",
       "english": "I eat rice every day."
+    }
+  ],
+  "grammarPatterns": [
+    {
+      "pattern": "〜という",
+      "label": "B called A",
+      "structure": "Noun A + という + Noun B",
+      "explanation": "Introduces the name of something the listener probably doesn't know.",
+      "register": null,
+      "nuance": "The particle is と — never からいう or のいう.",
+      "jlptLevel": 4,
+      "examples": [
+        {
+          "japanese": "さくらというレストランを知っていますか。",
+          "english": "Do you know a restaurant called Sakura?"
+        }
+      ]
     }
   ]
 }
@@ -264,6 +293,18 @@ Extract the following information and return it as valid JSON:
    - japanese: The sentence in Japanese
    - english: English translation (optional)
 
+4. **Grammar Patterns**: Grammar points the material is teaching or deliberately using (sentence patterns, conjugation rules, register contrasts, set idioms) with:
+   - pattern: Canonical Japanese form, e.g. "〜という"
+   - label: Short English handle, e.g. "B called A"
+   - structure: Formation rule, e.g. "Noun A + という + Noun B"
+   - explanation: 1-3 plain-English sentences on meaning and usage
+   - register: Formality/usage note if relevant, else null
+   - nuance: Contrasts, pitfalls, or warnings if relevant, else null
+   - jlptLevel: Approximate JLPT level 1-5 if known
+   - examples: 1-3 example usages as { japanese, english }, from the material where possible
+
+   Only extract grammar the material actually teaches or prominently uses — not every particle in every sentence. Conjugated forms of ordinary verbs are vocabulary, not grammar patterns.
+
 Return ONLY valid JSON in this exact format:
 {
   "kanji": [
@@ -289,6 +330,23 @@ Return ONLY valid JSON in this exact format:
     {
       "japanese": "学生です。",
       "english": "I am a student."
+    }
+  ],
+  "grammarPatterns": [
+    {
+      "pattern": "〜という",
+      "label": "B called A",
+      "structure": "Noun A + という + Noun B",
+      "explanation": "Introduces the name of something the listener probably doesn't know.",
+      "register": null,
+      "nuance": "The particle is と — never からいう or のいう.",
+      "jlptLevel": 4,
+      "examples": [
+        {
+          "japanese": "さくらというレストランを知っていますか。",
+          "english": "Do you know a restaurant called Sakura?"
+        }
+      ]
     }
   ]
 }
@@ -575,4 +633,185 @@ export async function generateWildSentences(
     throw new Error(`Invalid sentence JSON from model: ${detail}`);
   }
   return result.data.sentences;
+}
+
+// --- Study guide generation ---
+
+export interface StudyGuideKanjiInput {
+  character: string;
+  readingsOn: string[];
+  readingsKun: string[];
+  meanings: string[];
+  jlptLevel: number | null;
+}
+
+export interface StudyGuideVocabInput {
+  word: string;
+  reading: string;
+  meanings: string[];
+  partOfSpeech: string | null;
+  jlptLevel: number | null;
+}
+
+export interface StudyGuideSentenceInput {
+  japanese: string;
+  english: string | null;
+}
+
+export interface StudyGuideGrammarInput {
+  pattern: string;
+  label: string | null;
+  structure: string | null;
+  explanation: string | null;
+  register: string | null;
+  nuance: string | null;
+  jlptLevel: number | null;
+  examples: { japanese: string; english?: string | null }[];
+}
+
+export interface StudyGuideInput {
+  sourceNames: string[];
+  kanji: StudyGuideKanjiInput[];
+  vocabulary: StudyGuideVocabInput[];
+  sentences: StudyGuideSentenceInput[];
+  grammarPatterns: StudyGuideGrammarInput[];
+}
+
+// Input caps keep a pathological multi-source request from blowing up the
+// prompt. Generous enough that a week of class slides fits comfortably.
+const GUIDE_INPUT_CAPS = {
+  kanji: 60,
+  vocabulary: 120,
+  sentences: 40,
+  grammarPatterns: 12,
+} as const;
+
+const STUDY_GUIDE_PROMPT = `You are a Japanese teacher writing a study guide for one intermediate learner, built ONLY from the material they captured from their class (vocabulary, kanji, sentences, and grammar patterns provided below). The guide's job is to take them past flashcards: connect the items into patterns, explain nuance, and make them produce Japanese — the way a great tutor's handout would.
+
+FORMAT — GitHub-flavored markdown, following EXACTLY this skeleton:
+
+- Line 1: "# " + a short title naming the lesson's main patterns or theme (e.g. "# Japanese Study Guide: 〜という・過ごす"). Then an italic line crediting the source material by name.
+- "## PART 1 — VOCABULARY": one or more tables with header "| Kanji | Kana | English |". Group into small thematic tables with "### " subheadings when the vocabulary clusters naturally; otherwise one table. Use "—" in the Kana column for kana-only/katakana words. After a table, add a short bold "**Note:**" line ONLY when an item carries real nuance worth flagging (politeness, danger of misuse, easily-confused pairs).
+- "## PART 2 — GRAMMAR PATTERNS": one "### " section per provided grammar pattern, numbered ①②③…, formatted as: heading with pattern + short English handle; a "**Structure:**" line if a formation rule applies; 1-3 sentences of plain-English explanation; 2-3 example sentences. EVERY example is three consecutive lines: the sentence with kanji, the same sentence in all-kana, then the English in italics. Prefer examples from the provided sentences; write natural new ones using the provided vocabulary when needed. Add a "⚠️" warning line for common mistakes where the material suggests one. If patterns contrast with each other (register ladders, similar adverbs), add a comparison table.
+- "## PART 3 — KANJI STUDY": group the provided kanji by JLPT level (N5 table, N4 table, "Above N4 — recognize, don't stress" table), each with columns "| Kanji | Readings | Meaning | Example words |" where example words come from the provided vocabulary when possible (word + kana + gloss). If levels are missing, group sensibly and say so. End with ONE "### Kanji tip:" callout teaching a genuinely useful reading or component insight drawn from these kanji (e.g. on/kun reading split in compounds).
+- "## PART 4 — PRACTICE": three exercise sets that use ONLY the lesson's vocabulary and grammar: "### A." fill-in-the-blank (5 items, blanks written as ＿＿＿), "### B." translate English → Japanese (5 items), "### C." personal questions the learner answers about their own life (3 items, in Japanese). Then "### Answer key (A)" and "### Answer key (B)" as numbered lists. No answer key for C.
+- Separate every PART with "---" on its own line.
+
+RULES:
+- Build strictly from the provided material. You may add readings, kana renderings, JLPT levels, and glosses from your knowledge of Japanese, and write practice sentences that recombine the provided items — but do NOT introduce unrelated new vocabulary lists or grammar the material doesn't contain.
+- If a category is empty (e.g. no grammar patterns), omit that PART entirely and renumber the remaining parts.
+- Keep explanations warm, concrete, and aimed at an intermediate learner (JLPT N4-ish). Short sentences. No filler.
+- All Japanese must be correct and natural. Double-check kana lines match their kanji lines exactly.
+- Output ONLY the markdown document. No preamble, no code fences around the whole document, no closing remarks.`;
+
+const STUDY_GUIDE_MODEL = "claude-sonnet-4-6";
+
+/** First "# " heading of the guide, stripped of markdown emphasis — used as the stored title. */
+export function parseGuideTitle(markdown: string): string | null {
+  for (const line of markdown.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("# ")) {
+      const title = trimmed.slice(2).replace(/[*_`#]/g, "").trim();
+      return title.length > 0 ? title.slice(0, 200) : null;
+    }
+    // Stop scanning once real content starts without a title heading.
+    if (trimmed.length > 0 && !trimmed.startsWith("#")) break;
+  }
+  return null;
+}
+
+function formatGuideMaterial(input: StudyGuideInput): string {
+  const lines: string[] = [];
+
+  lines.push(`SOURCE MATERIAL: ${input.sourceNames.join(" / ") || "captured notes"}`);
+
+  const grammar = input.grammarPatterns.slice(0, GUIDE_INPUT_CAPS.grammarPatterns);
+  if (grammar.length > 0) {
+    lines.push("", "GRAMMAR PATTERNS:");
+    for (const g of grammar) {
+      const parts = [`- ${g.pattern}`];
+      if (g.label) parts.push(`(${g.label})`);
+      if (g.structure) parts.push(`| structure: ${g.structure}`);
+      if (g.explanation) parts.push(`| meaning: ${g.explanation}`);
+      if (g.register) parts.push(`| register: ${g.register}`);
+      if (g.nuance) parts.push(`| nuance: ${g.nuance}`);
+      if (g.jlptLevel) parts.push(`| N${g.jlptLevel}`);
+      lines.push(parts.join(" "));
+      for (const ex of g.examples.slice(0, 3)) {
+        lines.push(`  example: ${ex.japanese}${ex.english ? ` — ${ex.english}` : ""}`);
+      }
+    }
+  }
+
+  const vocab = input.vocabulary.slice(0, GUIDE_INPUT_CAPS.vocabulary);
+  if (vocab.length > 0) {
+    lines.push("", "VOCABULARY:");
+    for (const v of vocab) {
+      lines.push(
+        `- ${v.word} (${v.reading}) — ${v.meanings.join(", ")}${v.partOfSpeech ? ` [${v.partOfSpeech}]` : ""}${v.jlptLevel ? ` [N${v.jlptLevel}]` : ""}`,
+      );
+    }
+  }
+
+  const kanjiItems = input.kanji.slice(0, GUIDE_INPUT_CAPS.kanji);
+  if (kanjiItems.length > 0) {
+    lines.push("", "KANJI:");
+    for (const k of kanjiItems) {
+      const readings = [...k.readingsOn, ...k.readingsKun].join("・") || "—";
+      lines.push(
+        `- ${k.character} (${readings}) — ${k.meanings.join(", ")}${k.jlptLevel ? ` [N${k.jlptLevel}]` : ""}`,
+      );
+    }
+  }
+
+  const sentences = input.sentences.slice(0, GUIDE_INPUT_CAPS.sentences);
+  if (sentences.length > 0) {
+    lines.push("", "SENTENCES:");
+    for (const s of sentences) {
+      lines.push(`- ${s.japanese}${s.english ? ` — ${s.english}` : ""}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export async function generateStudyGuide(
+  input: StudyGuideInput,
+  usageContext?: AiUsageContext,
+): Promise<{ title: string; markdown: string; model: string }> {
+  const material = formatGuideMaterial(input);
+
+  const response = await anthropic.messages.create({
+    model: STUDY_GUIDE_MODEL,
+    max_tokens: 8192,
+    system: STUDY_GUIDE_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Here is the captured material to build the study guide from:\n\n${material}`,
+      },
+    ],
+  });
+
+  reportUsage(usageContext, STUDY_GUIDE_MODEL, response.usage);
+
+  const textContent = response.content.find((block) => block.type === "text");
+  if (!textContent || textContent.type !== "text") {
+    throw new Error("No text response from AI");
+  }
+
+  // Strip an accidental full-document code fence if the model added one.
+  let markdown = textContent.text.trim();
+  const fenceMatch = markdown.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/);
+  if (fenceMatch) {
+    markdown = fenceMatch[1].trim();
+  }
+
+  if (markdown.length < 100) {
+    throw new Error("Study guide response was unexpectedly short");
+  }
+
+  const title = parseGuideTitle(markdown) ?? `Study Guide — ${input.sourceNames[0] ?? "captured notes"}`;
+
+  return { title, markdown, model: STUDY_GUIDE_MODEL };
 }

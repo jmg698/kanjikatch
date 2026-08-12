@@ -9,6 +9,7 @@ import type { ExtractionResult } from "@/lib/validations";
 type KanjiItem = ExtractionResult["kanji"][number];
 type VocabItem = ExtractionResult["vocabulary"][number];
 type SentenceItem = ExtractionResult["sentences"][number];
+type GrammarItem = ExtractionResult["grammarPatterns"][number];
 
 interface KanjiDraft extends KanjiItem {
   _key: string;
@@ -22,6 +23,10 @@ interface SentenceDraft extends SentenceItem {
   _key: string;
   _selected: boolean;
 }
+interface GrammarDraft extends GrammarItem {
+  _key: string;
+  _selected: boolean;
+}
 
 export interface SaveResponse {
   success: true;
@@ -29,11 +34,13 @@ export interface SaveResponse {
   extracted: {
     kanji: { total: number; new: number; existing: number };
     vocabulary: { total: number; new: number; existing: number };
+    grammar: { total: number; new: number; existing: number };
     sentences: number;
   };
   items: {
     kanji: { text: string; isNew: boolean }[];
     vocabulary: { text: string; reading: string; isNew: boolean }[];
+    grammar: { text: string; isNew: boolean }[];
   };
 }
 
@@ -76,6 +83,9 @@ export function ExtractionConfirmation({
   const [sentences, setSentences] = useState<SentenceDraft[]>(() =>
     extraction.sentences.map((s) => ({ ...s, _key: nextKey(), _selected: true }))
   );
+  const [grammar, setGrammar] = useState<GrammarDraft[]>(() =>
+    (extraction.grammarPatterns ?? []).map((g) => ({ ...g, _key: nextKey(), _selected: true }))
+  );
   const [saving, setSaving] = useState(false);
 
   const selectedKanji = useMemo(() => kanji.filter((k) => k._selected), [kanji]);
@@ -84,10 +94,11 @@ export function ExtractionConfirmation({
     () => sentences.filter((s) => s._selected),
     [sentences]
   );
+  const selectedGrammar = useMemo(() => grammar.filter((g) => g._selected), [grammar]);
 
   const totalSelected =
-    selectedKanji.length + selectedVocab.length + selectedSentences.length;
-  const totalItems = kanji.length + vocab.length + sentences.length;
+    selectedKanji.length + selectedVocab.length + selectedSentences.length + selectedGrammar.length;
+  const totalItems = kanji.length + vocab.length + sentences.length + grammar.length;
 
   const updateKanji = (key: string, patch: Partial<KanjiDraft>) =>
     setKanji((prev) => prev.map((k) => (k._key === key ? { ...k, ...patch } : k)));
@@ -95,6 +106,8 @@ export function ExtractionConfirmation({
     setVocab((prev) => prev.map((v) => (v._key === key ? { ...v, ...patch } : v)));
   const updateSentence = (key: string, patch: Partial<SentenceDraft>) =>
     setSentences((prev) => prev.map((s) => (s._key === key ? { ...s, ...patch } : s)));
+  const updateGrammar = (key: string, patch: Partial<GrammarDraft>) =>
+    setGrammar((prev) => prev.map((g) => (g._key === key ? { ...g, ...patch } : g)));
 
   const removeKanji = (key: string) =>
     setKanji((prev) => prev.filter((k) => k._key !== key));
@@ -102,6 +115,8 @@ export function ExtractionConfirmation({
     setVocab((prev) => prev.filter((v) => v._key !== key));
   const removeSentence = (key: string) =>
     setSentences((prev) => prev.filter((s) => s._key !== key));
+  const removeGrammar = (key: string) =>
+    setGrammar((prev) => prev.filter((g) => g._key !== key));
 
   const handleSave = async () => {
     if (totalSelected === 0 || saving) return;
@@ -135,6 +150,19 @@ export function ExtractionConfirmation({
       }))
       .filter((s) => s.japanese.length > 0);
 
+    const sanitizedGrammar = selectedGrammar
+      .map((g) => ({
+        pattern: g.pattern.trim(),
+        label: g.label?.trim() || undefined,
+        structure: g.structure?.trim() || undefined,
+        explanation: g.explanation?.trim() || undefined,
+        register: g.register?.trim() || undefined,
+        nuance: g.nuance?.trim() || undefined,
+        jlptLevel: g.jlptLevel ?? undefined,
+        examples: g.examples ?? [],
+      }))
+      .filter((g) => g.pattern.length > 0);
+
     try {
       const response = await fetch("/api/extract/save", {
         method: "POST",
@@ -144,6 +172,7 @@ export function ExtractionConfirmation({
           kanji: sanitizedKanji,
           vocabulary: sanitizedVocab,
           sentences: sanitizedSentences,
+          grammarPatterns: sanitizedGrammar,
         }),
       });
 
@@ -239,6 +268,33 @@ export function ExtractionConfirmation({
                     updateVocab(v._key, { meanings: splitList(value) })
                   }
                   onRemove={() => removeVocab(v._key)}
+                />
+              ))}
+            </Section>
+          )}
+
+          {grammar.length > 0 && (
+            <Section
+              title="Grammar patterns"
+              count={selectedGrammar.length}
+              total={grammar.length}
+              onSelectAll={() =>
+                setGrammar((prev) => prev.map((g) => ({ ...g, _selected: true })))
+              }
+              onDeselectAll={() =>
+                setGrammar((prev) => prev.map((g) => ({ ...g, _selected: false })))
+              }
+            >
+              {grammar.map((g) => (
+                <GrammarRow
+                  key={g._key}
+                  item={g}
+                  disabled={saving}
+                  onToggle={() => updateGrammar(g._key, { _selected: !g._selected })}
+                  onChangePattern={(value) => updateGrammar(g._key, { pattern: value })}
+                  onChangeStructure={(value) => updateGrammar(g._key, { structure: value })}
+                  onChangeExplanation={(value) => updateGrammar(g._key, { explanation: value })}
+                  onRemove={() => removeGrammar(g._key)}
                 />
               ))}
             </Section>
@@ -594,6 +650,83 @@ function VocabRow({
             ariaLabel="Meanings"
           />
         </div>
+      </div>
+    </RowShell>
+  );
+}
+
+function GrammarRow({
+  item,
+  disabled,
+  onToggle,
+  onChangePattern,
+  onChangeStructure,
+  onChangeExplanation,
+  onRemove,
+}: {
+  item: GrammarDraft;
+  disabled?: boolean;
+  onToggle: () => void;
+  onChangePattern: (value: string) => void;
+  onChangeStructure: (value: string) => void;
+  onChangeExplanation: (value: string) => void;
+  onRemove: () => void;
+}) {
+  const firstExample = item.examples?.[0];
+  return (
+    <RowShell
+      selected={item._selected}
+      onRemove={onRemove}
+      disabled={disabled}
+      checkbox={
+        <CheckToggle
+          checked={item._selected}
+          onClick={onToggle}
+          disabled={disabled}
+          label={`Include ${item.pattern}`}
+        />
+      }
+    >
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <input
+            type="text"
+            value={item.pattern}
+            onChange={(e) => onChangePattern(e.target.value)}
+            disabled={disabled || !item._selected}
+            aria-label="Grammar pattern"
+            className="bg-transparent rounded px-1.5 py-0.5 text-lg font-semibold outline-none border border-transparent hover:border-border focus:border-primary/40 focus:bg-muted/30 transition-colors min-w-[8rem] flex-1"
+          />
+          {item.label && (
+            <span className="text-sm text-muted-foreground">{item.label}</span>
+          )}
+        </div>
+        <div className="flex items-start gap-2">
+          <FieldLabel>Form</FieldLabel>
+          <InlineInput
+            value={item.structure ?? ""}
+            onChange={onChangeStructure}
+            placeholder="e.g. Noun A + という + Noun B"
+            disabled={disabled || !item._selected}
+            ariaLabel="Structure"
+          />
+        </div>
+        <div className="flex items-start gap-2">
+          <FieldLabel>Means</FieldLabel>
+          <InlineInput
+            value={item.explanation ?? ""}
+            onChange={onChangeExplanation}
+            placeholder="what it means / when to use it"
+            disabled={disabled || !item._selected}
+            ariaLabel="Explanation"
+          />
+        </div>
+        {firstExample && (
+          <p className="text-xs text-muted-foreground px-1.5 truncate">
+            {firstExample.japanese}
+            {firstExample.english ? ` — ${firstExample.english}` : ""}
+          </p>
+        )}
       </div>
     </RowShell>
   );

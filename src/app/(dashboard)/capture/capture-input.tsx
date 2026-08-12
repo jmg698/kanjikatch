@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Loader2, Check, CheckCircle, AlertCircle, AlertTriangle, Upload, X,
-  Image as ImageIcon, Camera, Type, ChevronLeft, SearchX, Sparkles,
+  Image as ImageIcon, Camera, Type, ChevronLeft, SearchX, Sparkles, NotebookPen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ExtractionResult } from "@/lib/validations";
@@ -42,12 +42,14 @@ type ProcessState =
 interface ExtractionCounts {
   kanji: { total: number; new: number; existing: number };
   vocabulary: { total: number; new: number; existing: number };
+  grammar: { total: number; new: number; existing: number };
   sentences: number;
 }
 
 interface ExtractedItems {
   kanji: { text: string; isNew: boolean }[];
   vocabulary: { text: string; reading: string; isNew: boolean }[];
+  grammar: { text: string; isNew: boolean }[];
 }
 
 interface ExtractionResponse {
@@ -126,6 +128,10 @@ export function CaptureInput() {
   // and before the confirmation card renders. Flips true on loader complete
   // so the confirmation can mount. See ONBOARDING_PLAN.md Phase 2.1.
   const [magicLoaderDismissed, setMagicLoaderDismissed] = useState(false);
+  // Source id of the capture that was just saved — powers the "create study
+  // guide" CTA on the success screen.
+  const [savedSourceId, setSavedSourceId] = useState<string | null>(null);
+  const [guideState, setGuideState] = useState<"idle" | "generating">("idle");
   const { toast } = useToast();
 
   const stages =
@@ -365,6 +371,8 @@ export function CaptureInput() {
     setReportNote("");
     setExtractionResult(null);
     setDraft(null);
+    setSavedSourceId(null);
+    setGuideState("idle");
     setMobileTextMode(false);
     try {
       localStorage.removeItem(TEXT_STORAGE_KEY);
@@ -484,7 +492,8 @@ export function CaptureInput() {
     const totalFound =
       data.extraction.kanji.length +
       data.extraction.vocabulary.length +
-      data.extraction.sentences.length;
+      data.extraction.sentences.length +
+      (data.extraction.grammarPatterns?.length ?? 0);
 
     if (totalFound === 0) {
       setState("empty");
@@ -513,6 +522,7 @@ export function CaptureInput() {
 
     setExtractionResult({ extracted: data.extracted, items: data.items });
     setDraft(null);
+    setSavedSourceId(data.sourceImageId);
     setState("success");
     try {
       localStorage.removeItem(TEXT_STORAGE_KEY);
@@ -522,8 +532,10 @@ export function CaptureInput() {
     }
 
     const counts = data.extracted;
-    const totalSaved = counts.kanji.total + counts.vocabulary.total + counts.sentences;
-    const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
+    const totalSaved =
+      counts.kanji.total + counts.vocabulary.total + counts.grammar.total + counts.sentences;
+    const totalNew =
+      counts.kanji.new + counts.vocabulary.new + counts.grammar.new + counts.sentences;
 
     if (totalSaved > 0) {
       toast({
@@ -571,6 +583,31 @@ export function CaptureInput() {
       description: message,
       variant: "destructive",
     });
+  };
+
+  const createStudyGuide = async () => {
+    if (!savedSourceId || guideState === "generating") return;
+    setGuideState("generating");
+    try {
+      const res = await fetch("/api/guides/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceImageIds: [savedSourceId] }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate the study guide");
+      }
+      // Stay in "generating" through the navigation so the button doesn't flicker.
+      router.push(`/guides/${data.guide.id}`);
+    } catch (err) {
+      setGuideState("idle");
+      toast({
+        title: "Couldn't create the study guide",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -723,16 +760,19 @@ export function CaptureInput() {
   if (state === "success" && extractionResult) {
     const counts = extractionResult.extracted;
     const { items: extractedItems } = extractionResult;
-    const totalNew = counts.kanji.new + counts.vocabulary.new + counts.sentences;
+    const totalNew =
+      counts.kanji.new + counts.vocabulary.new + counts.grammar.new + counts.sentences;
 
     const newKanji = extractedItems.kanji.filter(i => i.isNew);
     const existingKanji = extractedItems.kanji.filter(i => !i.isNew);
     const newVocab = extractedItems.vocabulary.filter(i => i.isNew);
     const existingVocab = extractedItems.vocabulary.filter(i => !i.isNew);
+    const grammarItems = extractedItems.grammar;
 
     const nothingFound =
       extractedItems.kanji.length === 0 &&
       extractedItems.vocabulary.length === 0 &&
+      grammarItems.length === 0 &&
       counts.sentences === 0;
 
     if (nothingFound) {
@@ -816,6 +856,31 @@ export function CaptureInput() {
               </div>
             )}
 
+            {grammarItems.length > 0 && (
+              <div>
+                <div className="flex justify-between items-baseline mb-2 px-1">
+                  <span className="font-medium text-muted-foreground">Grammar</span>
+                  <span className="text-xs text-muted-foreground">
+                    {counts.grammar.new > 0 && <span className="text-primary">{counts.grammar.new} new</span>}
+                    {counts.grammar.new > 0 && counts.grammar.existing > 0 && ", "}
+                    {counts.grammar.existing > 0 && `${counts.grammar.existing} seen`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 px-1">
+                  {grammarItems.map(g => (
+                    <span
+                      key={g.text}
+                      className={`inline-flex items-center px-2.5 py-1 rounded-md font-medium text-sm ${
+                        g.isNew ? "bg-primary/10 text-primary" : "bg-muted/60 text-muted-foreground"
+                      }`}
+                    >
+                      {g.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {counts.sentences > 0 && (
               <div className="flex justify-between px-1 py-1.5 rounded-md bg-muted/40">
                 <span className="text-muted-foreground">Sentences</span>
@@ -824,14 +889,48 @@ export function CaptureInput() {
             )}
           </div>
 
-          <div className="mt-6 flex gap-3 justify-center">
-            <Button variant="outline" onClick={clearAll}>
+          {savedSourceId && (
+            <div className="mt-6 max-w-sm mx-auto">
+              <Button
+                className="w-full"
+                onClick={createStudyGuide}
+                disabled={guideState === "generating"}
+              >
+                {guideState === "generating" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Building your study guide…
+                  </>
+                ) : (
+                  <>
+                    <NotebookPen className="h-4 w-4 mr-2" />
+                    Create study guide
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Vocabulary tables, grammar notes, kanji breakdown, and practice —
+                built from this capture.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-4 flex gap-3 justify-center">
+            <Button variant="outline" onClick={clearAll} disabled={guideState === "generating"}>
               Capture More
             </Button>
-            <Button onClick={() => router.push("/review")}>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/review")}
+              disabled={guideState === "generating"}
+            >
               Review
             </Button>
-            <Button variant="outline" onClick={() => { router.push("/library"); router.refresh(); }}>
+            <Button
+              variant="outline"
+              onClick={() => { router.push("/library"); router.refresh(); }}
+              disabled={guideState === "generating"}
+            >
               View Library
             </Button>
           </div>

@@ -70,10 +70,12 @@ src/
 │   ├── (dashboard)/      # Protected dashboard routes
 │   │   ├── dashboard/    # Main dashboard
 │   │   ├── capture/      # Image upload & extraction
-│   │   ├── library/      # Browse kanji, vocab, sentences
+│   │   ├── library/      # Browse kanji, vocab, grammar, sentences
+│   │   ├── guides/       # Study guide list & viewer
 │   │   └── review/       # Spaced repetition review
 │   ├── api/
 │   │   ├── extract/      # AI extraction endpoint
+│   │   ├── guides/       # Study guide generation & CRUD
 │   │   ├── uploadthing/  # File upload handler
 │   │   └── webhooks/     # Clerk webhooks
 │   ├── globals.css
@@ -98,18 +100,21 @@ src/
 ## Database Schema
 
 - **users** - User accounts (synced from Clerk)
-- **uploads** - Uploaded images
+- **sourceImages** - Uploaded images / pasted text captures
 - **kanji** - Individual kanji characters
 - **vocabulary** - Words and compounds
+- **grammarPatterns** - Grammar points extracted from captures (structure, nuance, examples)
 - **sentences** - Complete sentences
-- **reviewItems** - Spaced repetition tracking
+- **studyGuides** - Generated study guides (markdown) built from captures
+- **reviewTracks** - Spaced repetition tracking (per question type)
 
 ## Features
 
 - 📷 **Capture**: Upload photos of handwritten notes or textbooks
-- 🤖 **AI Extraction**: Claude automatically extracts Japanese content
-- 📚 **Library**: Browse your personal collection of kanji, vocabulary, and sentences
-- 🧠 **Review**: Spaced repetition system for effective memorization (coming soon)
+- 🤖 **AI Extraction**: Claude automatically extracts kanji, vocabulary, sentences, and grammar patterns
+- 📚 **Library**: Browse your personal collection of kanji, vocabulary, grammar, and sentences
+- 🧠 **Review**: Spaced repetition system for effective memorization
+- 📖 **Study Guides**: Turn any capture (or several) into a full lesson handout — vocabulary tables, grammar explanations with examples, kanji by JLPT level, and practice exercises with an answer key
 
 ## Development
 
