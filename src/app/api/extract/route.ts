@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
         kanji: extraction.kanji.length,
         vocabulary: extraction.vocabulary.length,
         sentences: extraction.sentences.length,
+        grammarPatterns: extraction.grammarPatterns.length,
       });
       // #endregion
 

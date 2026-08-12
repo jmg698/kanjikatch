@@ -83,6 +83,45 @@ export const vocabularySchema = z.object({
   jlptLevel: jlptLevelField,
 });
 
+/** Optional free-text field: trims, converts null/empty/non-string to undefined. */
+function optionalTextField(maxLen: number) {
+  return z.preprocess((v) => {
+    if (typeof v !== "string") return undefined;
+    const t = v.trim();
+    return t.length > 0 ? t.slice(0, maxLen) : undefined;
+  }, z.string().max(maxLen).nullable().optional());
+}
+
+// Grammar pattern validation — tolerant like kanji/vocab. Only the pattern
+// itself is required; every descriptive field degrades gracefully.
+export const grammarPatternSchema = z.object({
+  pattern: z.string().min(1).max(100).transform((s) => s.trim()),
+  label: optionalTextField(200),
+  structure: optionalTextField(300),
+  explanation: optionalTextField(1000),
+  register: optionalTextField(200),
+  nuance: optionalTextField(1000),
+  jlptLevel: jlptLevelField,
+  examples: z.preprocess((v) => {
+    if (!Array.isArray(v)) return [];
+    return v
+      .map((e) => {
+        if (typeof e !== "object" || e === null) return null;
+        const japanese = typeof (e as { japanese?: unknown }).japanese === "string"
+          ? ((e as { japanese: string }).japanese).trim()
+          : "";
+        if (!japanese) return null;
+        const rawEnglish = (e as { english?: unknown }).english;
+        const english = typeof rawEnglish === "string" && rawEnglish.trim().length > 0
+          ? rawEnglish.trim().slice(0, 500)
+          : undefined;
+        return { japanese: japanese.slice(0, 500), english };
+      })
+      .filter((e) => e !== null)
+      .slice(0, 6);
+  }, z.array(z.object({ japanese: z.string().min(1).max(500), english: z.string().max(500).optional() }))),
+});
+
 // Sentence validation - simplified
 export const sentenceSchema = z.object({
   japanese: z.string().min(1).max(1000).transform((s) => s.trim()),
@@ -127,16 +166,24 @@ export const reviewResponseSchema = z.object({
   quality: z.number().int().min(0).max(5), // 0-5 scale for SM-2 algorithm
 });
 
-// AI extraction result validation
+// AI extraction result validation. grammarPatterns defaults to [] so older
+// payloads (and older clients mid-deploy) that omit the key still parse.
 export const extractionResultSchema = z.object({
   kanji: z.array(kanjiSchema),
   vocabulary: z.array(vocabularySchema),
   sentences: z.array(sentenceSchema),
+  grammarPatterns: z.array(grammarPatternSchema).default([]),
+});
+
+// Study guide generation request
+export const guideGenerateSchema = z.object({
+  sourceImageIds: z.array(z.string().uuid()).min(1).max(10),
 });
 
 export type KanjiInput = z.infer<typeof kanjiSchema>;
 export type VocabularyInput = z.infer<typeof vocabularySchema>;
 export type SentenceInput = z.infer<typeof sentenceSchema>;
+export type GrammarPatternInput = z.infer<typeof grammarPatternSchema>;
 export type UploadInput = z.infer<typeof uploadSchema>;
 export type ReviewResponse = z.infer<typeof reviewResponseSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;

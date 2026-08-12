@@ -67,7 +67,7 @@ export default async function DashboardLayout({
         </div>
       )}
       <header
-        className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md"
+        className="sticky top-0 z-50 w-full border-b bg-white/85 backdrop-blur-md print:hidden"
         style={{ borderColor: 'hsl(220 10% 82%)' }}
       >
         <div className="container px-4">
@@ -101,7 +101,7 @@ export default async function DashboardLayout({
         {children}
       </main>
 
-      <footer className="border-t border-border/60 mt-12">
+      <footer className="border-t border-border/60 mt-12 print:hidden">
         <div className="container px-4 py-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
           <Link href="/dashboard/settings" className="hover:text-foreground transition-colors">
             Settings

@@ -104,7 +104,8 @@ export type CostProtectedEndpoint =
   | "extract"
   | "extract_text"
   | "sentence_generate"
-  | "enrich";
+  | "enrich"
+  | "guide_generate";
 
 // --- Guard results -----------------------------------------------------------
 
@@ -245,10 +246,12 @@ export async function assertCostProtection(args: {
 
 function endpointHasIpThrottle(endpoint: CostProtectedEndpoint): boolean {
   // Extract endpoints are the costliest per call (image + Sonnet 4) and the
-  // most attractive target for abuse, so they get IP throttling. Enrichment
-  // is cheap Haiku and runs as part of vocab-quick-add — throttling that by
-  // IP would only hurt real users on shared networks.
-  return endpoint === "extract" || endpoint === "extract_text";
+  // most attractive target for abuse, so they get IP throttling. Guide
+  // generation is the largest single output (up to 8k tokens), so it gets
+  // the same treatment. Enrichment is cheap Haiku and runs as part of
+  // vocab-quick-add — throttling that by IP would only hurt real users on
+  // shared networks.
+  return endpoint === "extract" || endpoint === "extract_text" || endpoint === "guide_generate";
 }
 
 // --- Recording ---------------------------------------------------------------

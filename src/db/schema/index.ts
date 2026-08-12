@@ -137,6 +137,59 @@ export const vocabulary = pgTable("vocabulary", {
   needsEnrichmentIdx: index("vocabulary_needs_enrichment_idx").on(table.needsEnrichment, table.lastEnrichmentAttemptAt),
 }));
 
+// Grammar patterns extracted from captures. Follows the kanji/vocab shape
+// (per-user unique canonical form, frequency tracking, source backrefs) but
+// has no SRS fields yet — grammar review is a future feature; today these
+// power the library Grammar tab and study guide generation.
+export const grammarPatterns = pgTable("grammar_patterns", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Canonical form of the pattern as written in Japanese, e.g. "〜という".
+  pattern: text("pattern").notNull(),
+  // Short English handle, e.g. "B called A".
+  label: text("label"),
+  // Formation rule, e.g. "Noun A + という + Noun B".
+  structure: text("structure"),
+  // Plain-English explanation of what the pattern does and when to use it.
+  explanation: text("explanation"),
+  // Register note (formal / casual / written...) when the pattern carries one.
+  register: text("register"),
+  // Nuance, contrasts, and common-mistake warnings, e.g. "という, never のいう".
+  nuance: text("nuance"),
+  jlptLevel: integer("jlpt_level"),
+  // Example usages: array of { japanese, english }.
+  examples: jsonb("examples").notNull().default([]),
+  firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  timesSeen: integer("times_seen").default(1).notNull(),
+  sourceImageIds: uuid("source_image_ids").array().notNull().default([]),
+  notes: text("notes"),
+}, (table) => ({
+  userPatternIdx: uniqueIndex("grammar_patterns_user_pattern_idx").on(table.userId, table.pattern),
+  userIdIdx: index("grammar_patterns_user_id_idx").on(table.userId),
+}));
+
+// A grammar example pair as stored in grammarPatterns.examples (jsonb).
+export interface GrammarExample {
+  japanese: string;
+  english?: string | null;
+}
+
+// Generated study guides — the "class handout" built from one or more
+// captures. contentMd is the full guide as GitHub-flavored markdown.
+export const studyGuides = pgTable("study_guides", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  contentMd: text("content_md").notNull(),
+  sourceImageIds: uuid("source_image_ids").array().notNull().default([]),
+  model: text("model"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("study_guides_user_id_idx").on(table.userId),
+  userCreatedIdx: index("study_guides_user_created_idx").on(table.userId, table.createdAt),
+}));
+
 // Sentences for reading practice
 export const sentences = pgTable("sentences", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -300,7 +353,7 @@ export const apiUsageEvents = pgTable("api_usage_events", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
   ipHash: text("ip_hash"), // sha256(ip + IP_HASH_SALT), never the raw IP
-  endpoint: text("endpoint").notNull(), // 'extract' | 'extract_text' | 'sentence_generate' | 'enrich'
+  endpoint: text("endpoint").notNull(), // 'extract' | 'extract_text' | 'sentence_generate' | 'enrich' | 'guide_generate'
   model: text("model").notNull(),
   inputTokens: integer("input_tokens").default(0).notNull(),
   outputTokens: integer("output_tokens").default(0).notNull(),
@@ -330,6 +383,12 @@ export type NewVocabulary = typeof vocabulary.$inferInsert;
 
 export type Sentence = typeof sentences.$inferSelect;
 export type NewSentence = typeof sentences.$inferInsert;
+
+export type GrammarPattern = typeof grammarPatterns.$inferSelect;
+export type NewGrammarPattern = typeof grammarPatterns.$inferInsert;
+
+export type StudyGuide = typeof studyGuides.$inferSelect;
+export type NewStudyGuide = typeof studyGuides.$inferInsert;
 
 export type ReviewSession = typeof reviewSessions.$inferSelect;
 export type NewReviewSession = typeof reviewSessions.$inferInsert;

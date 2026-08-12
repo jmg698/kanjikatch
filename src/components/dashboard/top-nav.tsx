@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 const SECONDARY_ITEMS = [
   { href: '/dashboard', label: 'Home' },
   { href: '/library', label: 'Library' },
+  { href: '/guides', label: 'Guides' },
   { href: '/read', label: 'Read' },
   { href: '/dashboard/billing', label: 'Plan' },
   { href: '/dashboard/settings', label: 'Settings' },

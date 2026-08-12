@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
-import { db, sourceImages, kanji, vocabulary, sentences } from "@/db";
+import { db, sourceImages, kanji, vocabulary, sentences, grammarPatterns } from "@/db";
 import { extractionResultSchema } from "@/lib/validations";
 import { ensureReviewTracks } from "@/lib/track-queries";
 import { sqlTextArray } from "@/lib/pg-text-array";
@@ -30,7 +30,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sourceImageId, kanji: kanjiItems, vocabulary: vocabItems, sentences: sentenceItems } = parsed.data;
+    const {
+      sourceImageId,
+      kanji: kanjiItems,
+      vocabulary: vocabItems,
+      sentences: sentenceItems,
+      grammarPatterns: grammarItems,
+    } = parsed.data;
 
     const [source] = await db
       .select()
@@ -52,12 +58,14 @@ export async function POST(req: NextRequest) {
     const counts = {
       kanji: { total: 0, new: 0, existing: 0 },
       vocabulary: { total: 0, new: 0, existing: 0 },
+      grammar: { total: 0, new: 0, existing: 0 },
       sentences: 0,
     };
     const items: {
       kanji: { text: string; isNew: boolean }[];
       vocabulary: { text: string; reading: string; isNew: boolean }[];
-    } = { kanji: [], vocabulary: [] };
+      grammar: { text: string; isNew: boolean }[];
+    } = { kanji: [], vocabulary: [], grammar: [] };
 
     for (const k of kanjiItems) {
       const newMeanings = k.meanings;
@@ -130,6 +138,48 @@ export async function POST(req: NextRequest) {
       if (isNew) counts.vocabulary.new++;
       else counts.vocabulary.existing++;
       items.vocabulary.push({ text: v.word, reading: v.reading, isNew });
+    }
+
+    for (const g of grammarItems) {
+      const [row] = await db
+        .insert(grammarPatterns)
+        .values({
+          userId,
+          pattern: g.pattern,
+          label: g.label ?? null,
+          structure: g.structure ?? null,
+          explanation: g.explanation ?? null,
+          register: g.register ?? null,
+          nuance: g.nuance ?? null,
+          jlptLevel: g.jlptLevel ?? null,
+          examples: g.examples,
+          sourceImageIds: [sourceImageId],
+          timesSeen: 1,
+        })
+        .onConflictDoUpdate({
+          target: [grammarPatterns.userId, grammarPatterns.pattern],
+          // Descriptive fields fill in blanks on re-capture but never
+          // overwrite existing content with nothing; examples are replaced
+          // wholesale when the new capture provides any.
+          set: {
+            lastSeenAt: new Date(),
+            timesSeen: sql`${grammarPatterns.timesSeen} + 1`,
+            sourceImageIds: sql`array_append(${grammarPatterns.sourceImageIds}, ${sourceImageId}::uuid)`,
+            label: sql`coalesce(${g.label ?? null}, ${grammarPatterns.label})`,
+            structure: sql`coalesce(${g.structure ?? null}, ${grammarPatterns.structure})`,
+            explanation: sql`coalesce(${g.explanation ?? null}, ${grammarPatterns.explanation})`,
+            register: sql`coalesce(${g.register ?? null}, ${grammarPatterns.register})`,
+            nuance: sql`coalesce(${g.nuance ?? null}, ${grammarPatterns.nuance})`,
+            jlptLevel: sql`coalesce(${g.jlptLevel ?? null}::integer, ${grammarPatterns.jlptLevel})`,
+            ...(g.examples.length > 0 ? { examples: g.examples } : {}),
+          },
+        })
+        .returning({ id: grammarPatterns.id, timesSeen: grammarPatterns.timesSeen });
+      const isNew = row.timesSeen === 1;
+      counts.grammar.total++;
+      if (isNew) counts.grammar.new++;
+      else counts.grammar.existing++;
+      items.grammar.push({ text: g.pattern, isNew });
     }
 
     if (sentenceItems.length > 0) {

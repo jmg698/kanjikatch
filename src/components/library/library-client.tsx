@@ -14,9 +14,9 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Kanji, Vocabulary, Sentence } from "@/db/schema";
+import type { Kanji, Vocabulary, Sentence, GrammarPattern, GrammarExample } from "@/db/schema";
 
-type Tab = "kanji" | "vocabulary" | "sentences";
+type Tab = "kanji" | "vocabulary" | "grammar" | "sentences";
 type ConfidenceLevel = "new" | "learning" | "reviewing" | "known";
 
 const SORT_OPTIONS = [
@@ -34,6 +34,15 @@ const SENTENCE_SORT_OPTIONS = [
   { value: "alphabetical", label: "Alphabetical" },
 ] as const;
 
+// Grammar has no SRS tracks yet, so no "next review" sort.
+const GRAMMAR_SORT_OPTIONS = [
+  { value: "recent", label: "Recently seen" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "alphabetical", label: "Alphabetical" },
+  { value: "jlpt_asc", label: "JLPT N5 → N1" },
+  { value: "jlpt_desc", label: "JLPT N1 → N5" },
+] as const;
+
 const JLPT_LEVELS = [5, 4, 3, 2, 1] as const;
 
 const STAGE_CONFIG: Record<ConfidenceLevel, { label: string; color: string }> = {
@@ -47,13 +56,14 @@ interface LibraryClientProps {
   initialCounts: {
     kanji: number;
     vocabulary: number;
+    grammar: number;
     sentences: number;
     sampleSourceIds: string[];
   };
 }
 
 interface FetchState {
-  items: (Kanji | Vocabulary | Sentence)[];
+  items: (Kanji | Vocabulary | GrammarPattern | Sentence)[];
   total: number;
   loading: boolean;
   page: number;
@@ -189,7 +199,12 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
     fetchItems(activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, fetchState.page + 1, true);
   };
 
-  const sortOptions = activeTab === "sentences" ? SENTENCE_SORT_OPTIONS : SORT_OPTIONS;
+  const sortOptions =
+    activeTab === "sentences"
+      ? SENTENCE_SORT_OPTIONS
+      : activeTab === "grammar"
+        ? GRAMMAR_SORT_OPTIONS
+        : SORT_OPTIONS;
   const currentSortLabel = sortOptions.find((s) => s.value === sortBy)?.label || "Recently seen";
 
   return (
@@ -197,7 +212,7 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Library</h1>
         <p className="text-muted-foreground mt-1">
-          Browse your collected kanji, vocabulary, and sentences.
+          Browse your collected kanji, vocabulary, grammar, and sentences.
         </p>
       </div>
 
@@ -205,6 +220,7 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
         <TabsList>
           <TabsTrigger value="kanji">Kanji ({counts.kanji})</TabsTrigger>
           <TabsTrigger value="vocabulary">Vocabulary ({counts.vocabulary})</TabsTrigger>
+          <TabsTrigger value="grammar">Grammar ({counts.grammar})</TabsTrigger>
           <TabsTrigger value="sentences">Sentences ({counts.sentences})</TabsTrigger>
         </TabsList>
 
@@ -223,7 +239,9 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
                     ? "Search by character, reading, or meaning..."
                     : activeTab === "vocabulary"
                       ? "Search by word, reading, or meaning..."
-                      : "Search by Japanese or English..."
+                      : activeTab === "grammar"
+                        ? "Search by pattern, structure, or meaning..."
+                        : "Search by Japanese or English..."
                 }
                 className="w-full h-10 pl-9 pr-9 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
@@ -316,7 +334,8 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
                     </div>
                   </div>
 
-                  {/* SRS Stage filter */}
+                  {/* SRS Stage filter — grammar has no review tracks yet */}
+                  {activeTab !== "grammar" && (
                   <div>
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       SRS Stage
@@ -341,6 +360,7 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
                       })}
                     </div>
                   </div>
+                  )}
 
                   {/* Clear all */}
                   {hasActiveFilters && (
@@ -434,6 +454,24 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
               const isSample = v.sourceImageIds.some((id) => sampleSourceIdSet.has(id));
               return <VocabCard vocab={v} isSample={isSample} />;
             }}
+          />
+        </TabsContent>
+
+        <TabsContent value="grammar" className="space-y-4 mt-0">
+          <ItemList
+            loading={fetchState.loading}
+            items={fetchState.items}
+            hasMore={fetchState.hasMore}
+            onLoadMore={loadMore}
+            emptyMessage="No grammar patterns yet. Capture a lesson slide or grammar notes and Kanji Katch will pull the patterns out."
+            emptyFilterMessage="No grammar patterns match your filters."
+            hasActiveFilters={hasActiveFilters}
+            renderItem={(item) => {
+              const g = item as GrammarPattern;
+              const isSample = g.sourceImageIds.some((id) => sampleSourceIdSet.has(id));
+              return <GrammarCard grammar={g} isSample={isSample} />;
+            }}
+            listMode
           />
         </TabsContent>
 
@@ -609,6 +647,66 @@ function VocabCard({ vocab: v, isSample = false }: { vocab: Vocabulary; isSample
         <p className="font-medium">{v.meanings.join(", ")}</p>
         {v.partOfSpeech && (
           <p className="text-xs text-muted-foreground">{v.partOfSpeech}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GrammarCard({ grammar: g, isSample = false }: { grammar: GrammarPattern; isSample?: boolean }) {
+  const examples = (g.examples as GrammarExample[] | null) ?? [];
+  return (
+    <Card className="jr-panel">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+              <CardTitle className="text-2xl">{g.pattern}</CardTitle>
+              {g.timesSeen > 1 && (
+                <span className="text-xs text-muted-foreground">×{g.timesSeen}</span>
+              )}
+            </div>
+            {g.label && <CardDescription>{g.label}</CardDescription>}
+          </div>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            {isSample && <GuidedSamplePill />}
+            {g.jlptLevel && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-mono font-medium">
+                N{g.jlptLevel}
+              </span>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {g.structure && (
+          <p className="text-sm">
+            <span className="font-medium text-muted-foreground">Structure:</span>{" "}
+            <span className="font-mono">{g.structure}</span>
+          </p>
+        )}
+        {g.explanation && <p className="text-sm">{g.explanation}</p>}
+        {g.register && (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">Register:</span> {g.register}
+          </p>
+        )}
+        {g.nuance && (
+          <p className="text-xs rounded-md bg-amber-500/10 text-amber-800 dark:text-amber-300 px-2.5 py-1.5">
+            ⚠️ {g.nuance}
+          </p>
+        )}
+        {examples.length > 0 && (
+          <div className="space-y-1.5 pt-1 border-t border-border/60">
+            {examples.slice(0, 2).map((ex, i) => (
+              <div key={i}>
+                <p className="text-base">{ex.japanese}</p>
+                {ex.english && (
+                  <p className="text-xs text-muted-foreground italic">{ex.english}</p>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
