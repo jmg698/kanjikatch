@@ -10,14 +10,42 @@ import {
   ChevronDown,
   ArrowUpDown,
   BookOpen,
+  Archive,
+  Undo2,
+  Trash2,
+  Wrench,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Kanji, Vocabulary, Sentence, GrammarPattern, GrammarExample } from "@/db/schema";
+import { useToast } from "@/hooks/use-toast";
 
 type Tab = "kanji" | "vocabulary" | "grammar" | "sentences";
 type ConfidenceLevel = "new" | "learning" | "reviewing" | "known";
+
+/**
+ * Triage view. Deliberately not a fifth SRS stage chip — a set-aside card still
+ * has a confidence level, so the two are orthogonal. "collection" is the
+ * default and shows active + set-aside together, so parked cards don't vanish
+ * from the shelf the user came to look at.
+ */
+type TriageView = "collection" | "set_aside" | "removed";
+
+const TRIAGE_VIEWS: { value: TriageView; label: string }[] = [
+  { value: "collection", label: "In collection" },
+  { value: "set_aside", label: "Set aside" },
+  { value: "removed", label: "Deleted" },
+];
+
+// Only kanji and vocabulary go through review, so only they can be triaged.
+const TRIAGEABLE_TABS: Tab[] = ["kanji", "vocabulary"];
+
+const FLAG_REASON_LABEL: Record<string, string> = {
+  not_needed: "You said you didn't need this",
+  bad_data: "You said the info looked wrong",
+};
 
 const SORT_OPTIONS = [
   { value: "recent", label: "Recently seen" },
@@ -78,6 +106,12 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
   const [stageFilters, setStageFilters] = useState<ConfidenceLevel[]>([]);
   const [sortBy, setSortBy] = useState("recent");
   const [showFilters, setShowFilters] = useState(false);
+  const [triageView, setTriageView] = useState<TriageView>("collection");
+  // Badge on the "Set aside" tab, so a pile of parked cards is discoverable
+  // without the user going looking for it.
+  const [setAsideCount, setSetAsideCount] = useState(0);
+  const [triagePendingId, setTriagePendingId] = useState<string | null>(null);
+  const { toast } = useToast();
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [counts, setCounts] = useState(initialCounts);
   // Quick lookup so each card can render a "guided sample" pill when any of
@@ -119,7 +153,7 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
   }, [showSortMenu]);
 
   const fetchItems = useCallback(
-    async (tab: Tab, query: string, jlpt: number[], stages: ConfidenceLevel[], sort: string, page: number, append = false) => {
+    async (tab: Tab, query: string, jlpt: number[], stages: ConfidenceLevel[], sort: string, view: TriageView, page: number, append = false) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -133,6 +167,8 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
         if (query) params.set("q", query);
         if (jlpt.length > 0) params.set("jlpt", jlpt.join(","));
         if (stages.length > 0) params.set("stage", stages.join(","));
+        // Omitting `status` means "everything except deleted" — see the API.
+        if (view !== "collection") params.set("status", view);
 
         const res = await fetch(`/api/library?${params}`, { signal: controller.signal });
         if (!res.ok) throw new Error("Fetch failed");
@@ -147,7 +183,8 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
           hasMore: data.hasMore,
         }));
 
-        if (!append) {
+        // The tab badge counts the collection, not whatever view is showing.
+        if (!append && view === "collection") {
           setCounts((prev) => ({ ...prev, [tab]: data.total }));
         }
       } catch (err) {
@@ -159,10 +196,29 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
     [],
   );
 
-  // Fetch on filter/tab/sort changes
+  const refreshSetAsideCount = useCallback(async (tab: Tab) => {
+    if (!TRIAGEABLE_TABS.includes(tab)) {
+      setSetAsideCount(0);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/library?tab=${tab}&status=set_aside&limit=1`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSetAsideCount(data.total ?? 0);
+    } catch {
+      // A missing badge is not worth surfacing an error for.
+    }
+  }, []);
+
+  // Fetch on filter/tab/sort/view changes
   useEffect(() => {
-    fetchItems(activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, 1);
-  }, [activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, fetchItems]);
+    fetchItems(activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, triageView, 1);
+  }, [activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, triageView, fetchItems]);
+
+  useEffect(() => {
+    refreshSetAsideCount(activeTab);
+  }, [activeTab, refreshSetAsideCount]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab as Tab);
@@ -171,6 +227,7 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
     setJlptFilters([]);
     setStageFilters([]);
     setSortBy("recent");
+    setTriageView("collection");
   };
 
   const toggleJlpt = (level: number) => {
@@ -191,12 +248,98 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
     setJlptFilters([]);
     setStageFilters([]);
     setSortBy("recent");
+    setTriageView("collection");
   };
 
-  const hasActiveFilters = !!(searchQuery || jlptFilters.length > 0 || stageFilters.length > 0 || sortBy !== "recent");
+  const hasActiveFilters = !!(searchQuery || jlptFilters.length > 0 || stageFilters.length > 0 || sortBy !== "recent" || triageView !== "collection");
+
+  /**
+   * Move an item between triage states. The row leaves the current list right
+   * away — it no longer belongs in whatever view is showing — and the badge
+   * count is refreshed so the two never disagree.
+   */
+  const handleTriage = useCallback(
+    async (item: Kanji | Vocabulary, action: "restore" | "remove") => {
+      const itemType = activeTab === "kanji" ? "kanji" : "vocab";
+      setTriagePendingId(item.id);
+      try {
+        const res = await fetch("/api/items/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, itemId: item.id, itemType }),
+        });
+        if (!res.ok) throw new Error("Triage failed");
+
+        setFetchState((prev) => ({
+          ...prev,
+          items: prev.items.filter((i) => (i as { id: string }).id !== item.id),
+          total: Math.max(prev.total - 1, 0),
+        }));
+        refreshSetAsideCount(activeTab);
+
+        toast({
+          title: action === "restore" ? "Back in rotation" : "Deleted",
+          description:
+            action === "restore"
+              ? "It'll come up in your next review session."
+              : "It won't come back, even if you capture it again.",
+        });
+      } catch (err) {
+        console.error("Triage error:", err);
+        toast({
+          title: "That didn't work",
+          description: "Check your connection and try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setTriagePendingId(null);
+      }
+    },
+    [activeTab, refreshSetAsideCount, toast],
+  );
+
+  /** Re-run the dictionary lookup for one vocab row and patch it in place. */
+  const handleRepair = useCallback(
+    async (item: Vocabulary) => {
+      setTriagePendingId(item.id);
+      try {
+        const res = await fetch(`/api/vocabulary/enrich/${item.id}`, { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast({
+            title: "Couldn't fix that one",
+            description: data.error ?? "Try again in a moment.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setFetchState((prev) => ({
+          ...prev,
+          items: prev.items.map((i) =>
+            (i as { id: string }).id === item.id ? { ...i, ...data.item } : i,
+          ),
+        }));
+        toast({
+          title: "Definition updated",
+          description: data.item?.meanings?.join(", ") ?? undefined,
+        });
+      } catch (err) {
+        console.error("Repair error:", err);
+        toast({
+          title: "Couldn't fix that one",
+          description: "Check your connection and try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setTriagePendingId(null);
+      }
+    },
+    [toast],
+  );
 
   const loadMore = () => {
-    fetchItems(activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, fetchState.page + 1, true);
+    fetchItems(activeTab, debouncedQuery, jlptFilters, stageFilters, sortBy, triageView, fetchState.page + 1, true);
   };
 
   const sortOptions =
@@ -414,6 +557,37 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
           )}
         </div>
 
+        {/* Triage view switcher — review-only tabs. Sits above the results so
+            a pile of set-aside cards is one visible click away. */}
+        {TRIAGEABLE_TABS.includes(activeTab) && (setAsideCount > 0 || triageView !== "collection") && (
+          <div className="flex items-center gap-1 rounded-lg bg-secondary/60 p-1 w-fit">
+            {TRIAGE_VIEWS.map((v) => {
+              const isActive = triageView === v.value;
+              return (
+                <button
+                  key={v.value}
+                  type="button"
+                  onClick={() => setTriageView(v.value)}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    isActive
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-pressed={isActive}
+                >
+                  {v.value === "set_aside" && <Archive className="h-3 w-3" />}
+                  {v.label}
+                  {v.value === "set_aside" && setAsideCount > 0 && (
+                    <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-mono text-amber-800">
+                      {setAsideCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Results count */}
         {!fetchState.loading && hasActiveFilters && (
           <p className="text-sm text-muted-foreground">
@@ -430,12 +604,25 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
             hasMore={fetchState.hasMore}
             onLoadMore={loadMore}
             emptyMessage="No kanji yet. Capture an image to start building your collection!"
-            emptyFilterMessage="No kanji match your filters."
+            emptyFilterMessage={
+              triageView === "set_aside"
+                ? "Nothing set aside. Press S on a card during review to park it here."
+                : triageView === "removed"
+                  ? "Nothing deleted."
+                  : "No kanji match your filters."
+            }
             hasActiveFilters={hasActiveFilters}
             renderItem={(item) => {
               const k = item as Kanji;
               const isSample = k.sourceImageIds.some((id) => sampleSourceIdSet.has(id));
-              return <KanjiCard kanji={k} isSample={isSample} />;
+              return (
+                <KanjiCard
+                  kanji={k}
+                  isSample={isSample}
+                  pending={triagePendingId === k.id}
+                  onTriage={handleTriage}
+                />
+              );
             }}
           />
         </TabsContent>
@@ -447,12 +634,26 @@ export function LibraryClient({ initialCounts }: LibraryClientProps) {
             hasMore={fetchState.hasMore}
             onLoadMore={loadMore}
             emptyMessage="No vocabulary yet. Capture an image to start building your collection!"
-            emptyFilterMessage="No vocabulary matches your filters."
+            emptyFilterMessage={
+              triageView === "set_aside"
+                ? "Nothing set aside. Press S on a card during review to park it here."
+                : triageView === "removed"
+                  ? "Nothing deleted."
+                  : "No vocabulary matches your filters."
+            }
             hasActiveFilters={hasActiveFilters}
             renderItem={(item) => {
               const v = item as Vocabulary;
               const isSample = v.sourceImageIds.some((id) => sampleSourceIdSet.has(id));
-              return <VocabCard vocab={v} isSample={isSample} />;
+              return (
+                <VocabCard
+                  vocab={v}
+                  isSample={isSample}
+                  pending={triagePendingId === v.id}
+                  onTriage={handleTriage}
+                  onRepair={handleRepair}
+                />
+              );
             }}
           />
         </TabsContent>
@@ -576,7 +777,134 @@ function StageBadge({ level }: { level: string }) {
   );
 }
 
-function KanjiCard({ kanji: k, isSample = false }: { kanji: Kanji; isSample?: boolean }) {
+/** Dates arrive as ISO strings over JSON even though the column type is Date. */
+function formatFlaggedAt(value: Date | string | null): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/**
+ * Resolution controls for a card that isn't in rotation. Only rendered for
+ * set-aside and deleted items — an active card shows nothing extra.
+ */
+function TriageFooter({
+  item,
+  pending,
+  onTriage,
+  onRepair,
+}: {
+  item: Kanji | Vocabulary;
+  pending: boolean;
+  onTriage: (item: Kanji | Vocabulary, action: "restore" | "remove") => void;
+  onRepair?: (item: Vocabulary) => void;
+}) {
+  if (item.reviewStatus === "active") return null;
+
+  const flaggedOn = formatFlaggedAt(item.flaggedAt);
+  const isRemoved = item.reviewStatus === "removed";
+  const canRepair = !!onRepair && item.flagReason === "bad_data";
+
+  return (
+    <div
+      className={`border-t px-6 py-3 space-y-2 ${
+        isRemoved ? "border-border/60 bg-secondary/40" : "border-amber-200/70 bg-amber-50/60"
+      }`}
+    >
+      <p className="text-xs text-muted-foreground">
+        {isRemoved
+          ? "Deleted — it won't come back, even if you capture it again."
+          : `${FLAG_REASON_LABEL[item.flagReason ?? ""] ?? "Set aside"}${flaggedOn ? ` · ${flaggedOn}` : ""}`}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => onTriage(item, "restore")}
+          className="h-7 gap-1.5 text-xs"
+        >
+          <Undo2 className="h-3 w-3" />
+          {isRemoved ? "Restore" : "Put back"}
+        </Button>
+        {canRepair && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => onRepair!(item as Vocabulary)}
+            className="h-7 gap-1.5 text-xs"
+          >
+            <Wrench className="h-3 w-3" />
+            Fix definition
+          </Button>
+        )}
+        {!isRemoved && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => onTriage(item, "remove")}
+            className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+            Delete
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Flags a vocab row whose definition never landed — the background enrichment
+ * sweep hasn't fixed it (or hasn't run). Shown in every view, so these surface
+ * even when the user hasn't flagged them during review.
+ */
+function NeedsFixBadge({
+  vocab,
+  pending,
+  onRepair,
+}: {
+  vocab: Vocabulary;
+  pending: boolean;
+  onRepair?: (item: Vocabulary) => void;
+}) {
+  if (!vocab.needsEnrichment) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 border border-amber-200/70 px-2.5 py-2">
+      <span className="inline-flex items-center gap-1.5 text-xs text-amber-800">
+        <AlertTriangle className="h-3 w-3 shrink-0" />
+        Definition never loaded
+      </span>
+      {onRepair && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => onRepair(vocab)}
+          className="h-6 gap-1.5 text-xs ml-auto"
+        >
+          <Wrench className="h-3 w-3" />
+          {pending ? "Fixing…" : "Fix now"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function KanjiCard({
+  kanji: k,
+  isSample = false,
+  pending = false,
+  onTriage,
+}: {
+  kanji: Kanji;
+  isSample?: boolean;
+  pending?: boolean;
+  onTriage?: (item: Kanji | Vocabulary, action: "restore" | "remove") => void;
+}) {
   return (
     <Card className="jr-panel">
       <CardHeader className="pb-2">
@@ -614,11 +942,24 @@ function KanjiCard({ kanji: k, isSample = false }: { kanji: Kanji; isSample?: bo
           <p className="text-xs text-muted-foreground">{k.strokeCount} strokes</p>
         )}
       </CardContent>
+      {onTriage && <TriageFooter item={k} pending={pending} onTriage={onTriage} />}
     </Card>
   );
 }
 
-function VocabCard({ vocab: v, isSample = false }: { vocab: Vocabulary; isSample?: boolean }) {
+function VocabCard({
+  vocab: v,
+  isSample = false,
+  pending = false,
+  onTriage,
+  onRepair,
+}: {
+  vocab: Vocabulary;
+  isSample?: boolean;
+  pending?: boolean;
+  onTriage?: (item: Kanji | Vocabulary, action: "restore" | "remove") => void;
+  onRepair?: (item: Vocabulary) => void;
+}) {
   return (
     <Card className="jr-panel">
       <CardHeader className="pb-2">
@@ -648,7 +989,11 @@ function VocabCard({ vocab: v, isSample = false }: { vocab: Vocabulary; isSample
         {v.partOfSpeech && (
           <p className="text-xs text-muted-foreground">{v.partOfSpeech}</p>
         )}
+        <NeedsFixBadge vocab={v} pending={pending} onRepair={onRepair} />
       </CardContent>
+      {onTriage && (
+        <TriageFooter item={v} pending={pending} onTriage={onTriage} onRepair={onRepair} />
+      )}
     </Card>
   );
 }

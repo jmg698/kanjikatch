@@ -40,6 +40,14 @@ const anthropic = new Anthropic({
 // version here when available — no other code changes needed.
 const ENRICHMENT_MODEL = "claude-3-5-haiku-20241022";
 
+/**
+ * Hard cap on enrichment attempts per vocabulary row, so a chronically-bad row
+ * can't burn through credits forever. Shared by the batch sweep
+ * (api/vocabulary/enrich/retry) and the one-shot repair
+ * (api/vocabulary/enrich/[id]) so the two can't drift apart.
+ */
+export const ENRICHMENT_MAX_ATTEMPTS = 5;
+
 const KANA_REGEX = /^[\u3040-\u309F\u30A0-\u30FFー・\s]+$/;
 
 // Patterns that disqualify a "meaning" string — these are all signs that the

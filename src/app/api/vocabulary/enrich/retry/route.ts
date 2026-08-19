@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db, vocabulary } from "@/db";
-import { enrichVocabulary } from "@/lib/enrichment";
+import { enrichVocabulary, ENRICHMENT_MAX_ATTEMPTS } from "@/lib/enrichment";
 
 /**
  * Retry enrichment for vocabulary rows that were saved without a real
@@ -30,7 +30,7 @@ import { enrichVocabulary } from "@/lib/enrichment";
  */
 
 const BATCH_SIZE = 25;
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = ENRICHMENT_MAX_ATTEMPTS;
 // Back off between retries so a transient outage doesn't burn every attempt
 // on the same minute. 15 minutes between attempts is plenty.
 const RETRY_BACKOFF_MS = 15 * 60 * 1000;

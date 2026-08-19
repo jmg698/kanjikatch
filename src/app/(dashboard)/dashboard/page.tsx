@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Camera, Flame, Plus, ImageIcon, ClipboardPaste, Type } from "lucide-react";
 import { db, kanji, vocabulary, userStats, reviewTracks } from "@/db";
 import { getCurrentUserId } from "@/lib/auth";
-import { eq, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
-import { computeEffectiveConfidence } from "@/lib/track-queries";
+import { eq, ne, and, or, lte, isNull, desc, asc, sql, inArray } from "drizzle-orm";
+import { computeEffectiveConfidence, itemIsActive } from "@/lib/track-queries";
 import { StaticCityscapeBackground } from "@/components/dashboard/static-cityscape-background";
 import { EmptyTower } from "@/components/dashboard/empty-tower";
 import { ReviewLauncher } from "@/components/dashboard/review-launcher";
@@ -19,12 +19,13 @@ async function getDashboardData(userId: string) {
     stats,
     recentKanji,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(kanji).where(eq(kanji.userId, userId)),
-    db.select({ count: sql<number>`count(*)::int` }).from(vocabulary).where(eq(vocabulary.userId, userId)),
+    db.select({ count: sql<number>`count(*)::int` }).from(kanji).where(and(eq(kanji.userId, userId), ne(kanji.reviewStatus, "removed"))),
+    db.select({ count: sql<number>`count(*)::int` }).from(vocabulary).where(and(eq(vocabulary.userId, userId), ne(vocabulary.reviewStatus, "removed"))),
     db.select({ count: sql<number>`count(*)::int` }).from(reviewTracks).where(
       and(
         eq(reviewTracks.userId, userId),
         eq(reviewTracks.itemType, "kanji"),
+        itemIsActive("kanji"),
         or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
       )
     ),
@@ -32,6 +33,7 @@ async function getDashboardData(userId: string) {
       and(
         eq(reviewTracks.userId, userId),
         eq(reviewTracks.itemType, "vocab"),
+        itemIsActive("vocab"),
         or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
       )
     ),
@@ -42,7 +44,7 @@ async function getDashboardData(userId: string) {
       meanings: kanji.meanings,
     })
       .from(kanji)
-      .where(eq(kanji.userId, userId))
+      .where(and(eq(kanji.userId, userId), ne(kanji.reviewStatus, "removed")))
       .orderBy(desc(kanji.firstSeenAt))
       .limit(20),
   ]);

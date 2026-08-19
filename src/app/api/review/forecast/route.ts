@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, reviewTracks } from "@/db";
+import { itemIsActive } from "@/lib/track-queries";
 import { eq, and, gte, lt, isNull, or, lte, sql } from "drizzle-orm";
 
 export async function GET() {
@@ -29,23 +30,27 @@ export async function GET() {
         kanjiCondition = and(
           eq(reviewTracks.userId, userId),
           eq(reviewTracks.itemType, "kanji"),
+          itemIsActive("kanji"),
           or(lte(reviewTracks.nextReviewAt, dayEnd), isNull(reviewTracks.nextReviewAt)),
         );
         vocabCondition = and(
           eq(reviewTracks.userId, userId),
           eq(reviewTracks.itemType, "vocab"),
+          itemIsActive("vocab"),
           or(lte(reviewTracks.nextReviewAt, dayEnd), isNull(reviewTracks.nextReviewAt)),
         );
       } else {
         kanjiCondition = and(
           eq(reviewTracks.userId, userId),
           eq(reviewTracks.itemType, "kanji"),
+          itemIsActive("kanji"),
           gte(reviewTracks.nextReviewAt, dayStart),
           lt(reviewTracks.nextReviewAt, dayEnd),
         );
         vocabCondition = and(
           eq(reviewTracks.userId, userId),
           eq(reviewTracks.itemType, "vocab"),
+          itemIsActive("vocab"),
           gte(reviewTracks.nextReviewAt, dayStart),
           lt(reviewTracks.nextReviewAt, dayEnd),
         );

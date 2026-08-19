@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, kanji, vocabulary, sentences, grammarPatterns, reviewTracks } from "@/db";
-import { eq, desc, asc, and, or, ilike, inArray, sql, count } from "drizzle-orm";
+import { eq, ne, desc, asc, and, or, ilike, inArray, sql, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { computeEffectiveConfidence } from "@/lib/track-queries";
 
@@ -13,6 +13,14 @@ const VALID_SORTS = ["recent", "oldest", "alphabetical", "next_review", "jlpt_as
 type Sort = (typeof VALID_SORTS)[number];
 
 const VALID_STAGES = ["new", "learning", "reviewing", "known"] as const;
+
+// Triage filter. Orthogonal to SRS stage — a set-aside card still has a
+// confidence level — so it's a separate param rather than a fifth stage.
+// Omitted means "everything still in the collection", i.e. active + set aside
+// but not soft-deleted: parked cards shouldn't silently vanish from the shelf
+// the user went looking on.
+const VALID_STATUS_FILTERS = ["active", "set_aside", "removed"] as const;
+type StatusFilter = (typeof VALID_STATUS_FILTERS)[number];
 
 function parseCommaSeparated(val: string | null): string[] {
   if (!val) return [];
@@ -94,12 +102,22 @@ export async function GET(req: NextRequest) {
     if (!VALID_SORTS.includes(sortBy)) {
       return NextResponse.json({ error: "Invalid sort" }, { status: 400 });
     }
+    const rawStatus = searchParams.get("status");
+    if (rawStatus && !(VALID_STATUS_FILTERS as readonly string[]).includes(rawStatus)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+    const statusFilter = (rawStatus as StatusFilter | null) ?? null;
+
+    /** Triage predicate for the kanji/vocabulary tabs. Grammar has no SRS. */
+    const statusCondition = (col: typeof kanji.reviewStatus | typeof vocabulary.reviewStatus): SQL =>
+      statusFilter ? eq(col, statusFilter) : ne(col, "removed");
+
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(Math.max(1, parseInt(searchParams.get("limit") || "50", 10)), 100);
     const offset = (page - 1) * limit;
 
     if (tab === "kanji") {
-      const conditions: SQL[] = [eq(kanji.userId, userId)];
+      const conditions: SQL[] = [eq(kanji.userId, userId), statusCondition(kanji.reviewStatus)];
 
       if (searchTerm) {
         conditions.push(
@@ -168,7 +186,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (tab === "vocabulary") {
-      const conditions: SQL[] = [eq(vocabulary.userId, userId)];
+      const conditions: SQL[] = [eq(vocabulary.userId, userId), statusCondition(vocabulary.reviewStatus)];
 
       if (searchTerm) {
         conditions.push(
