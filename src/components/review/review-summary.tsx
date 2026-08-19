@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, ArrowRight, RotateCcw, Target, Clock, CheckCircle2, BookOpen, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Flame, ArrowRight, RotateCcw, Target, Clock, CheckCircle2, BookOpen, Loader2, Archive } from "lucide-react";
 import type { SessionSummary, ReviewStats } from "./review-types";
 
 interface ReviewSummaryProps {
@@ -19,6 +20,12 @@ interface ReviewSummaryProps {
   // Swaps the celebratory headline for first-session framing so the screen
   // reads as part of the tour rather than a generic completion.
   isOnboarding?: boolean;
+  /**
+   * Cards pulled out of rotation during this session. Surfaced here because
+   * this is the moment the user is already wrapping up and the cards are still
+   * fresh — otherwise a parked card is easy to forget about.
+   */
+  setAsideCount?: number;
 }
 
 function AnimatedNumber({ value, duration = 1 }: { value: number; duration?: number }) {
@@ -65,6 +72,7 @@ export function ReviewSummary({
   sessionId,
   wildPrefetchStatus,
   isOnboarding,
+  setAsideCount = 0,
 }: ReviewSummaryProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   const wildStatus = wildPrefetchStatus === "ready" ? "ready"
@@ -169,6 +177,27 @@ export function ReviewSummary({
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Cards set aside this session — a nudge toward triage, not a scolding. */}
+      {setAsideCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Link
+            href="/library"
+            className="flex items-center gap-3 rounded-xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 transition-colors hover:bg-amber-50"
+          >
+            <Archive className="h-4 w-4 flex-shrink-0 text-amber-700" aria-hidden />
+            <span className="text-sm text-amber-900">
+              {setAsideCount} {setAsideCount === 1 ? "card" : "cards"} set aside — sort
+              {setAsideCount === 1 ? " it" : " them"} out in your library.
+            </span>
+            <ArrowRight className="h-4 w-4 flex-shrink-0 text-amber-700 ml-auto" aria-hidden />
+          </Link>
+        </motion.div>
+      )}
 
       {/* Streak */}
       {stats && stats.currentStreak > 0 && (

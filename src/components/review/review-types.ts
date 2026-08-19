@@ -83,6 +83,12 @@ export interface PriorTrackState {
 export interface UndoSnapshot {
   // Queue/state to restore
   prevQueue: QueueEntry[];
+  /**
+   * Original-card denominator to restore. Only set by a "set aside", which
+   * shrinks the denominator because a parked card will never be completed.
+   * Grades leave it alone.
+   */
+  prevOriginalQueueSize?: number;
   prevCurrentIndex: number;
   prevConsecutiveCorrect: number;
   prevTotalXpEarned: number;
@@ -94,4 +100,9 @@ export interface UndoSnapshot {
   serverTrackId?: string;
   priorTrackState?: PriorTrackState;
   xpEarned: number;
+  /**
+   * Present when this snapshot reverses a "set aside" rather than a grade.
+   * Undo puts the item back in rotation server-side before restoring the queue.
+   */
+  setAside?: { itemId: string; itemType: "kanji" | "vocab" };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Eye, EyeOff, Undo2, ChevronDown } from "lucide-react";
+import { RotateCcw, Eye, EyeOff, Undo2, ChevronDown, Archive } from "lucide-react";
 import type { ReviewQueueItem } from "./review-types";
 import type { Grade } from "@/lib/srs";
 import { getGradeOptions, type SrsState } from "@/lib/srs";
@@ -27,6 +27,10 @@ interface ReviewCardProps {
   onUndo?: () => void;
   /** Whether undo is in progress (disable controls). */
   undoing?: boolean;
+  /** Label for the undo affordance — reads differently after a set-aside. */
+  undoLabel?: string;
+  /** Open the "why are you setting this aside?" sheet. Owned by the session. */
+  onRequestSetAside?: () => void;
 }
 
 const GRADE_STYLES: Record<Grade, { bg: string; border: string; text: string; hoverBg: string }> = {
@@ -69,6 +73,8 @@ export function ReviewCard({
   canUndo = false,
   onUndo,
   undoing = false,
+  undoLabel = "Redo last card",
+  onRequestSetAside,
 }: ReviewCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [showFurigana, setShowFurigana] = useState(false);
@@ -225,6 +231,7 @@ export function ReviewCard({
               <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 {item.type === "kanji" ? "Kanji" : "Vocabulary"}
               </span>
+              <span className="flex items-center gap-1">
               {canShowFurigana && !revealed && (
                 <button
                   type="button"
@@ -249,6 +256,23 @@ export function ReviewCard({
                   {questionText}
                 </span>
               )}
+              {onRequestSetAside && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRequestSetAside();
+                  }}
+                  disabled={disabled}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground rounded-md px-2 py-1 -my-1 hover:bg-secondary transition-colors disabled:opacity-40"
+                  title="Set this card aside (S)"
+                  aria-label="Set this card aside"
+                >
+                  <Archive className="h-3 w-3" />
+                  <span>Set aside</span>
+                </button>
+              )}
+              </span>
             </div>
 
             {/* Prompt — larger in full-screen, WaniKani-style */}
@@ -428,10 +452,10 @@ export function ReviewCard({
                   onClick={onUndo}
                   disabled={undoing || disabled}
                   className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 disabled:opacity-50"
-                  aria-label="Redo last card"
+                  aria-label={undoLabel}
                 >
                   <Undo2 className="h-3 w-3" />
-                  <span>{undoing ? "Redoing…" : "Redo last card"}</span>
+                  <span>{undoing ? "Redoing…" : undoLabel}</span>
                   <kbd className="px-1 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono">U</kbd>
                 </button>
               </div>
@@ -448,10 +472,10 @@ export function ReviewCard({
             onClick={onUndo}
             disabled={undoing || disabled}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 disabled:opacity-50"
-            aria-label="Redo last card"
+            aria-label={undoLabel}
           >
             <Undo2 className="h-3 w-3" />
-            <span>{undoing ? "Redoing…" : "Redo last card"}</span>
+            <span>{undoing ? "Redoing…" : undoLabel}</span>
             <kbd className="px-1 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono">U</kbd>
           </button>
         </div>

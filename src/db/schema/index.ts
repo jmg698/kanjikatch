@@ -10,6 +10,27 @@ import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, uniqueIndex, i
 export type SubscriptionTier = "free" | "pro" | "pro_comped";
 export const SUBSCRIPTION_TIER_VALUES: readonly SubscriptionTier[] = ["free", "pro", "pro_comped"] as const;
 
+// Card triage state, set by the "Set aside" gesture during review and resolved
+// later from the library. Stored as text (not a pg enum) so values can be added
+// without a schema migration. Validate at application boundaries.
+//   - active:    normal. The item appears in the review queue.
+//   - set_aside: parked out of rotation until the user restores or deletes it.
+//   - removed:   soft-deleted. Unlike a hard delete, re-capturing the same
+//                character/word will NOT resurrect it — the extract upsert in
+//                api/extract/save leaves this column alone, so a removed item
+//                stays removed. Also avoids orphaning review_tracks /
+//                review_history / generated_sentence_targets rows, which
+//                reference item_id without a foreign key.
+export type ReviewStatus = "active" | "set_aside" | "removed";
+export const REVIEW_STATUS_VALUES: readonly ReviewStatus[] = ["active", "set_aside", "removed"] as const;
+
+// Why the user pulled a card out of rotation. Captured at flag time rather than
+// at triage time because it routes the card: 'bad_data' additionally queues the
+// item for re-enrichment (vocab only — kanji has no enrichment path yet),
+// 'not_needed' simply parks it.
+export type FlagReason = "not_needed" | "bad_data";
+export const FLAG_REASON_VALUES: readonly FlagReason[] = ["not_needed", "bad_data"] as const;
+
 // Users table - synced from Clerk
 export const users = pgTable("users", {
   id: text("id").primaryKey(), // Clerk user ID
@@ -87,6 +108,11 @@ export const kanji = pgTable("kanji", {
   timesSeen: integer("times_seen").default(1).notNull(),
   sourceImageIds: uuid("source_image_ids").array().notNull().default([]),
   notes: text("notes"),
+  // Triage state — see ReviewStatus / FlagReason above. flaggedAt is when the
+  // user set the card aside, not when it was resolved.
+  reviewStatus: text("review_status").default("active").notNull(),
+  flagReason: text("flag_reason"),
+  flaggedAt: timestamp("flagged_at"),
   // SRS fields
   nextReviewAt: timestamp("next_review_at"),
   intervalDays: integer("interval_days").default(1).notNull(),
@@ -99,6 +125,7 @@ export const kanji = pgTable("kanji", {
   userCharacterIdx: uniqueIndex("kanji_user_character_idx").on(table.userId, table.character),
   userIdIdx: index("kanji_user_id_idx").on(table.userId),
   nextReviewIdx: index("kanji_next_review_idx").on(table.userId, table.nextReviewAt),
+  userStatusIdx: index("kanji_user_status_idx").on(table.userId, table.reviewStatus),
 }));
 
 // Vocabulary entries with SRS tracking
@@ -115,6 +142,11 @@ export const vocabulary = pgTable("vocabulary", {
   timesSeen: integer("times_seen").default(1).notNull(),
   sourceImageIds: uuid("source_image_ids").array().notNull().default([]),
   notes: text("notes"),
+  // Triage state — see ReviewStatus / FlagReason above. flaggedAt is when the
+  // user set the card aside, not when it was resolved.
+  reviewStatus: text("review_status").default("active").notNull(),
+  flagReason: text("flag_reason"),
+  flaggedAt: timestamp("flagged_at"),
   // Enrichment tracking — set when a row was added with incomplete data
   // (e.g. quick-add from a reading where the AI didn't provide a meaning)
   // and a background enrichment pass should fill in the missing fields.
@@ -135,6 +167,7 @@ export const vocabulary = pgTable("vocabulary", {
   userIdIdx: index("vocabulary_user_id_idx").on(table.userId),
   nextReviewIdx: index("vocabulary_next_review_idx").on(table.userId, table.nextReviewAt),
   needsEnrichmentIdx: index("vocabulary_needs_enrichment_idx").on(table.needsEnrichment, table.lastEnrichmentAttemptAt),
+  userStatusIdx: index("vocabulary_user_status_idx").on(table.userId, table.reviewStatus),
 }));
 
 // Grammar patterns extracted from captures. Follows the kanji/vocab shape

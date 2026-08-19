@@ -48,7 +48,10 @@ export async function listUserSourcesWithProgress(
       ), 'new')`.as("confidence"),
     })
     .from(kanji)
-    .where(eq(kanji.userId, userId));
+    // Cards the user set aside or deleted are out of rotation, so they can
+    // never advance. Counting them would pin a source's progress below 100%
+    // forever. Restoring a card puts it back into the denominator.
+    .where(and(eq(kanji.userId, userId), eq(kanji.reviewStatus, "active")));
 
   const bySource = new Map<string, ConfidenceLevel[]>();
   for (const k of kanjiRows) {

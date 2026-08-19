@@ -9,6 +9,7 @@ import { ReviewCard } from "./review-card";
 import { ReviewSummary } from "./review-summary";
 import { StaticShinkansenBackground } from "./static-shinkansen-background";
 import { ShortcutsOverlay } from "./shortcuts-overlay";
+import { SetAsideSheet } from "./set-aside-sheet";
 import { InterludeBackground } from "./interlude-background";
 import { InterludeReading } from "./interlude-reading";
 import { InTheWild } from "@/components/wild/in-the-wild";
@@ -17,6 +18,8 @@ import type { WildSentenceData } from "@/components/wild/in-the-wild";
 import type { DifficultyRating } from "@/components/wild/sentence-display";
 import type { DueCounts, ReviewQueueItem, ReviewStats, SessionSummary, SessionType, QueueEntry, RequeueState, UndoSnapshot } from "./review-types";
 import type { Grade } from "@/lib/srs";
+import type { FlagReason } from "@/db/schema";
+import { useToast } from "@/hooks/use-toast";
 
 type Phase = "setup" | "reviewing" | "interlude" | "summary" | "transition" | "wild";
 
@@ -113,6 +116,13 @@ export function ReviewSession() {
   const [undoing, setUndoing] = useState(false);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // "Set aside" — pulling a card out of rotation without grading it.
+  const [setAsideOpen, setSetAsideOpen] = useState(false);
+  const [settingAside, setSettingAside] = useState(false);
+  // Cards parked this session, so the summary can point at them.
+  const [setAsideCount, setSetAsideCount] = useState(0);
+  const { toast } = useToast();
 
   // Derived progress: original cards completed vs retries remaining
   const { completedOriginal, retriesRemaining } = useMemo(() => {
@@ -397,7 +407,7 @@ export function ReviewSession() {
   }, []);
 
   const handleGrade = async (grade: Grade) => {
-    if (submitting || undoing || !sessionId) return;
+    if (submitting || undoing || settingAside || !sessionId) return;
     setSubmitting(true);
 
     const entry = queue[currentIndex];
@@ -574,10 +584,145 @@ export function ReviewSession() {
     }
   };
 
+  /**
+   * Pull the current card out of rotation without grading it.
+   *
+   * Nothing is recorded against the SRS: no history row, no track update, no
+   * effect on accuracy or the streak. The item's review_tracks freeze where
+   * they are, so restoring the card later resumes its schedule instead of
+   * resetting it.
+   *
+   * Because the whole *item* is parked (not one question track), every
+   * still-unplayed queue entry for it goes — including retries it earned
+   * earlier in this session. Already-played entries stay so the completed
+   * count keeps its history.
+   */
+  const handleSetAside = useCallback(
+    async (reason: FlagReason) => {
+      if (submitting || undoing || settingAside || !sessionId) return;
+      const entry = queue[currentIndex];
+      if (!entry) return;
+      const { item } = entry;
+
+      setSettingAside(true);
+      try {
+        const res = await fetch("/api/items/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "set_aside",
+            itemId: item.id,
+            itemType: item.type,
+            reason,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to set card aside");
+        const data = await res.json();
+
+        // Definition repair runs in the background — the user shouldn't wait on
+        // an AI round-trip mid-session. Failures are non-fatal: the row stays
+        // flagged and the batch sweep retries it later.
+        if (data.repairQueued) {
+          void fetch(`/api/vocabulary/enrich/${item.id}`, { method: "POST" }).catch(
+            () => {},
+          );
+        }
+
+        const snapshot: UndoSnapshot = {
+          prevQueue: queue.map((e) => ({ ...e })),
+          prevOriginalQueueSize: originalQueueSizeRef.current,
+          prevCurrentIndex: currentIndex,
+          prevConsecutiveCorrect: consecutiveCorrect,
+          prevTotalXpEarned: totalXpEarned,
+          prevRequeueState: requeueMapRef.current.get(item.trackId)
+            ? { ...requeueMapRef.current.get(item.trackId)! }
+            : null,
+          isRetry: entry.isRetry,
+          trackId: item.trackId,
+          xpEarned: 0,
+          setAside: { itemId: item.id, itemType: item.type },
+        };
+
+        // Drop unplayed entries for this item; keep everything before the
+        // cursor so completedOriginal stays truthful.
+        const updatedQueue = queue.filter(
+          (e, i) => i < currentIndex || e.item.id !== item.id,
+        );
+        // A parked card can never be completed, so it leaves the denominator —
+        // but only if its first appearance hadn't already been graded.
+        const unplayedOriginals = queue.filter(
+          (e, i) => i >= currentIndex && e.item.id === item.id && !e.isRetry,
+        ).length;
+        originalQueueSizeRef.current = Math.max(
+          originalQueueSizeRef.current - unplayedOriginals,
+          0,
+        );
+        requeueMapRef.current.delete(item.trackId);
+
+        setQueue(updatedQueue);
+        setSetAsideCount((prev) => prev + 1);
+        setSetAsideOpen(false);
+        toast({
+          title: "Set aside",
+          description:
+            reason === "bad_data"
+              ? "We'll try to fix the definition. Find it under Set aside in your library."
+              : "Find it under Set aside in your library to delete or bring back.",
+        });
+
+        // Everything after the removed card shifts down into currentIndex, so
+        // the cursor stays put unless we've run off the end of the queue.
+        if (currentIndex >= updatedQueue.length) {
+          setUndoSnapshot(null);
+          prefetchWildSentences(sessionId);
+          await completeSession();
+        } else {
+          setUndoSnapshot(snapshot);
+        }
+      } catch (e) {
+        console.error("Failed to set card aside:", e);
+        toast({
+          title: "Couldn't set that card aside",
+          description: "Check your connection and try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setSettingAside(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      queue,
+      currentIndex,
+      consecutiveCorrect,
+      totalXpEarned,
+      submitting,
+      undoing,
+      settingAside,
+      sessionId,
+      prefetchWildSentences,
+      toast,
+    ],
+  );
+
   const handleUndo = useCallback(async () => {
-    if (!undoSnapshot || undoing || submitting || !sessionId) return;
+    if (!undoSnapshot || undoing || submitting || settingAside || !sessionId) return;
     setUndoing(true);
     try {
+      // A set-aside snapshot puts the card back in rotation instead.
+      if (undoSnapshot.setAside) {
+        const res = await fetch("/api/items/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "restore",
+            itemId: undoSnapshot.setAside.itemId,
+            itemType: undoSnapshot.setAside.itemType,
+          }),
+        });
+        if (!res.ok) throw new Error("Undo failed");
+      }
+
       // For first-appearance grades, reverse the server-side mutation.
       if (
         !undoSnapshot.isRetry &&
@@ -601,6 +746,12 @@ export function ReviewSession() {
 
       // Restore client state
       setQueue(undoSnapshot.prevQueue);
+      if (undoSnapshot.prevOriginalQueueSize !== undefined) {
+        originalQueueSizeRef.current = undoSnapshot.prevOriginalQueueSize;
+      }
+      if (undoSnapshot.setAside) {
+        setSetAsideCount((prev) => Math.max(prev - 1, 0));
+      }
       setCurrentIndex(undoSnapshot.prevCurrentIndex);
       setConsecutiveCorrect(undoSnapshot.prevConsecutiveCorrect);
       setTotalXpEarned(undoSnapshot.prevTotalXpEarned);
@@ -618,7 +769,7 @@ export function ReviewSession() {
     } finally {
       setUndoing(false);
     }
-  }, [undoSnapshot, undoing, submitting, sessionId]);
+  }, [undoSnapshot, undoing, submitting, settingAside, sessionId]);
 
   const completeSession = async () => {
     if (!sessionId) return;
@@ -658,6 +809,7 @@ export function ReviewSession() {
     wildPrefetchStartedRef.current = false;
     requeueMapRef.current = new Map();
     originalQueueSizeRef.current = 0;
+    setSetAsideCount(0);
     autoStartedRef.current = false;
     interludeSeenSegmentsRef.current = new Set();
     allInterludeSentencesRef.current = [];
@@ -689,9 +841,19 @@ export function ReviewSession() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+      // The sheet owns the keyboard while it's open (1/2 pick a reason,
+      // Escape backs out) — see SetAsideSheet.
+      if (setAsideOpen) return;
+
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
         setShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      if ((e.key === "s" || e.key === "S") && !shortcutsOpen && !submitting && !undoing) {
+        e.preventDefault();
+        setSetAsideOpen(true);
         return;
       }
 
@@ -705,7 +867,8 @@ export function ReviewSession() {
         (e.key === "u" || e.key === "U" || e.key === "Backspace" || e.key === "ArrowLeft") &&
         undoSnapshot &&
         !submitting &&
-        !undoing
+        !undoing &&
+        !settingAside
       ) {
         e.preventDefault();
         handleUndo();
@@ -713,7 +876,7 @@ export function ReviewSession() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [phase, undoSnapshot, submitting, undoing, shortcutsOpen, handleUndo]);
+  }, [phase, undoSnapshot, submitting, undoing, settingAside, shortcutsOpen, setAsideOpen, handleUndo]);
 
   const isFullScreen =
     phase === "reviewing" || phase === "interlude" || phase === "summary" || phase === "transition" || phase === "wild";
@@ -876,13 +1039,15 @@ export function ReviewSession() {
                             questionType={queue[currentIndex].item.questionType}
                             consecutiveCorrect={consecutiveCorrect}
                             onGrade={handleGrade}
-                            disabled={submitting || undoing || shortcutsOpen}
+                            disabled={submitting || undoing || shortcutsOpen || setAsideOpen || settingAside}
                             fullScreen
                             isRetry={queue[currentIndex].isRetry}
                             retryReason={queue[currentIndex].retryReason}
                             canUndo={!!undoSnapshot}
                             onUndo={handleUndo}
                             undoing={undoing}
+                            undoLabel={undoSnapshot?.setAside ? "Undo set aside" : "Redo last card"}
+                            onRequestSetAside={() => setSetAsideOpen(true)}
                           />
                         </motion.div>
                       ) : (
@@ -938,6 +1103,7 @@ export function ReviewSession() {
                     sessionId={summary.sessionId}
                     wildPrefetchStatus={wildPrefetchStatus}
                     isOnboarding={isOnboarding}
+                    setAsideCount={setAsideCount}
                   />
                 </motion.div>
               </div>
@@ -994,6 +1160,16 @@ export function ReviewSession() {
                 open={shortcutsOpen}
                 onClose={() => setShortcutsOpen(false)}
                 canUndo={!!undoSnapshot}
+              />
+            )}
+
+            {phase === "reviewing" && queue[currentIndex] && (
+              <SetAsideSheet
+                open={setAsideOpen}
+                prompt={queue[currentIndex].item.prompt}
+                pending={settingAside}
+                onCancel={() => setSetAsideOpen(false)}
+                onConfirm={handleSetAside}
               />
             )}
           </motion.div>

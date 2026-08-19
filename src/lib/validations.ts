@@ -160,6 +160,22 @@ export const feedbackSchema = z.object({
   errorMessage: z.string().max(2000).nullable().optional(),
 });
 
+// Card triage validation. Powers the in-review "Set aside" gesture and the
+// library's restore / delete actions. The reason is required when setting a
+// card aside (it routes the card — see FlagReason in the schema) and ignored
+// for the other actions.
+export const itemTriageSchema = z
+  .object({
+    action: z.enum(["set_aside", "restore", "remove"]),
+    itemId: z.string().uuid(),
+    itemType: z.enum(["kanji", "vocab"]),
+    reason: z.enum(["not_needed", "bad_data"]).optional(),
+  })
+  .refine((v) => v.action !== "set_aside" || !!v.reason, {
+    message: "reason is required when setting a card aside",
+    path: ["reason"],
+  });
+
 // Review response validation
 export const reviewResponseSchema = z.object({
   itemId: z.string().uuid(),
@@ -186,4 +202,5 @@ export type SentenceInput = z.infer<typeof sentenceSchema>;
 export type GrammarPatternInput = z.infer<typeof grammarPatternSchema>;
 export type UploadInput = z.infer<typeof uploadSchema>;
 export type ReviewResponse = z.infer<typeof reviewResponseSchema>;
+export type ItemTriageInput = z.infer<typeof itemTriageSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;

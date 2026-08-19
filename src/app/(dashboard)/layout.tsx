@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db, reviewTracks } from "@/db";
 import { eq, and, or, lte, isNull, sql } from "drizzle-orm";
 import { TopNav } from "@/components/dashboard/top-nav";
+import { itemIsActive } from "@/lib/track-queries";
 import { ensureUserRow } from "@/lib/ensure-user";
 import { getOnboardingStatus } from "@/lib/onboarding";
 
@@ -16,6 +17,7 @@ async function getDueCount(userId: string): Promise<number> {
     .where(
       and(
         eq(reviewTracks.userId, userId),
+        itemIsActive(),
         or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
       ),
     );

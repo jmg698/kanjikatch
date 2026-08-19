@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { db, kanji, vocabulary, sourceImages, reviewTracks } from "@/db";
 import { eq, and, or, lte, isNull, asc, sql, inArray } from "drizzle-orm";
+import { itemIsActive } from "@/lib/track-queries";
 
 export async function GET(req: NextRequest) {
   try {
@@ -69,6 +70,8 @@ export async function GET(req: NextRequest) {
           and(
             eq(reviewTracks.userId, userId),
             eq(reviewTracks.itemType, "kanji"),
+            // Cards the user set aside (or removed) are out of rotation.
+            eq(kanji.reviewStatus, "active"),
             or(
               lte(reviewTracks.nextReviewAt, now),
               isNull(reviewTracks.nextReviewAt),
@@ -140,6 +143,7 @@ export async function GET(req: NextRequest) {
           and(
             eq(reviewTracks.userId, userId),
             eq(reviewTracks.itemType, "vocab"),
+            eq(vocabulary.reviewStatus, "active"),
             or(
               lte(reviewTracks.nextReviewAt, now),
               isNull(reviewTracks.nextReviewAt),
@@ -254,6 +258,7 @@ export async function GET(req: NextRequest) {
         and(
           eq(reviewTracks.userId, userId),
           eq(reviewTracks.itemType, "kanji"),
+          itemIsActive("kanji"),
           or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
         ),
       );
@@ -265,6 +270,7 @@ export async function GET(req: NextRequest) {
         and(
           eq(reviewTracks.userId, userId),
           eq(reviewTracks.itemType, "vocab"),
+          itemIsActive("vocab"),
           or(lte(reviewTracks.nextReviewAt, now), isNull(reviewTracks.nextReviewAt)),
         ),
       );
