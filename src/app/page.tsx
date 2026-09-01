@@ -1,36 +1,106 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StackedPaperHero } from "@/components/shared/stacked-paper-hero";
-import {
-  Camera,
-  ArrowRight,
-  ScanLine,
-  Layers,
-  Sparkles,
-  BookOpenText,
-  GraduationCap,
-  Newspaper,
-  Headphones,
-  Check,
-  Minus,
-  RotateCcw,
-} from "lucide-react";
+import { getPlanCatalog } from "@/lib/stripe";
+import { LandingScene } from "@/components/landing/scene";
+import { HeroReviewDemo } from "@/components/landing/hero-review-demo";
+import { LoopStrip } from "@/components/landing/loop-strip";
+import { WildDemo } from "@/components/landing/wild-demo";
+import { MobileNav } from "@/components/landing/mobile-nav";
+import { FinalCtaCheck } from "@/components/landing/final-cta-check";
+import { Reveal } from "@/components/landing/reveal";
+
+export const metadata = {
+  title: "KanjiKatch — Learn the Japanese you've seen",
+  description:
+    "Snap a photo of the Japanese you're reading. KanjiKatch builds your deck, schedules review, and generates fresh sentences from the words you've caught.",
+};
+
+// Prices come from the same catalog the pricing page checks out against —
+// no number is hardcoded in the landing JSX. Catalog entries are null until
+// their Stripe env vars are set, so fall back to the canonical amounts.
+function getPrices() {
+  const catalog = getPlanCatalog();
+  const monthly = catalog.pro_monthly?.amountUsd ?? 10;
+  const annual = catalog.pro_annual?.amountUsd ?? 100;
+  const founderMonthly = catalog.pro_founder_monthly?.amountUsd ?? 7;
+  const founderAnnual = catalog.pro_founder_annual?.amountUsd ?? 70;
+  const savePct = Math.round((1 - annual / (monthly * 12)) * 100);
+  return { monthly, annual, founderMonthly, founderAnnual, savePct };
+}
 
 export default async function HomePage() {
   const { userId } = await auth();
   const ctaHref = userId ? "/dashboard" : "/sign-up";
   const ctaLabel = userId ? "Open dashboard" : "Catch your first page";
+  const prices = getPrices();
+
+  const faqItems = [
+    {
+      q: "Do I have to type readings and meanings?",
+      a: "Never. Handwritten notes, a textbook spread, a news screenshot, a manga panel — if it has Japanese on it, KanjiKatch pulls every kanji, word, and sentence with readings and meanings filled in. Rough handwriting included. Edit anything that's not quite right in one tap.",
+    },
+    {
+      q: "How does it compete with WaniKani or Anki?",
+      a: "It doesn't try to. WaniKani is a great curriculum if you want one chosen for you. Anki is a great empty deck. KanjiKatch is the one that matches the page you're reading right now — and keeps generating new reading from the words you've already learned.",
+    },
+    {
+      q: "What level do I need to be?",
+      a: "Anywhere from your first kanji to N1. KanjiKatch doesn't pick a curriculum for you — your materials do. Beginners get the most out of textbook pages; advanced learners feed in novels, news articles, and screenshots from anything they're already reading.",
+    },
+    {
+      q: "What does it cost?",
+      a: `Free is $0 forever: 10 extractions to start plus 5 a month, with unlimited reviews and lookups. Pro is $${prices.monthly}/mo or $${prices.annual}/yr (save ${prices.savePct}%): unlimited extractions for personal study (fair use), audio on all sentences, images retained and re-extractable, and session recap emails. 7-day trial, card required, cancel anytime. First 100 subscribers lock in $${prices.founderMonthly}/mo or $${prices.founderAnnual}/yr.`,
+    },
+    {
+      q: "What happens if I cancel?",
+      a: "Cards, review history, and any audio you've generated stay forever. Pro features stop applying to new captures from the day you cancel.",
+    },
+  ];
+
+  const jsonLd = {
+    softwareApp: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "KanjiKatch",
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Web",
+      description: metadata.description,
+      offers: [
+        { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        { "@type": "Offer", price: String(prices.monthly), priceCurrency: "USD" },
+      ],
+    },
+    faq: {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqItems.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: { "@type": "Answer", text: item.a },
+      })),
+    },
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd.softwareApp) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd.faq) }}
+      />
       <Header userId={userId} />
       <Hero ctaHref={ctaHref} ctaLabel={ctaLabel} />
-      <HowItWorks />
-      <WildSpotlight />
-      <BuiltFor />
-      <WhyKanjiKatch />
-      <FAQ />
+      <TheLoop />
+      <Wild ctaHref={ctaHref} />
+      <div className="floor-divider max-w-xs mx-auto" aria-hidden />
+      <Stance prices={prices} />
+      <div className="floor-divider max-w-xs mx-auto" aria-hidden />
+      <FAQ items={faqItems} />
       <FinalCTA ctaHref={ctaHref} ctaLabel={ctaLabel} />
       <Footer />
     </div>
@@ -44,7 +114,7 @@ export default async function HomePage() {
 function Header({ userId }: { userId: string | null }) {
   return (
     <header className="sticky top-0 z-30 backdrop-blur-md bg-background/80 border-b border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div className="relative container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-baseline gap-2.5 group">
           <span className="font-serif text-2xl text-primary leading-none">漢字</span>
           <span className="font-display text-xl font-semibold tracking-tight">
@@ -55,44 +125,35 @@ function Header({ userId }: { userId: string | null }) {
           </span>
         </Link>
         <div className="flex items-center gap-1 sm:gap-3">
-          <Link
-            href="#how"
-            className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-          >
-            How it works
-          </Link>
-          <Link
-            href="#wild"
-            className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-          >
-            In the wild
-          </Link>
-          <Link
-            href="/pricing"
-            className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-          >
-            Pricing
-          </Link>
-          <Link
-            href="#faq"
-            className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-          >
-            FAQ
-          </Link>
+          {[
+            ["#how", "How it works"],
+            ["#wild", "In the wild"],
+            ["/pricing", "Pricing"],
+            ["#faq", "FAQ"],
+          ].map(([href, label]) => (
+            <Link
+              key={href}
+              href={href}
+              className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
+            >
+              {label}
+            </Link>
+          ))}
           {userId ? (
             <Button asChild>
               <Link href="/dashboard">Dashboard</Link>
             </Button>
           ) : (
             <>
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" asChild className="hidden md:inline-flex">
                 <Link href="/sign-in">Sign in</Link>
               </Button>
-              <Button asChild>
+              <Button asChild className="hidden md:inline-flex">
                 <Link href="/sign-up">Get started</Link>
               </Button>
             </>
           )}
+          <MobileNav signedIn={!!userId} />
         </div>
       </div>
     </header>
@@ -100,65 +161,65 @@ function Header({ userId }: { userId: string | null }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  Hero                                                                      */
+/*  Hero — washi above, the day scene below, a playable review card between   */
 /* ────────────────────────────────────────────────────────────────────────── */
 
 function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
   return (
-    <section className="relative overflow-hidden">
-      {/* Soft washi paper wash */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{
-          background:
-            "radial-gradient(60% 50% at 20% 10%, hsl(35 40% 94%) 0%, transparent 60%), radial-gradient(50% 40% at 90% 20%, hsl(150 30% 94%) 0%, transparent 60%)",
-        }}
+    <section className="relative overflow-hidden min-h-[740px] lg:min-h-[85vh]">
+      {/* The woodblock hard edge: no gradient, no fade — the crisp line
+          between washi and sky is the page's signature. */}
+      <LandingScene
+        palette="day"
+        className="absolute inset-x-0 bottom-0 h-[30%] min-h-[200px] lg:h-[34%]"
       />
-      <div className="container mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-16 sm:pb-20">
-        <div className="grid gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14 items-center">
-          {/* Left: copy */}
-          <div>
-            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
-              Learn the Japanese
-              <br />
-              you've
-              <span className="relative inline-block ml-3">
-                <span className="relative z-10 text-primary">seen.</span>
-                <span
-                  aria-hidden
-                  className="absolute inset-x-0 bottom-1 h-3 -z-0"
-                  style={{ background: "hsl(45 100% 72% / 0.55)" }}
-                />
-              </span>
-            </h1>
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-xl">
-              KanjiKatch ingests anything with Japanese on it — your handwritten
-              notes, a textbook page, a news screenshot, a manga panel. We
-              catch every kanji, word, and sentence, and build a working
-              knowledge of what stuff you've seen. You review that and read in
-              context to really learn.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button size="lg" className="h-12 px-7 text-base shadow-sm" asChild>
-                <Link href={ctaHref}>
-                  {ctaLabel}
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="ghost"
-                className="h-12 px-5 text-base"
-                asChild
-              >
-                <Link href="#how">See how it works</Link>
-              </Button>
-            </div>
+      <div className="relative container mx-auto px-4 sm:px-6 pt-14 lg:pt-20 lg:grid lg:grid-cols-12 lg:gap-8 items-start">
+        <div className="lg:col-span-6">
+          <p className="stagger-0 text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            Snap notes. Learn kanji.
+          </p>
+          <h1 className="stagger-1 mt-4 font-display text-5xl sm:text-6xl 2xl:text-7xl font-bold leading-[1.05] tracking-tight">
+            Learn the Japanese
+            <br />
+            you&apos;ve{" "}
+            <span className="relative inline-block">
+              <span className="relative z-10">seen.</span>
+              <span
+                aria-hidden
+                className="hero-gold-wipe absolute inset-x-0 bottom-[0.05em] h-[0.45em]"
+                style={{ background: "hsl(45 100% 72% / 0.55)" }}
+              />
+            </span>
+          </h1>
+          <p className="stagger-2 mt-5 text-lg text-muted-foreground max-w-[38ch]">
+            Three minutes. One photo. A library that grows from what you
+            actually read.
+          </p>
+          <div className="stagger-4 mt-8 flex items-center gap-5">
+            <Link
+              href={ctaHref}
+              className="start-review-cta [animation:none] active:scale-[0.99] group"
+            >
+              {ctaLabel}
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+            <Link
+              href="#how"
+              className="text-base font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Show me.
+            </Link>
           </div>
+          <p className="stagger-5 mt-6 text-sm text-muted-foreground">
+            Your handwriting works. So does printed text, a screenshot, a manga
+            panel.
+          </p>
+        </div>
 
-          {/* Right: stacked paper demo */}
-          <StackedPaperHero />
+        <div className="lg:col-span-6 mt-12 lg:mt-8">
+          <div className="stagger-5 max-w-[360px] sm:max-w-[400px] mx-auto lg:ml-auto lg:mr-0">
+            <HeroReviewDemo ctaHref={ctaHref} ctaLabel={ctaLabel} />
+          </div>
         </div>
       </div>
     </section>
@@ -166,230 +227,60 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  How it works                                                              */
+/*  The Loop — #how                                                           */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function HowItWorks() {
-  const steps = [
-    {
-      kanji: "撮",
-      reading: "とる",
-      en: "Snap",
-      title: "Snap anything.",
-      body: "Handwritten notes, a textbook spread, a news screenshot, a manga panel, the lyric sheet on your fridge — if it has Japanese on it, KanjiKatch can parse it. Rough handwriting included.",
-      icon: Camera,
-    },
-    {
-      kanji: "拾",
-      reading: "ひろう",
-      en: "Catch",
-      title: "We pull every word.",
-      body: "Every kanji, vocabulary item, and full sentence on the page is pulled out for you, with readings, meanings, and example sentences filled in. Edit anything that's not quite right in one tap.",
-      icon: ScanLine,
-    },
-    {
-      kanji: "覚",
-      reading: "おぼえる",
-      en: "Master",
-      title: "Review until it sticks.",
-      body: "A spaced repetition schedule keeps the words you almost know in front of you and quietly retires the ones you've nailed. Daily review takes minutes — not a planning session.",
-      icon: Layers,
-    },
-    {
-      kanji: "読",
-      reading: "よむ",
-      en: "Read",
-      title: "See it back in the wild.",
-      body: "Fresh sentences calibrated to your exact deck. Studied words glow gold; partials get a teal underline. Tap an unfamiliar word and it becomes tomorrow's catch. The cycle compounds.",
-      icon: Sparkles,
-    },
-  ];
-
+function TheLoop() {
   return (
-    <section id="how" className="border-t border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
-        <div className="max-w-2xl">
-          <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-            ・The cycle ・
+    <section id="how" className="scroll-mt-24">
+      <div className="container mx-auto px-4 sm:px-6 py-24 md:py-32">
+        <Reveal className="max-w-2xl mx-auto text-center">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            The loop
           </p>
           <h2 className="mt-4 font-display text-4xl sm:text-5xl font-bold tracking-tight">
-            A study cycle that grows with you.
+            Snap notes. Learn kanji.
           </h2>
-          <p className="mt-5 text-lg text-muted-foreground">
-            No importing CSVs. No copying readings off Jisho. Snap a textbook
-            page, a sticky note, a news article on your phone — anything with
-            Japanese on it. KanjiKatch turns it into a deck that knows what you
-            already know, then keeps feeding you new material from inside it.
+          <p className="mt-4 text-lg text-muted-foreground max-w-[52ch] mx-auto">
+            No importing CSVs. No copying readings off Jisho.
           </p>
-        </div>
-
-        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map((s, i) => (
-            <div
-              key={s.en}
-              className="relative bg-white rounded-2xl border p-7"
-              style={{
-                borderColor: "hsl(35 15% 86%)",
-                boxShadow:
-                  "0 4px 6px -1px rgba(0,0,0,0.04), 0 2px 4px -1px rgba(0,0,0,0.02)",
-              }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex flex-col">
-                  <span className="font-serif text-5xl text-primary leading-none">
-                    {s.kanji}
-                  </span>
-                  <span className="mt-1.5 text-[10px] font-mono text-muted-foreground tracking-[0.18em]">
-                    {s.reading}
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-                  0{i + 1} · {s.en}
-                </span>
-              </div>
-              <h3 className="mt-5 font-display text-xl font-semibold">
-                {s.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {s.body}
-              </p>
-              <s.icon className="mt-6 h-5 w-5 text-muted-foreground/60" />
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 flex items-center justify-center gap-3 text-xs font-mono uppercase tracking-[0.22em] text-muted-foreground">
-          <RotateCcw className="h-3.5 w-3.5" />
-          <span>
-            Step 04 feeds back into step 01. The deck deepens every loop.
-          </span>
-        </div>
+        </Reveal>
+        <LoopStrip />
       </div>
     </section>
   );
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  See it in the wild — signature feature spotlight                          */
+/*  In the Wild — #wild                                                       */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function WildSpotlight() {
+function Wild({ ctaHref }: { ctaHref: string }) {
   return (
-    <section
-      id="wild"
-      className="border-t border-border/60"
-      style={{
-        background:
-          "linear-gradient(180deg, hsl(35 28% 97%) 0%, hsl(35 35% 95%) 100%)",
-      }}
-    >
-      <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-          <div>
-            <p className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.22em] text-[hsl(150_50%_26%)]">
-              <Sparkles className="h-3.5 w-3.5" />
+    <section id="wild" className="scroll-mt-24">
+      <div className="container mx-auto px-4 sm:px-6 py-24 md:py-32 lg:grid lg:grid-cols-12 lg:gap-12">
+        <div className="lg:col-span-5 lg:sticky lg:top-28 self-start">
+          <Reveal>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
               In the wild
             </p>
             <h2 className="mt-4 font-display text-4xl sm:text-5xl font-bold tracking-tight">
-              Sentences calibrated
-              <br />
-              to your exact deck.
+              Now — read them in the wild.
             </h2>
-            <p className="mt-5 text-lg text-muted-foreground">
-              After every review, KanjiKatch generates fresh sentences seeded
-              with words you've actually studied — and stretched with one or
-              two new pieces sized to where you are. Studied words glow gold.
-              Partials — new words built from kanji you already know — get a
-              teal underline. Tap anything new and it joins your deck.
+            <p className="mt-4 text-lg text-muted-foreground">
+              Built five minutes ago from words you just caught. Every session,
+              fresh ones — calibrated to your library.
             </p>
-            <ul className="mt-8 space-y-3 text-sm">
-              {[
-                "Every sentence is built from your deck — and grows with it. Beginner today, novel-ready in a year.",
-                "Tap an unfamiliar word and it lands in your review queue. Your reading writes your study list.",
-                "The studied-to-new ratio shifts as you grow. The reading always meets you exactly where you are.",
-              ].map((line) => (
-                <li key={line} className="flex items-start gap-3">
-                  <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground/85">{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div
-            className="rounded-2xl bg-white border p-8 sm:p-10"
-            style={{
-              borderColor: "hsl(35 18% 84%)",
-              boxShadow:
-                "0 30px 60px -30px rgba(60, 50, 40, 0.35), 0 8px 16px -8px rgba(60, 50, 40, 0.1)",
-            }}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-                Sentence 3 of 5
-              </span>
-              <span className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-[hsl(45_100%_55%)]" />
-                Studied
-                <span className="w-1.5 h-1.5 rounded-full bg-[hsl(176_55%_42%)] ml-2" />
-                Partial
-              </span>
-            </div>
-
-            <p className="wild-sentence-text text-2xl sm:text-3xl">
-              <span className="wild-studied-word">
-                <ruby>
-                  毎朝<rt>まいあさ</rt>
-                </ruby>
-              </span>
-              、<span className="wild-studied-word">
-                <ruby>
-                  新聞<rt>しんぶん</rt>
-                </ruby>
-              </span>
-              を
-              <span className="wild-studied-word">
-                <ruby>
-                  読<rt>よ</rt>
-                </ruby>
-              </span>
-              みながら、
-              <span className="wild-partial-word">
-                <ruby>
-                  紅茶<rt>こうちゃ</rt>
-                </ruby>
-              </span>
-              を
-              <span className="wild-studied-word">
-                <ruby>
-                  飲<rt>の</rt>
-                </ruby>
-              </span>
-              みます。
+            <p className="mt-4 text-muted-foreground">
+              Studied words glow gold; partials get a teal underline. Tap an
+              unfamiliar word and it becomes tomorrow&apos;s catch.
             </p>
-
-            <div className="mt-6 pt-6 border-t border-dashed border-border">
-              <p className="text-sm text-muted-foreground italic">
-                Every morning I drink black tea while reading the paper.
-              </p>
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <span
-                    key={n}
-                    className={`w-7 h-1 rounded-full ${
-                      n <= 3 ? "bg-primary" : "bg-border"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-[11px] font-mono text-muted-foreground">
-                tap to reveal · ⌘ ↵
-              </span>
-            </div>
-          </div>
+          </Reveal>
+        </div>
+        <div className="lg:col-span-7 mt-10 lg:mt-0">
+          <Reveal delay={0.1}>
+            <WildDemo ctaHref={ctaHref} />
+          </Reveal>
         </div>
       </div>
     </section>
@@ -397,328 +288,199 @@ function WildSpotlight() {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  Built for…                                                                */
+/*  The Stance — positioning ledger + pricing strip                           */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function BuiltFor() {
-  const types = [
-    {
-      icon: BookOpenText,
-      title: "Textbook learners",
-      body: "Genki, Tobira, Quartet — turn each chapter into the only deck you need for it.",
-    },
-    {
-      icon: GraduationCap,
-      title: "Classroom students",
-      body: "Snap the whiteboard, your handout, or last night's homework. Be ready for Friday's quiz.",
-    },
-    {
-      icon: Newspaper,
-      title: "Manga & novel readers",
-      body: "Catch the words on the page in front of you, not the JLPT list someone else made.",
-    },
-    {
-      icon: Headphones,
-      title: "Immersion learners",
-      body: "Screenshot subtitles, signage, lyrics, anything. If kanji is on it, KanjiKatch can read it.",
-    },
-  ];
-
-  return (
-    <section className="border-t border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
-        <div className="flex items-end justify-between gap-6 flex-wrap">
-          <div className="max-w-xl">
-            <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-              ・Built for ・
-            </p>
-            <h2 className="mt-4 font-display text-4xl sm:text-5xl font-bold tracking-tight">
-              However you meet Japanese.
-            </h2>
-          </div>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            KanjiKatch doesn't pick the words for you. Your materials do —
-            anything with Japanese on it, and that's the whole point.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {types.map((t) => (
-            <div
-              key={t.title}
-              className="rounded-xl bg-white border p-6 hover:-translate-y-0.5 transition-transform"
-              style={{ borderColor: "hsl(35 15% 88%)" }}
-            >
-              <t.icon className="h-5 w-5 text-primary" />
-              <h3 className="mt-4 font-display text-lg font-semibold">
-                {t.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {t.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+interface Prices {
+  monthly: number;
+  annual: number;
+  founderMonthly: number;
+  founderAnnual: number;
+  savePct: number;
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Why KanjiKatch — quiet differentiation                                    */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function WhyKanjiKatch() {
-  const rows: { label: string; anki: string | null; wk: string | null; kk: string }[] = [
-    {
-      label: "Deck shaped by your materials",
-      anki: null,
-      wk: null,
-      kk: "Built from photos of what you read",
-    },
-    {
-      label: "Readings & meanings filled in",
-      anki: null,
-      wk: "Fixed list",
-      kk: "Auto, editable",
-    },
-    {
-      label: "Real sentences with your words",
-      anki: null,
-      wk: "Fixed examples",
-      kk: "Generated each session",
-    },
-    {
-      label: "Spaced repetition",
-      anki: "Yes",
-      wk: "Yes",
-      kk: "Yes",
-    },
-    {
-      label: "Setup time",
-      anki: "Hours",
-      wk: "Pre-set",
-      kk: "One photo",
-    },
+function Stance({ prices }: { prices: Prices }) {
+  const rows: Array<[string, string | null, string | null, string]> = [
+    ["Deck shaped by your materials", null, null, "Built from photos of what you read"],
+    ["Readings & meanings filled in", null, "Fixed list", "Auto, editable"],
+    ["Real sentences with your words", null, "Fixed examples", "Generated each session"],
+    ["Spaced repetition", "Yes", "Yes", "Yes"],
+    ["Setup time", "Hours", "Pre-set", "One photo"],
   ];
 
   return (
-    <section
-      className="border-t border-border/60"
-      style={{ background: "hsl(35 22% 96%)" }}
-    >
-      <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
-        <div className="max-w-2xl">
-          <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-            ・Why KanjiKatch ・
-          </p>
-          <h2 className="mt-4 font-display text-4xl sm:text-5xl font-bold tracking-tight">
-            Anki is a blank deck. WaniKani is a fixed curriculum.
-            <span className="text-primary"> KanjiKatch is yours.</span>
+    <section>
+      <div className="container mx-auto px-4 sm:px-6 py-24 md:py-32 max-w-4xl text-center">
+        <Reveal>
+          <h2 className="font-display text-4xl sm:text-5xl font-bold leading-tight tracking-tight max-w-[24ch] mx-auto">
+            Anki is a blank deck. WaniKani is a fixed curriculum.{" "}
+            <span className="text-primary">KanjiKatch is yours.</span>
           </h2>
-          <p className="mt-5 text-lg text-muted-foreground">
-            We're not trying to replace the great tools you already use. We're
-            the missing one — the deck shaped exactly by what's in front of
-            you today.
-          </p>
-        </div>
+        </Reveal>
 
-        <div
-          className="mt-12 overflow-hidden rounded-2xl border bg-white"
-          style={{ borderColor: "hsl(35 18% 86%)" }}
-        >
-          <div className="grid grid-cols-4 gap-0 text-sm">
-            <div
-              className="p-4 sm:p-5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground border-b"
-              style={{ borderColor: "hsl(35 15% 90%)" }}
-            />
-            <div
-              className="p-4 sm:p-5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground border-b text-center"
-              style={{ borderColor: "hsl(35 15% 90%)" }}
-            >
-              Anki
+        {/* The ledger — hairlines, no box. "Yes / Yes / Yes" stays plain:
+            honesty is the joke. */}
+        <Reveal delay={0.1} className="mt-12 overflow-x-auto -mx-4 px-4">
+          <div className="max-w-2xl mx-auto min-w-[560px] text-left text-sm">
+            <div className="grid grid-cols-[1.3fr_0.7fr_0.9fr_1.3fr] gap-x-4 border-b border-border pb-2">
+              <span />
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground text-center">
+                Anki
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground text-center">
+                WaniKani
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-primary text-center">
+                KanjiKatch
+              </span>
             </div>
-            <div
-              className="p-4 sm:p-5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground border-b text-center"
-              style={{ borderColor: "hsl(35 15% 90%)" }}
-            >
-              WaniKani
-            </div>
-            <div
-              className="p-4 sm:p-5 font-mono text-[10px] uppercase tracking-[0.22em] text-primary border-b text-center font-bold"
-              style={{ borderColor: "hsl(35 15% 90%)" }}
-            >
-              KanjiKatch
-            </div>
-            {rows.map((r, idx) => {
-              const last = idx === rows.length - 1;
-              const borderClass = last ? "" : "border-b";
-              const borderStyle = last
-                ? undefined
-                : { borderColor: "hsl(35 15% 92%)" };
-              const cell = (val: string | null) =>
-                val ? (
-                  <span className="text-foreground/80">{val}</span>
-                ) : (
-                  <Minus className="h-4 w-4 text-muted-foreground/50 mx-auto" />
-                );
-              return (
-                <div key={r.label} className="contents">
-                  <div
-                    className={`p-4 sm:p-5 ${borderClass} font-medium`}
-                    style={borderStyle}
-                  >
-                    {r.label}
-                  </div>
-                  <div
-                    className={`p-4 sm:p-5 ${borderClass} text-center text-sm`}
-                    style={borderStyle}
-                  >
-                    {cell(r.anki)}
-                  </div>
-                  <div
-                    className={`p-4 sm:p-5 ${borderClass} text-center text-sm`}
-                    style={borderStyle}
-                  >
-                    {cell(r.wk)}
-                  </div>
-                  <div
-                    className={`p-4 sm:p-5 ${borderClass} text-center text-sm bg-[hsl(150_30%_97%)]`}
-                    style={borderStyle}
-                  >
-                    <span className="text-[hsl(150_50%_26%)] font-medium">
-                      {r.kk}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  FAQ                                                                       */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-function FAQ() {
-  const items = [
-    {
-      q: "What can I photograph?",
-      a: "Anything with Japanese on it. Handwritten notes, textbook pages, news screenshots, manga panels, signage you spotted on the street, sticky notes from class, subtitles from a paused show. KanjiKatch was built on rough handwriting — anything unclear, you can correct in one tap.",
-    },
-    {
-      q: "How are the sentences in 'Read' generated?",
-      a: "Every sentence is built from words in your deck, calibrated to your exact level. Beginners get short sentences with one or two unfamiliar pieces; advanced learners get longer, denser ones. As your deck grows, so does the reading.",
-    },
-    {
-      q: "What level should I be?",
-      a: "Anywhere from your first kanji to N1. KanjiKatch doesn't pick a curriculum for you — your materials do. Beginners get the most out of textbook pages; advanced learners feed in novels, news articles, and screenshots from anything they're already reading.",
-    },
-    {
-      q: "Do I have to type readings and meanings?",
-      a: "Never. KanjiKatch fills in readings, meanings, and example sentences when it catches a new word. Edit anything that doesn't feel right.",
-    },
-    {
-      q: "Does it replace Anki or WaniKani?",
-      a: "It doesn't try to. WaniKani is a great curriculum if you want one chosen for you. Anki is a great empty deck. KanjiKatch is the one that matches the page you're reading right now — and keeps generating new reading from the words you've already learned.",
-    },
-    {
-      q: "What does it cost?",
-      a: "Free forever for the daily review habit — 10 starter extractions plus 5 per month, unlimited reviews. Pro ($10/mo or $100/yr, with a 7-day free trial) unlocks unlimited captures, audio on every sentence, 3–5 personalized sentences per session, and a session recap email. See the full breakdown on the pricing page.",
-    },
-  ];
-
-  return (
-    <section id="faq" className="border-t border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
-        <div className="grid gap-12 lg:grid-cols-[1fr_2fr] lg:gap-16">
-          <div>
-            <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-              ・FAQ ・
-            </p>
-            <h2 className="mt-4 font-display text-4xl font-bold tracking-tight">
-              Questions
-              <br />
-              before you start.
-            </h2>
-          </div>
-          <div className="divide-y" style={{ borderColor: "hsl(35 15% 90%)" }}>
-            {items.map((item) => (
-              <details key={item.q} className="group py-5 first:pt-0">
-                <summary className="flex items-start justify-between gap-6 cursor-pointer list-none">
-                  <span className="font-display text-lg font-semibold text-foreground">
-                    {item.q}
-                  </span>
-                  <span className="font-mono text-xl text-muted-foreground transition-transform group-open:rotate-45 leading-none mt-0.5">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 text-muted-foreground leading-relaxed">
-                  {item.a}
-                </p>
-              </details>
+            {rows.map(([label, anki, wk, kk]) => (
+              <div
+                key={label}
+                className="grid grid-cols-[1.3fr_0.7fr_0.9fr_1.3fr] gap-x-4 items-baseline border-b border-border py-3"
+              >
+                <span className="font-medium">{label}</span>
+                <span className="text-muted-foreground text-center">{anki ?? "—"}</span>
+                <span className="text-muted-foreground text-center">{wk ?? "—"}</span>
+                <span className="font-medium text-center">{kk}</span>
+              </div>
             ))}
           </div>
-        </div>
+        </Reveal>
+
+        {/* Pricing strip — full table lives at /pricing */}
+        <Reveal delay={0.1} className="mt-16">
+          <p className="font-display text-2xl font-medium">
+            Free for the habit. Pro for everything that follows.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4 max-w-[280px] sm:max-w-none mx-auto">
+            <div className="stat-stamp hover:-translate-y-0.5 sm:w-64">
+              <p className="font-mono tabular-nums text-3xl font-bold">$0</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-medium">
+                Free · forever
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                10 extractions to start + 5/month. Unlimited reviews and
+                lookups.
+              </p>
+            </div>
+            <div className="stat-stamp hover:-translate-y-0.5 sm:w-64">
+              <p className="font-mono tabular-nums text-3xl font-bold">
+                ${prices.monthly}
+                <span className="text-base font-medium text-muted-foreground">/mo</span>
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-medium">
+                Pro
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                or ${prices.annual}/yr (save {prices.savePct}%). Unlimited
+                extractions for personal study (fair use).
+              </p>
+              <p className="mt-2 text-sm italic text-muted-foreground">
+                Pro makes every session like this.
+              </p>
+            </div>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            First 100 subscribers: ${prices.founderMonthly}/mo or $
+            {prices.founderAnnual}/yr, locked in.
+          </p>
+          <Link
+            href="/pricing"
+            className="group mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary"
+          >
+            See pricing
+            <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </Reveal>
       </div>
     </section>
   );
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  Final CTA                                                                 */
+/*  FAQ — #faq                                                                */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function FinalCTA({
-  ctaHref,
-  ctaLabel,
-}: {
-  ctaHref: string;
-  ctaLabel: string;
-}) {
+const FAQ_ACCENTS = [
+  "open:border-l-orange-200",
+  "open:border-l-amber-200",
+  "open:border-l-emerald-200",
+  "open:border-l-indigo-200",
+  "open:border-l-orange-200",
+];
+
+function FAQ({ items }: { items: Array<{ q: string; a: string }> }) {
   return (
-    <section className="border-t border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-20 sm:py-28">
-        <div
-          className="relative rounded-3xl overflow-hidden p-10 sm:p-16 text-center"
-          style={{
-            background:
-              "linear-gradient(135deg, hsl(152 50% 22%) 0%, hsl(152 60% 16%) 100%)",
-            color: "hsl(35 28% 97%)",
-          }}
-        >
-          <div
-            aria-hidden
-            className="absolute -top-12 -right-12 font-serif text-[18rem] leading-none opacity-[0.05] select-none"
-          >
-            漢字
-          </div>
-          <p className="relative text-[11px] font-mono uppercase tracking-[0.22em] opacity-70">
-            ・Catch the next one ・
+    <section id="faq" className="scroll-mt-24">
+      <div className="container mx-auto px-4 sm:px-6 py-24 md:py-32 max-w-2xl">
+        <Reveal>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            Questions
           </p>
-          <h2 className="relative mt-4 font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl mx-auto leading-[1.1]">
-            The next page of Japanese you read could be your next deck.
+          <h2 className="mt-4 font-display text-4xl font-bold tracking-tight">
+            Honest answers.
           </h2>
-          <p className="relative mt-5 text-lg opacity-85 max-w-xl mx-auto">
-            Sign up free, take one photo, and watch a personal review schedule
-            build itself.
-          </p>
-          <div className="relative mt-8 flex justify-center">
-            <Button
-              size="lg"
-              className="h-12 px-8 text-base bg-white text-[hsl(152_60%_18%)] hover:bg-white/90"
-              asChild
+        </Reveal>
+        <Reveal delay={0.1} className="mt-10">
+          {items.map((item, i) => (
+            <details
+              key={item.q}
+              name="faq"
+              className={`group border-b border-border border-l-transparent open:border-l-[3px] open:pl-4 transition-[padding] duration-200 ${FAQ_ACCENTS[i]}`}
             >
-              <Link href={ctaHref}>
+              <summary className="flex items-start justify-between gap-6 py-5 font-medium cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                <span className="font-display text-lg font-semibold">{item.q}</span>
+                <span
+                  aria-hidden
+                  className="font-mono text-xl text-muted-foreground transition-transform duration-200 group-open:rotate-45 leading-none mt-0.5"
+                >
+                  +
+                </span>
+              </summary>
+              <p className="pb-5 text-muted-foreground leading-relaxed group-open:animate-[fade-up-in_0.25s_ease-out]">
+                {item.a}
+              </p>
+            </details>
+          ))}
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Final CTA — the same scene at golden hour                                 */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function FinalCTA({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
+  return (
+    <section className="relative overflow-hidden min-h-[80svh] flex items-center py-28 md:py-36">
+      <LandingScene palette="dusk" showStars className="absolute inset-0" />
+      <div className="relative z-10 container mx-auto px-4 sm:px-6">
+        <div className="max-w-xl mx-auto text-center pb-40">
+          <FinalCtaCheck />
+          <Reveal delay={0.12}>
+            <h2 className="mt-8 font-display text-5xl sm:text-6xl font-bold tracking-tight text-[#F5F0E6]">
+              The first one&apos;s on us.
+            </h2>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <p className="mt-4 text-[#F5F0E6]/80">
+              7-day trial, card required, cancel anytime.
+            </p>
+          </Reveal>
+          <Reveal delay={0.28}>
+            <div className="mt-8 flex justify-center">
+              <Link
+                href={ctaHref}
+                className="start-review-cta active:scale-[0.99] group w-full max-w-xs sm:w-auto"
+              >
                 {ctaLabel}
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </Link>
-            </Button>
-          </div>
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -731,18 +493,38 @@ function FinalCTA({
 
 function Footer() {
   return (
-    <footer className="border-t border-border/60">
-      <div className="container mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-baseline gap-2">
-          <span className="font-serif text-xl text-primary">漢字</span>
+    <footer className="border-t border-border">
+      <div className="container mx-auto px-4 sm:px-6 py-12 flex flex-col sm:flex-row items-center justify-between gap-5">
+        <div className="flex items-center gap-3">
+          <span className="font-serif text-xl text-primary leading-none">漢字</span>
           <span className="font-display font-semibold">KanjiKatch</span>
-          <span className="text-xs text-muted-foreground ml-2">
-            built for Japanese learners
+          {/* The 1号車 badge, one more time — same object, third light. */}
+          <svg
+            viewBox="0 0 52 32"
+            className="w-[34px] h-[21px]"
+            aria-hidden
+            shapeRendering="crispEdges"
+          >
+            <rect width="52" height="32" rx="2" fill="#2D6A4F" />
+            <text
+              x="26"
+              y="21"
+              textAnchor="middle"
+              fill="#FFFFFF"
+              fontSize="14"
+              fontFamily="system-ui, sans-serif"
+              fontWeight="600"
+            >
+              1号車
+            </text>
+          </svg>
+          <span className="font-mono text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} KanjiKatch
           </span>
         </div>
         <nav
           aria-label="Footer"
-          className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"
+          className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
         >
           <Link href="/pricing" className="hover:text-foreground transition-colors">
             Pricing
@@ -759,7 +541,6 @@ function Footer() {
           >
             support@kanjikatch.com
           </a>
-          <span>&copy; {new Date().getFullYear()} KanjiKatch</span>
         </nav>
       </div>
     </footer>

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+/* Fonts are self-hosted via next/font in src/app/layout.tsx and exposed as
+   --font-sans / --font-serif / --font-display / --font-mono CSS variables. */
 
 @tailwind base;
 @tailwind components;
@@ -84,7 +85,6 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Noto Sans JP', sans-serif;
   }
 }
 
@@ -122,6 +122,11 @@
 @keyframes fade-up-in {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gold-wipe {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 @keyframes warm-breathe {
@@ -458,6 +463,20 @@
     animation: pulse-glow 3.5s ease-in-out infinite;
   }
 
+  /* Landing hero: gold marker wipe under "seen" — CSS-only so the hero
+     headline stays server-rendered. */
+  .hero-gold-wipe {
+    transform-origin: left;
+    animation: gold-wipe 0.4s ease-out 0.6s both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-gold-wipe {
+      animation: none;
+      transform: none;
+    }
+  }
+
   /* ── Staggered entrance animations ──────────────────── */
   .stagger-0 { opacity: 0; animation: fade-up-in 0.5s ease-out 0s both; }
   .stagger-1 { opacity: 0; animation: fade-up-in 0.5s ease-out 0.06s both; }
@@ -476,7 +495,7 @@
 
   /* "See It In The Wild" — reading-focused styles */
   .wild-sentence-text {
-    font-family: 'Noto Sans JP', sans-serif;
+    font-family: var(--font-sans, 'Noto Sans JP'), 'Noto Sans JP', sans-serif;
     font-weight: 400;
     line-height: 2.2;
     letter-spacing: 0.02em;
