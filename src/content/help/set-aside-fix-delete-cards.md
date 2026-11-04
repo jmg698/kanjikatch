@@ -1,5 +1,3 @@
-# Setting aside, fixing, or deleting a card
-
 Sometimes a card isn't useful — maybe it's a name you'll never need, or the definition looks wrong. You can **set it aside** during a review to take it out of rotation. You can then bring it back, fix it, or delete it from your library.
 
 Setting a card aside doesn't count as a grade. Your streak and accuracy aren't affected.
@@ -57,8 +55,3 @@ A deleted card won't come back, even if you capture the same word again later.
 1. In **Library**, select the **Kanji** or **Vocabulary** tab.
 2. Select **Deleted**.
 3. Select **Restore** on the card.
-
-## Related articles
-
-- How reviews work
-- Browsing your library

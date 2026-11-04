@@ -1,5 +1,3 @@
-# Getting started with KanjiKatch
-
 KanjiKatch turns the Japanese you actually read — your class notes, a textbook page, a screenshot, a manga panel — into flashcards you review over time. This article walks you through your first few minutes.
 
 ## How KanjiKatch works
@@ -42,14 +40,11 @@ The navigation bar at the top of every page (a second row on phones) has these t
 | **Capture** | Add a new page of Japanese |
 | **Review** | Start reviewing. The badge shows how many cards are due. |
 
+You can get back to this Help Center any time from the **Help Center** link at the bottom of every page.
+
 ## Replay the tour later
 
 1. Select **Settings**.
 2. Under **Onboarding**, find **Replay onboarding tour**, then select **Replay**.
 
 Replaying the tour doesn't change your existing library.
-
-## Related articles
-
-- Capturing Japanese from photos and text
-- How reviews work

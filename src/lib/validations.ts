@@ -160,6 +160,14 @@ export const feedbackSchema = z.object({
   errorMessage: z.string().max(2000).nullable().optional(),
 });
 
+// Help center "Was this article helpful?" vote. The slug is checked against
+// the article registry in the route; the comment is only offered on "No".
+export const helpFeedbackSchema = z.object({
+  articleSlug: z.string().min(1).max(100),
+  helpful: z.boolean(),
+  comment: z.string().trim().max(1000).nullable().optional(),
+});
+
 // Card triage validation. Powers the in-review "Set aside" gesture and the
 // library's restore / delete actions. The reason is required when setting a
 // card aside (it routes the card — see FlagReason in the schema) and ignored

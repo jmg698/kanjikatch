@@ -1,5 +1,3 @@
-# Tracking your streak and progress
-
 Your dashboard shows how your studying is going: what's due, how many days in a row you've studied, and which kanji need extra attention.
 
 ## Open your dashboard
@@ -35,8 +33,3 @@ To see your cards by stage:
 2. Select the **Kanji** or **Vocabulary** tab.
 3. Select the filter button (the sliders icon).
 4. Under **SRS Stage**, choose a stage.
-
-## Related articles
-
-- How reviews work
-- Browsing your library

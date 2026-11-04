@@ -105,6 +105,9 @@ export default async function DashboardLayout({
 
       <footer className="border-t border-border/60 mt-12 print:hidden">
         <div className="container px-4 py-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <Link href="/help" className="hover:text-foreground transition-colors">
+            Help Center
+          </Link>
           <Link href="/dashboard/settings" className="hover:text-foreground transition-colors">
             Settings
           </Link>

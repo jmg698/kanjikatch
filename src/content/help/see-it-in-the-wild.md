@@ -1,5 +1,3 @@
-# Reading practice: See It In The Wild
-
 Flashcards help you remember words. Reading them in real sentences helps you *understand* them. After each review session, KanjiKatch writes short, natural Japanese sentences using the words you just practiced.
 
 ## Read sentences after a review
@@ -15,7 +13,7 @@ Flashcards help you remember words. Reading them in real sentences helps you *un
 
 > **Why rate sentences?** Your ratings teach KanjiKatch what "just right" feels like for you. After you've rated a few, new sentences are adjusted to match your level. Ratings don't affect your flashcard schedule.
 
-On the free plan you get 2 sentences after each session. Pro gives you more. See *Free vs Pro: plans, limits, and billing*.
+On the free plan you get 2 sentences after each session. Pro gives you more. See [Free vs Pro: plans, limits, and billing](/help/plans-and-billing).
 
 ## Add a new word from a sentence
 
@@ -52,8 +50,3 @@ Sentences are created after review sessions. Select **Start a Review** and compl
 
 **"Daily generation limit reached"**
 You've hit the daily limit on new sentences. Try again tomorrow.
-
-## Related articles
-
-- How reviews work
-- Browsing your library

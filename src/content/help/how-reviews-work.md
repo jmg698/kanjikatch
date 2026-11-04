@@ -1,5 +1,3 @@
-# How reviews work
-
 KanjiKatch uses **spaced repetition**: cards you know well come back less often, and cards you struggle with come back sooner. A few minutes of review each day is all it takes.
 
 ## Start a review session
@@ -88,9 +86,3 @@ Press **?** during a review to see the shortcuts at any time.
 | S | Set the card aside |
 | U or ← | Redo last card |
 | ? | Show or hide shortcuts |
-
-## Related articles
-
-- Setting aside, fixing, or deleting a card
-- Reading practice: See It In The Wild
-- Tracking your streak and progress
