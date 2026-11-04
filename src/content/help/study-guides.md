@@ -1,5 +1,3 @@
-# Creating study guides
-
 A study guide turns one or more captures into a full lesson handout you can read or print. It's especially useful for class notes: capture the week's slides, then build a single guide to study from.
 
 Each guide includes:
@@ -46,8 +44,3 @@ The captures you picked don't have any saved items. Capture a page, save some it
 
 **"Our AI is temporarily overloaded"**
 Wait a minute and try again.
-
-## Related articles
-
-- Capturing Japanese from photos and text
-- Browsing your library

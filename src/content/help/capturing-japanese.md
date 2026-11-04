@@ -1,5 +1,3 @@
-# Capturing Japanese from photos and text
-
 Capturing is how you add material to KanjiKatch. You give it a photo or some text, and it pulls out the kanji, vocabulary, grammar patterns, and sentences for you to save.
 
 ## What you can capture
@@ -78,10 +76,4 @@ Select **Try Again**. If it keeps happening, select **Report this issue**, add a
 Wait a minute and try again.
 
 **"You've used your 5 extractions for this month"**
-You're out of free extractions for the month. See *Free vs Pro: plans, limits, and billing*.
-
-## Related articles
-
-- Browsing your library
-- Creating study guides
-- Free vs Pro: plans, limits, and billing
+You're out of free extractions for the month. See [Free vs Pro: plans, limits, and billing](/help/plans-and-billing).

@@ -1,5 +1,3 @@
-# Browsing your library
-
 Your library holds everything you've saved from your captures. Use it to look things up, check your progress, and manage cards you've set aside.
 
 ## Open your library
@@ -53,10 +51,5 @@ The library shows 50 items at a time. Select **Load more** at the bottom to see 
 
 There are two ways to add items:
 
-- **Capture a page.** See *Capturing Japanese from photos and text*.
-- **Tap a word in a practice sentence.** See *Reading practice: See It In The Wild*.
-
-## Related articles
-
-- Setting aside, fixing, or deleting a card
-- How reviews work
+- **Capture a page.** See [Capturing Japanese from photos and text](/help/capturing-japanese).
+- **Tap a word in a practice sentence.** See [Reading practice: See It In The Wild](/help/see-it-in-the-wild).

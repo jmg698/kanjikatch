@@ -2,6 +2,12 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Help center articles are Markdown read from disk at render time; make
+  // sure they ship with the serverless functions that render them.
+  outputFileTracingIncludes: {
+    "/help": ["./src/content/help/**/*.md"],
+    "/help/[slug]": ["./src/content/help/**/*.md"],
+  },
   images: {
     remotePatterns: [
       {

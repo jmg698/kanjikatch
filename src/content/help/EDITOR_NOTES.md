@@ -1,19 +1,8 @@
-# KanjiKatch Help Center
+# Help Center: editor notes
 
-Drafts of the help-center articles. Each file is standalone Markdown that can be pasted into a help-center tool (Intercom, Zendesk, HelpScout, Notion, etc.).
+Internal notes. This file is not rendered. Articles in this folder are served at `/help/<file name>`. Titles, descriptions, categories and related links live in `src/lib/help-center.ts`, so adding an article takes two steps: add a `.md` file here and add an entry to `HELP_ARTICLES`. Bump `HELP_LAST_UPDATED` when you revise articles.
 
-| # | Article | Covers |
-| --- | --- | --- |
-| 1 | [Getting started with KanjiKatch](01-getting-started.md) | The core loop, welcome tour, navigation |
-| 2 | [Capturing Japanese from photos and text](02-capturing-japanese.md) | Photo/camera/paste, the review-and-save screen, troubleshooting |
-| 3 | [How reviews work](03-how-reviews-work.md) | Starting sessions, grading, spaced repetition, stages, undo, shortcuts |
-| 4 | [Setting aside, fixing, or deleting a card](04-set-aside-fix-delete-cards.md) | Set aside, Put back, Fix definition, Delete, Restore |
-| 5 | [Browsing your library](05-browsing-your-library.md) | Tabs, search, filters, sort |
-| 6 | [Reading practice: See It In The Wild](06-see-it-in-the-wild.md) | Post-session sentences, rating, adding words, Read page |
-| 7 | [Creating study guides](07-study-guides.md) | Creating, printing, deleting guides |
-| 8 | [Tracking your streak and progress](08-streaks-and-progress.md) | Dashboard, streak rules, card stages |
-| 9 | [Free vs Pro: plans, limits, and billing](09-free-vs-pro-billing.md) | Extraction quota, trial, upgrade, cancel, resume |
-| 10 | [Managing your account and data](10-account-data-privacy.md) | Email/password, export, delete account, privacy, support |
+"Was this helpful?" votes are stored in `help_article_feedback` (see `scripts/sql/0006_help_feedback.sql` for a summary query).
 
 ## Editor notes: product vs. marketing mismatches
 

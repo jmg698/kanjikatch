@@ -1,5 +1,3 @@
-# Free vs Pro: plans, limits, and billing
-
 KanjiKatch is free for your daily review habit. Pro removes the limit on captures and gives you more reading practice.
 
 ## What's included
@@ -73,8 +71,3 @@ If you've canceled but your Pro access hasn't ended yet:
 ## Questions about billing?
 
 Email **support@kanjikatch.com**.
-
-## Related articles
-
-- Capturing Japanese from photos and text
-- Managing your account and data

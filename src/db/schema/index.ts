@@ -377,6 +377,22 @@ export const userReports = pgTable("user_reports", {
   createdAtIdx: index("user_reports_created_at_idx").on(table.createdAt),
 }));
 
+// Help center "Was this article helpful?" votes. Public — the help center is
+// readable signed out — so userId is nullable and abuse is throttled by
+// hashed IP (never the raw IP) in /api/help/feedback.
+export const helpArticleFeedback = pgTable("help_article_feedback", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  articleSlug: text("article_slug").notNull(),
+  helpful: boolean("helpful").notNull(),
+  comment: text("comment"),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  ipHash: text("ip_hash"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  slugCreatedIdx: index("help_feedback_slug_created_idx").on(table.articleSlug, table.createdAt),
+  ipCreatedIdx: index("help_feedback_ip_created_idx").on(table.ipHash, table.createdAt),
+}));
+
 // API usage events — one row per Anthropic call. Powers the cost protection
 // guards (global circuit breaker, per-user token cap, per-IP throttle).
 // userId is nullable so we can still record IP-throttle events from
@@ -446,3 +462,4 @@ export type NewReviewTrack = typeof reviewTracks.$inferInsert;
 
 export type UserReport = typeof userReports.$inferSelect;
 export type NewUserReport = typeof userReports.$inferInsert;
+export type HelpArticleFeedback = typeof helpArticleFeedback.$inferSelect;

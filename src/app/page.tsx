@@ -529,6 +529,9 @@ function Footer() {
           <Link href="/pricing" className="hover:text-foreground transition-colors">
             Pricing
           </Link>
+          <Link href="/help" className="hover:text-foreground transition-colors">
+            Help Center
+          </Link>
           <Link href="/terms" className="hover:text-foreground transition-colors">
             Terms
           </Link>
